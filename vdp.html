@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vehicle Details — DriveClear</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<!-- ═══════════════════════ NAV ═══════════════════════ -->
+<nav class="nav" role="navigation">
+  <div class="container nav-inner">
+    <a href="index.html" class="nav-logo">
+      <div class="logo-mark">DC</div>
+      Drive<span class="accent">Clear</span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="srp.html" class="active">Used Cars</a></li>
+      <li><a href="#">Sell / Trade</a></li>
+      <li><a href="#">Financing</a></li>
+      <li><a href="#">How It Works</a></li>
+      <li><a href="#">Locations</a></li>
+    </ul>
+    <div class="nav-right">
+      <a href="tel:+18005551234" class="nav-phone">
+        <i class="fa-solid fa-phone"></i> (800) 555-1234
+      </a>
+      <a href="#" class="btn btn-primary btn-sm">Get Pre-Approved</a>
+      <button class="nav-hamburger" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<nav class="mobile-nav">
+  <a href="index.html">Home</a>
+  <a href="srp.html">Used Cars</a>
+  <a href="#">Sell / Trade</a>
+  <a href="#">Financing</a>
+  <a href="#">Locations</a>
+</nav>
+
+<!-- ═══════════════════════ BREADCRUMB ═══════════════════════ -->
+<div class="breadcrumb">
+  <div class="container">
+    <div class="bc-inner">
+      <a href="index.html">Home</a>
+      <i class="fa-solid fa-chevron-right"></i>
+      <a href="srp.html">Used Cars</a>
+      <i class="fa-solid fa-chevron-right"></i>
+      <span id="bc-vehicle">Vehicle Details</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ VDP MAIN ═══════════════════════ -->
+<div class="container" id="vdp-root">
+  <div class="vdp-wrap">
+
+    <!-- ─── Left: Gallery + Details ─── -->
+    <div>
+
+      <!-- Photo Gallery -->
+      <div class="gallery" aria-label="Vehicle photos">
+        <div class="g-main">
+          <img id="g-main-img" src="" alt="Vehicle photo">
+          <button class="g-arrow g-prev" id="g-prev" aria-label="Previous photo">
+            <i class="fa-solid fa-chevron-left"></i>
+          </button>
+          <button class="g-arrow g-next" id="g-next" aria-label="Next photo">
+            <i class="fa-solid fa-chevron-right"></i>
+          </button>
+          <div class="g-counter" id="g-counter">1 / 15</div>
+        </div>
+        <div class="g-thumbs" id="g-thumbs"></div>
+      </div>
+
+      <!-- Details Sections -->
+      <div class="vdp-details" style="margin-top:20px">
+
+        <!-- Description -->
+        <div class="vdp-section">
+          <h2 class="vdp-sec-title">About This Vehicle</h2>
+          <p class="vdp-desc" id="vdp-desc">Loading vehicle description…</p>
+        </div>
+
+        <!-- Specs -->
+        <div class="vdp-section">
+          <h2 class="vdp-sec-title">Vehicle Specifications</h2>
+          <div class="specs-grid" id="vdp-specs">
+            <!-- Rendered by app.js -->
+          </div>
+        </div>
+
+        <!-- Features -->
+        <div class="vdp-section">
+          <h2 class="vdp-sec-title">Features &amp; Options</h2>
+          <div class="features-grid" id="vdp-features">
+            <!-- Rendered by app.js -->
+          </div>
+        </div>
+
+        <!-- Vehicle History -->
+        <div class="vdp-section">
+          <h2 class="vdp-sec-title">Vehicle History</h2>
+          <div class="hist-items">
+            <div class="hist-item">
+              <div class="hist-icon green"><i class="fa-solid fa-user"></i></div>
+              <div>
+                <div class="hist-title">1 Previous Owner</div>
+                <div class="hist-sub">Personal use vehicle — not a fleet or rental car</div>
+              </div>
+              <div class="hist-check"><i class="fa-solid fa-check"></i></div>
+            </div>
+            <div class="hist-item">
+              <div class="hist-icon green"><i class="fa-solid fa-shield-halved"></i></div>
+              <div>
+                <div class="hist-title">No Reported Accidents</div>
+                <div class="hist-sub">No damage or structural issue events on record</div>
+              </div>
+              <div class="hist-check"><i class="fa-solid fa-check"></i></div>
+            </div>
+            <div class="hist-item">
+              <div class="hist-icon blue"><i class="fa-solid fa-file-shield"></i></div>
+              <div>
+                <div class="hist-title">Clean Carfax Report</div>
+                <div class="hist-sub">Full vehicle history available — no title issues</div>
+              </div>
+              <div class="hist-check"><i class="fa-solid fa-check"></i></div>
+            </div>
+            <div class="hist-item">
+              <div class="hist-icon green"><i class="fa-solid fa-wrench"></i></div>
+              <div>
+                <div class="hist-title">150-Point Inspection</div>
+                <div class="hist-sub">Inspected by a certified DriveClear technician</div>
+              </div>
+              <div class="hist-check"><i class="fa-solid fa-check"></i></div>
+            </div>
+            <div class="hist-item">
+              <div class="hist-icon green"><i class="fa-solid fa-file-certificate"></i></div>
+              <div>
+                <div class="hist-title">Clean Title</div>
+                <div class="hist-sub">Not salvage, rebuilt, or flood-damaged</div>
+              </div>
+              <div class="hist-check"><i class="fa-solid fa-check"></i></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Payment Calculator -->
+        <div class="vdp-section" id="payment-calc">
+          <h2 class="vdp-sec-title">Estimate Your Payment</h2>
+          <div class="calc-row">
+            <div class="calc-row-label">
+              Down Payment <span id="calc-down-label">$0</span>
+            </div>
+            <input type="range" class="calc-slider" id="calc-down-slider" min="0" max="20000" value="0" step="500" aria-label="Down payment slider">
+          </div>
+          <div class="calc-inp-row" style="margin-bottom:14px">
+            <div>
+              <label style="font-size:13px;color:var(--text-mid);font-weight:600;display:block;margin-bottom:5px">Down Payment</label>
+              <input type="number" class="calc-inp" id="calc-down" value="0" min="0" step="500" placeholder="$0" aria-label="Down payment amount">
+            </div>
+            <div>
+              <label style="font-size:13px;color:var(--text-mid);font-weight:600;display:block;margin-bottom:5px">Interest Rate (APR %)</label>
+              <input type="number" class="calc-inp" id="calc-rate" value="6.9" min="0.1" max="30" step="0.1" aria-label="Interest rate">
+            </div>
+          </div>
+          <div>
+            <label style="font-size:13px;color:var(--text-mid);font-weight:600;display:block;margin-bottom:5px">Loan Term</label>
+            <select class="calc-inp" id="calc-term" style="width:100%" aria-label="Loan term">
+              <option value="24">24 Months (2 Years)</option>
+              <option value="36">36 Months (3 Years)</option>
+              <option value="48">48 Months (4 Years)</option>
+              <option value="60" selected>60 Months (5 Years)</option>
+              <option value="72">72 Months (6 Years)</option>
+            </select>
+          </div>
+          <div class="calc-result" id="calc-result">
+            <div class="calc-mo">—</div>
+            <div class="calc-mo-label">Estimated Monthly Payment</div>
+          </div>
+          <p class="calc-note">* Estimated payment for illustration purposes only. Actual rate based on credit approval. Taxes and fees not included.</p>
+          <div style="margin-top:16px">
+            <a href="#" class="btn btn-primary btn-block btn-lg">
+              <i class="fa-solid fa-lock"></i> Get Pre-Approved — Won't Affect Credit Score
+            </a>
+          </div>
+        </div>
+
+      </div><!-- /vdp-details -->
+    </div><!-- /left col -->
+
+    <!-- ─── Right: Sidebar ─── -->
+    <div class="vdp-sidebar">
+
+      <!-- Price Card -->
+      <div class="vdp-card">
+        <div class="vdp-year-tag" id="vdp-year">2021</div>
+        <h1 class="vdp-title-h" id="vdp-make-model">Loading…</h1>
+        <div class="vdp-trim-tag" id="vdp-trim"></div>
+
+        <div class="vdp-price" id="vdp-price">—</div>
+        <div class="vdp-mo" id="vdp-monthly"></div>
+
+        <!-- Payment Options AI Assistant Popover -->
+        <div class="pa-popover" id="pa-popover" hidden role="dialog" aria-label="Payment options assistant">
+          <div class="pa-arrow"></div>
+          <div class="pa-header">
+            <div class="pa-title">
+              <div class="pa-avatar"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+              <div>
+                <div class="pa-name">DriveClear Assistant</div>
+                <div class="pa-status"><span class="pa-dot"></span> Ask about payments</div>
+              </div>
+            </div>
+            <button type="button" class="pa-close" id="pa-close" aria-label="Close assistant">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+
+          <div class="pa-body" id="pa-body">
+            <div class="pa-msg pa-msg-bot">
+              <div class="pa-msg-avatar"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+              <div class="pa-msg-bubble">
+                <div class="pa-msg-label">About Payment Options</div>
+                <p>Your estimated monthly payment is a quick preview based on a <strong>60-month loan</strong> at <strong>6.9% APR</strong> with <strong>$0 down</strong>.</p>
+                <p>You can adjust your down payment, term, and rate in the <a href="#payment-calc">Payment Calculator</a> below to fit your budget — or get pre-approved to lock in your real rate.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="pa-chips" id="pa-chips" aria-label="Suggested questions">
+            <button type="button" class="pa-chip" data-q="How does APR affect my monthly payment?">How does APR affect my payment?</button>
+            <button type="button" class="pa-chip" data-q="What down payment do you recommend?">What down payment should I put down?</button>
+            <button type="button" class="pa-chip" data-q="Can I trade in my current vehicle?">Can I trade in my current car?</button>
+          </div>
+
+          <form class="pa-input-row" id="pa-form">
+            <input type="text" class="pa-input" id="pa-input" placeholder="Ask a follow-up question…" autocomplete="off" aria-label="Ask a follow-up question">
+            <button type="submit" class="pa-send" aria-label="Send message">
+              <i class="fa-solid fa-arrow-up"></i>
+            </button>
+          </form>
+          <div class="pa-footer">
+            <i class="fa-solid fa-shield-halved"></i> AI-assisted answers · Not a financing offer
+          </div>
+        </div>
+
+        <div class="vdp-mkt-pill" id="vdp-mkt-pill"></div>
+
+        <!-- Key Stats -->
+        <div class="vdp-stats">
+          <div class="vdp-stat">
+            <div class="vdp-stat-v" id="vdp-mileage-stat">—</div>
+            <div class="vdp-stat-l">Mileage</div>
+          </div>
+          <div class="vdp-stat">
+            <div class="vdp-stat-v" id="vdp-engine-stat">—</div>
+            <div class="vdp-stat-l">Engine</div>
+          </div>
+          <div class="vdp-stat">
+            <div class="vdp-stat-v" id="vdp-mpg-stat">— / —</div>
+            <div class="vdp-stat-l">MPG City / Hwy</div>
+          </div>
+          <div class="vdp-stat">
+            <div class="vdp-stat-v" id="vdp-drivetrain-stat">—</div>
+            <div class="vdp-stat-l">Drivetrain</div>
+          </div>
+        </div>
+
+        <!-- CTAs -->
+        <div class="vdp-ctas">
+          <a href="#" class="btn btn-primary">
+            <i class="fa-solid fa-lock"></i> Get Pre-Approved
+          </a>
+          <a href="#" class="btn btn-dark">
+            <i class="fa-solid fa-calendar-check"></i> Schedule a Test Drive
+          </a>
+          <button class="btn btn-ghost" id="vdp-save-btn">
+            <i class="fa-regular fa-heart"></i> Save Vehicle
+          </button>
+        </div>
+
+        <!-- Trust Flags -->
+        <div class="vdp-flags" id="vdp-flags">
+          <!-- Rendered by app.js -->
+        </div>
+      </div>
+
+      <!-- Contact Card -->
+      <div class="vdp-card">
+        <h3 style="font-size:15px;font-weight:700;margin-bottom:14px">Questions? We're Here.</h3>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <a href="tel:+18005551234" class="btn btn-ghost btn-block">
+            <i class="fa-solid fa-phone" style="color:var(--teal)"></i> (800) 555-1234
+          </a>
+          <a href="#" class="btn btn-ghost btn-block">
+            <i class="fa-regular fa-message" style="color:var(--teal)"></i> Send Us a Message
+          </a>
+          <a href="#" class="btn btn-ghost btn-block">
+            <i class="fa-solid fa-map-location-dot" style="color:var(--teal)"></i> Find Nearest Location
+          </a>
+        </div>
+        <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);font-size:13px;color:var(--text-light)">
+          <i class="fa-solid fa-clock" style="color:var(--teal);margin-right:6px"></i>
+          Mon–Sat 9am–8pm · Sun 11am–6pm
+        </div>
+      </div>
+
+      <!-- Guarantee Card -->
+      <div class="vdp-card" style="background:var(--teal-light);border-color:rgba(0,191,179,0.25)">
+        <div style="display:flex;align-items:flex-start;gap:12px">
+          <div style="width:42px;height:42px;background:var(--teal);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <i class="fa-solid fa-rotate-left" style="color:#fff;font-size:16px"></i>
+          </div>
+          <div>
+            <div style="font-size:14px;font-weight:700;color:var(--text-dark);margin-bottom:4px">7-Day Love It Guarantee</div>
+            <div style="font-size:13px;color:var(--text-mid);line-height:1.55">
+              Buy with confidence. Return this vehicle within 7 days or 250 miles for a full refund — no questions asked.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- No Fees Card -->
+      <div class="vdp-card" style="background:var(--success-light);border-color:rgba(56,161,105,0.25)">
+        <div style="display:flex;align-items:center;gap:12px">
+          <i class="fa-solid fa-tag" style="color:var(--success);font-size:22px;flex-shrink:0"></i>
+          <div>
+            <div style="font-size:14px;font-weight:700;color:var(--text-dark)">Zero Dealer Fees</div>
+            <div style="font-size:13px;color:var(--text-mid)">No documentation fees, no processing fees, no surprises.</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /sidebar -->
+
+  </div><!-- /vdp-wrap -->
+</div><!-- /container -->
+
+<!-- ═══════════════════════ SIMILAR VEHICLES ═══════════════════════ -->
+<section class="similar-section" aria-label="Similar vehicles">
+  <div class="container">
+    <div class="section-row">
+      <div>
+        <div class="section-tag">You May Also Like</div>
+        <h2 class="section-title">Similar Vehicles</h2>
+      </div>
+      <a href="srp.html" class="btn btn-outline">View All <i class="fa-solid fa-arrow-right"></i></a>
+    </div>
+    <div class="v-grid" id="similar-grid" style="grid-template-columns:repeat(3,1fr)">
+      <!-- Rendered by app.js -->
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ FLOATING CTA (Mobile) ═══════════════════════ -->
+<div class="floating-cta" role="complementary" aria-label="Purchase options">
+  <div>
+    <div class="fc-price" id="fc-price">—</div>
+    <div class="fc-mo" id="fc-mo">— /mo</div>
+  </div>
+  <a href="#" class="btn btn-primary">Get Pre-Approved</a>
+  <a href="#" class="btn btn-dark">Test Drive</a>
+</div>
+
+<!-- ═══════════════════════ FOOTER ═══════════════════════ -->
+<footer class="footer" role="contentinfo">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <a href="index.html" class="nav-logo">
+          <div class="logo-mark">DC</div>
+          Drive<span class="accent">Clear</span>
+        </a>
+        <p>DriveClear is the smarter way to buy a used car. Transparent pricing, zero dealer fees, and a 7-day return guarantee.</p>
+        <div class="footer-social">
+          <a href="#" aria-label="Facebook"><i class="fa-brands fa-facebook-f"></i></a>
+          <a href="#" aria-label="Instagram"><i class="fa-brands fa-instagram"></i></a>
+          <a href="#" aria-label="Twitter"><i class="fa-brands fa-x-twitter"></i></a>
+          <a href="#" aria-label="YouTube"><i class="fa-brands fa-youtube"></i></a>
+        </div>
+      </div>
+      <div>
+        <div class="footer-col-title">Shop</div>
+        <ul class="footer-links">
+          <li><a href="srp.html">All Used Cars</a></li>
+          <li><a href="srp.html?body=SUV">SUVs</a></li>
+          <li><a href="srp.html?body=Sedan">Sedans</a></li>
+          <li><a href="srp.html?body=Truck">Trucks</a></li>
+        </ul>
+      </div>
+      <div>
+        <div class="footer-col-title">Company</div>
+        <ul class="footer-links">
+          <li><a href="#">About DriveClear</a></li>
+          <li><a href="#">How It Works</a></li>
+          <li><a href="#">Careers</a></li>
+          <li><a href="#">Contact Us</a></li>
+        </ul>
+      </div>
+      <div>
+        <div class="footer-col-title">Support</div>
+        <ul class="footer-links">
+          <li><a href="#">Financing</a></li>
+          <li><a href="#">Sell / Trade In</a></li>
+          <li><a href="#">Find a Location</a></li>
+          <li><a href="#">FAQ</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2024 DriveClear Automotive, Inc. All rights reserved.</p>
+      <p>
+        <a href="#" style="color:rgba(255,255,255,0.4);margin-right:16px">Privacy Policy</a>
+        <a href="#" style="color:rgba(255,255,255,0.4)">Terms of Use</a>
+      </p>
+    </div>
+  </div>
+</footer>
+
+<script src="js/inventory.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

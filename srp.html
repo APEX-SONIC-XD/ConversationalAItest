@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Used Cars for Sale — DriveClear</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<!-- ═══════════════════════ NAV ═══════════════════════ -->
+<nav class="nav" role="navigation">
+  <div class="container nav-inner">
+    <a href="index.html" class="nav-logo">
+      <div class="logo-mark">DC</div>
+      Drive<span class="accent">Clear</span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="srp.html" class="active">Used Cars</a></li>
+      <li><a href="#">Sell / Trade</a></li>
+      <li><a href="#">Financing</a></li>
+      <li><a href="#">How It Works</a></li>
+      <li><a href="#">Locations</a></li>
+    </ul>
+    <div class="nav-right">
+      <a href="tel:+18005551234" class="nav-phone">
+        <i class="fa-solid fa-phone"></i> (800) 555-1234
+      </a>
+      <a href="#" class="btn btn-primary btn-sm">Get Pre-Approved</a>
+      <button class="nav-hamburger" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<nav class="mobile-nav">
+  <a href="index.html">Home</a>
+  <a href="srp.html">Used Cars</a>
+  <a href="#">Sell / Trade</a>
+  <a href="#">Financing</a>
+  <a href="#">How It Works</a>
+  <a href="#">Locations</a>
+</nav>
+
+<!-- ═══════════════════════ SRP SEARCH BAR ═══════════════════════ -->
+<div class="srp-bar" role="search">
+  <div class="container">
+    <div class="srp-bar-inner">
+      <div class="srp-search">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" id="srp-search-input" placeholder="Search make, model, year…" aria-label="Search vehicles">
+      </div>
+      <span class="srp-count" id="srp-count">Loading…</span>
+      <div class="srp-sort-wrap">
+        <span>Sort:</span>
+        <select id="srp-sort" aria-label="Sort results">
+          <option value="recommended">Recommended</option>
+          <option value="price-asc">Price: Low to High</option>
+          <option value="price-desc">Price: High to Low</option>
+          <option value="year-desc">Newest First</option>
+          <option value="miles-asc">Lowest Miles</option>
+        </select>
+      </div>
+      <button class="btn btn-ghost btn-sm filter-toggle-btn" id="filter-toggle">
+        <i class="fa-solid fa-sliders"></i> Filters
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ SRP BODY ═══════════════════════ -->
+<div class="container">
+  <div class="srp-body" id="srp-root">
+
+    <!-- ─── Filter Panel ─── -->
+    <aside class="filter-panel" id="filter-panel" aria-label="Vehicle filters">
+      <div class="fp-head">
+        <h3>Filters</h3>
+        <button class="fp-clear" id="fp-clear">Clear All</button>
+      </div>
+
+      <!-- Make -->
+      <div class="fp-section">
+        <div class="fp-title" role="button" tabindex="0" aria-expanded="true">
+          Make <i class="fa-solid fa-chevron-down"></i>
+        </div>
+        <div class="fp-opts">
+          <label class="fp-opt"><input type="checkbox" class="fp-make" value="Honda"> Honda <span class="fp-opt-count">3</span></label>
+          <label class="fp-opt"><input type="checkbox" class="fp-make" value="Toyota"> Toyota <span class="fp-opt-count">2</span></label>
+          <label class="fp-opt"><input type="checkbox" class="fp-make" value="Ford"> Ford <span class="fp-opt-count">2</span></label>
+          <label class="fp-opt"><input type="checkbox" class="fp-make" value="Chevrolet"> Chevrolet <span class="fp-opt-count">1</span></label>
+          <label class="fp-opt"><input type="checkbox" class="fp-make" value="Hyundai"> Hyundai <span class="fp-opt-count">1</span></label>
+          <label class="fp-opt"><input type="checkbox" class="fp-make" value="Mazda"> Mazda <span class="fp-opt-count">1</span></label>
+          <label class="fp-opt"><input type="checkbox" class="fp-make" value="Volkswagen"> Volkswagen <span class="fp-opt-count">1</span></label>
+          <label class="fp-opt"><input type="checkbox" class="fp-make" value="Nissan"> Nissan <span class="fp-opt-count">1</span></label>
+          <label class="fp-opt"><input type="checkbox" class="fp-make" value="Kia"> Kia <span class="fp-opt-count">1</span></label>
+        </div>
+      </div>
+
+      <!-- Body Style -->
+      <div class="fp-section">
+        <div class="fp-title" role="button" tabindex="0" aria-expanded="true">
+          Body Style <i class="fa-solid fa-chevron-down"></i>
+        </div>
+        <div class="fp-opts">
+          <label class="fp-opt"><input type="checkbox" class="fp-body" value="SUV"> SUV / Crossover <span class="fp-opt-count">7</span></label>
+          <label class="fp-opt"><input type="checkbox" class="fp-body" value="Sedan"> Sedan <span class="fp-opt-count">4</span></label>
+          <label class="fp-opt"><input type="checkbox" class="fp-body" value="Truck"> Truck <span class="fp-opt-count">1</span></label>
+          <label class="fp-opt"><input type="checkbox" class="fp-body" value="Coupe"> Coupe <span class="fp-opt-count">0</span></label>
+        </div>
+      </div>
+
+      <!-- Price -->
+      <div class="fp-section">
+        <div class="fp-title" role="button" tabindex="0" aria-expanded="true">
+          Price <i class="fa-solid fa-chevron-down"></i>
+        </div>
+        <div class="fp-range">
+          <div class="fp-range-row">
+            <input class="fp-range-input" id="fp-min-price" type="number" placeholder="Min $" min="0" step="1000" aria-label="Minimum price">
+            <input class="fp-range-input" id="fp-max-price" type="number" placeholder="Max $" min="0" step="1000" aria-label="Maximum price">
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+            <button class="btn btn-ghost btn-sm price-preset" data-max="20000">Under $20k</button>
+            <button class="btn btn-ghost btn-sm price-preset" data-max="25000">Under $25k</button>
+            <button class="btn btn-ghost btn-sm price-preset" data-max="30000">Under $30k</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Year -->
+      <div class="fp-section">
+        <div class="fp-title" role="button" tabindex="0" aria-expanded="true">
+          Year <i class="fa-solid fa-chevron-down"></i>
+        </div>
+        <div class="fp-range">
+          <div class="fp-range-row">
+            <input class="fp-range-input" id="fp-min-year" type="number" placeholder="From" value="2018" min="2010" max="2024" aria-label="Minimum year">
+            <input class="fp-range-input" id="fp-max-year" type="number" placeholder="To" value="2024" min="2010" max="2024" aria-label="Maximum year">
+          </div>
+        </div>
+      </div>
+
+      <!-- Mileage -->
+      <div class="fp-section">
+        <div class="fp-title" role="button" tabindex="0" aria-expanded="true">
+          Max Mileage <i class="fa-solid fa-chevron-down"></i>
+        </div>
+        <div class="fp-range">
+          <input class="fp-range-input" id="fp-max-miles" type="number" placeholder="e.g. 50000" min="0" step="5000" style="width:100%" aria-label="Maximum mileage">
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+            <button class="btn btn-ghost btn-sm miles-preset" data-max="25000">25k</button>
+            <button class="btn btn-ghost btn-sm miles-preset" data-max="50000">50k</button>
+            <button class="btn btn-ghost btn-sm miles-preset" data-max="75000">75k</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Drivetrain -->
+      <div class="fp-section">
+        <div class="fp-title" role="button" tabindex="0" aria-expanded="true">
+          Drivetrain <i class="fa-solid fa-chevron-down"></i>
+        </div>
+        <div class="fp-opts">
+          <label class="fp-opt"><input type="checkbox" class="fp-drive" value="AWD"> AWD <span class="fp-opt-count">5</span></label>
+          <label class="fp-opt"><input type="checkbox" class="fp-drive" value="FWD"> FWD <span class="fp-opt-count">6</span></label>
+          <label class="fp-opt"><input type="checkbox" class="fp-drive" value="4WD"> 4WD <span class="fp-opt-count">1</span></label>
+        </div>
+      </div>
+
+      <!-- Features -->
+      <div class="fp-section">
+        <div class="fp-title" role="button" tabindex="0" aria-expanded="true">
+          Features <i class="fa-solid fa-chevron-down"></i>
+        </div>
+        <div class="fp-opts">
+          <label class="fp-opt"><input type="checkbox"> Apple CarPlay</label>
+          <label class="fp-opt"><input type="checkbox"> Sunroof / Moonroof</label>
+          <label class="fp-opt"><input type="checkbox"> Heated Seats</label>
+          <label class="fp-opt"><input type="checkbox"> Backup Camera</label>
+          <label class="fp-opt"><input type="checkbox"> Blind Spot Monitor</label>
+          <label class="fp-opt"><input type="checkbox"> Leather Seats</label>
+          <label class="fp-opt"><input type="checkbox"> Navigation</label>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- ─── Results ─── -->
+    <div class="srp-results">
+      <div class="active-tags" id="active-tags"></div>
+      <div class="v-grid" id="srp-grid" style="grid-template-columns:repeat(3,1fr)">
+        <!-- Rendered by app.js -->
+      </div>
+      <div id="pagination" class="pagination" aria-label="Page navigation"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════ FOOTER ═══════════════════════ -->
+<footer class="footer" role="contentinfo">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <a href="index.html" class="nav-logo">
+          <div class="logo-mark">DC</div>
+          Drive<span class="accent">Clear</span>
+        </a>
+        <p>DriveClear is the smarter way to buy a used car. Transparent pricing, zero dealer fees, and a 7-day return guarantee.</p>
+        <div class="footer-social">
+          <a href="#" aria-label="Facebook"><i class="fa-brands fa-facebook-f"></i></a>
+          <a href="#" aria-label="Instagram"><i class="fa-brands fa-instagram"></i></a>
+          <a href="#" aria-label="Twitter"><i class="fa-brands fa-x-twitter"></i></a>
+          <a href="#" aria-label="YouTube"><i class="fa-brands fa-youtube"></i></a>
+        </div>
+      </div>
+      <div>
+        <div class="footer-col-title">Shop</div>
+        <ul class="footer-links">
+          <li><a href="srp.html">All Used Cars</a></li>
+          <li><a href="srp.html?body=SUV">SUVs</a></li>
+          <li><a href="srp.html?body=Sedan">Sedans</a></li>
+          <li><a href="srp.html?body=Truck">Trucks</a></li>
+        </ul>
+      </div>
+      <div>
+        <div class="footer-col-title">Company</div>
+        <ul class="footer-links">
+          <li><a href="#">About DriveClear</a></li>
+          <li><a href="#">How It Works</a></li>
+          <li><a href="#">Careers</a></li>
+          <li><a href="#">Contact Us</a></li>
+        </ul>
+      </div>
+      <div>
+        <div class="footer-col-title">Support</div>
+        <ul class="footer-links">
+          <li><a href="#">Financing</a></li>
+          <li><a href="#">Sell / Trade In</a></li>
+          <li><a href="#">Find a Location</a></li>
+          <li><a href="#">FAQ</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2024 DriveClear Automotive, Inc. All rights reserved.</p>
+      <p>
+        <a href="#" style="color:rgba(255,255,255,0.4);margin-right:16px">Privacy Policy</a>
+        <a href="#" style="color:rgba(255,255,255,0.4)">Terms of Use</a>
+      </p>
+    </div>
+  </div>
+</footer>
+
+<script src="js/inventory.js"></script>
+<script src="js/app.js"></script>
+<script>
+  // Price preset buttons
+  document.querySelectorAll('.price-preset').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.getElementById('fp-max-price').value = btn.dataset.max;
+      document.getElementById('srp-sort').dispatchEvent(new Event('change'));
+    });
+  });
+  // Miles preset buttons
+  document.querySelectorAll('.miles-preset').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.getElementById('fp-max-miles').value = btn.dataset.max;
+      document.getElementById('srp-sort').dispatchEvent(new Event('change'));
+    });
+  });
+</script>
+</body>
+</html>
