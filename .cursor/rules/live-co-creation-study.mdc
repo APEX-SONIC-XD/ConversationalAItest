@@ -1,0 +1,45 @@
+---
+description: Live co-creation study — build prototype updates from participant AI feedback
+alwaysApply: true
+---
+
+# Live co-creation study (DriveClear)
+
+Full context: `LIVE-STUDY-CONTEXT.md` — read when prompt includes `@LIVE-STUDY-CONTEXT.md` or live study fields.
+
+## Role
+
+Designer prompts during a live session. Participant sees prototype updates on refresh. Do not suggest facilitator questions.
+
+## Default prompt shape
+
+```
+They said: "..."
+Update prototype: ...
+Show on: [page]
+Constraints: match DriveClear, fake data, no backend, fast
+```
+
+## Build discipline
+
+- One visible idea per update; smallest diff that matches what they said
+- Reuse `css/styles.css` classes; teal/navy DriveClear look
+- Static HTML first; no backend/APIs/real credit checks
+- Fake data only; assigned credit tiers (great 4.9%, good 6.9%, fair 9.9%, poor ~12%+)
+
+## AI UI options (pick one)
+
+1. VDP in-flow: `#pa-popover` / `initPaymentAssistant()` in `js/app.js`
+2. Global chat: uncomment Lens widget in page HTML
+3. Static insight card near relevant number (fastest)
+
+## Pages by journey stage
+
+- Prepared → index, srp, financing
+- Reassured → vdp (+ payment calc, history)
+- In control → sell-trade, financing, static dealer/trade panels
+- Satisfied → simple static section if needed
+
+## After each change
+
+State: what changed, URL to refresh (`localhost:8000/...`), one sentence on what to show the participant.

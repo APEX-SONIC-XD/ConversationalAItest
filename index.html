@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DriveClear — Transparent Used Car Shopping</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="css/styles.css">
+
+</head>
+<body>
+
+<!-- ═══════════════════════ NAV ═══════════════════════ -->
+<nav class="nav" role="navigation">
+  <div class="container nav-inner">
+    <a href="index.html" class="nav-logo">
+      <div class="logo-mark">DC</div>
+      Drive<span class="accent">Clear</span>
+    </a>
+    <ul class="nav-links" role="list">
+      <li><a href="srp.html" class="active">Used Cars</a></li>
+      <li><a href="sell-trade.html">Sell / Trade</a></li>
+      <li><a href="financing.html">Financing</a></li>
+      <li><a href="#">How It Works</a></li>
+      <li><a href="#">Locations</a></li>
+    </ul>
+    <div class="nav-right">
+      <a href="tel:+18005551234" class="nav-phone">
+        <i class="fa-solid fa-phone"></i> (800) 555-1234
+      </a>
+      <a href="srp.html" class="btn btn-primary btn-sm">Browse Cars</a>
+      <button class="nav-hamburger" aria-label="Menu" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<nav class="mobile-nav" aria-label="Mobile navigation">
+  <a href="srp.html">Used Cars</a>
+  <a href="sell-trade.html">Sell / Trade</a>
+  <a href="financing.html">Financing</a>
+  <a href="#">How It Works</a>
+  <a href="#">Locations</a>
+  <a href="tel:+18005551234"><i class="fa-solid fa-phone" style="margin-right:6px"></i> (800) 555-1234</a>
+</nav>
+
+<!-- ═══════════════════════ HERO ═══════════════════════ -->
+<section class="hero" aria-label="Hero">
+  <div class="hero-bg" aria-hidden="true"></div>
+  <div class="hero-overlay" aria-hidden="true"></div>
+  <div class="container" style="width:100%">
+    <div class="hero-content">
+      <div class="hero-eyebrow">
+        <i class="fa-solid fa-badge-check"></i> No Dealer Fees · Transparent Pricing
+      </div>
+      <h1>Find Your Perfect Car,<br><span class="accent">No Surprises.</span></h1>
+      <p class="hero-sub">Shop thousands of one-price, no-haggle used vehicles. What you see is what you pay — every time.</p>
+
+      <form class="hero-search-box" id="hero-search-form" role="search">
+        <div class="hs-field">
+          <select id="hero-make" name="make" aria-label="Select make">
+            <option value="">Any Make</option>
+            <option>Honda</option>
+            <option>Toyota</option>
+            <option>Ford</option>
+            <option>Chevrolet</option>
+            <option>Hyundai</option>
+            <option>Mazda</option>
+            <option>Volkswagen</option>
+            <option>Nissan</option>
+            <option>Kia</option>
+          </select>
+        </div>
+        <div class="hs-field">
+          <select id="hero-model" name="model" aria-label="Select model">
+            <option value="">Any Model</option>
+          </select>
+        </div>
+        <div class="hs-field">
+          <select id="hero-body" name="body" aria-label="Select body style">
+            <option value="">Any Style</option>
+            <option value="SUV">SUV / Crossover</option>
+            <option value="Sedan">Sedan</option>
+            <option value="Truck">Truck</option>
+            <option value="Coupe">Coupe</option>
+            <option value="Hatchback">Hatchback</option>
+          </select>
+        </div>
+        <div class="hs-field">
+          <select id="hero-price" name="maxPrice" aria-label="Max price">
+            <option value="">Any Price</option>
+            <option value="15000">Under $15,000</option>
+            <option value="20000">Under $20,000</option>
+            <option value="25000">Under $25,000</option>
+            <option value="30000">Under $30,000</option>
+            <option value="35000">Under $35,000</option>
+            <option value="40000">Under $40,000</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary" style="flex-shrink:0">
+          <i class="fa-solid fa-search"></i> Search Cars
+        </button>
+      </form>
+
+      <div class="hero-stats">
+        <div>
+          <div class="hero-stat-num">1,200+</div>
+          <div class="hero-stat-label">Vehicles In Stock</div>
+        </div>
+        <div>
+          <div class="hero-stat-num">50+</div>
+          <div class="hero-stat-label">Locations Nationwide</div>
+        </div>
+        <div>
+          <div class="hero-stat-num">$0</div>
+          <div class="hero-stat-label">Dealer Fees</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ VALUE PROPS ═══════════════════════ -->
+<section class="value-props" aria-label="Why DriveClear">
+  <div class="container">
+    <div class="vp-grid">
+      <div class="vp-item">
+        <div class="vp-icon"><i class="fa-solid fa-tag"></i></div>
+        <div>
+          <div class="vp-title">No Dealer Fees</div>
+          <div class="vp-desc">Zero doc fees, zero processing fees. Our prices are all-in — no last-minute add-ons.</div>
+        </div>
+      </div>
+      <div class="vp-item">
+        <div class="vp-icon"><i class="fa-solid fa-magnifying-glass-dollar"></i></div>
+        <div>
+          <div class="vp-title">Transparent Pricing</div>
+          <div class="vp-desc">Every vehicle is priced at or below market. See how we stack up before you buy.</div>
+        </div>
+      </div>
+      <div class="vp-item">
+        <div class="vp-icon"><i class="fa-solid fa-rotate-left"></i></div>
+        <div>
+          <div class="vp-title">7-Day Love It Guarantee</div>
+          <div class="vp-desc">Not feeling it? Return your car within 7 days or 250 miles, no questions asked.</div>
+        </div>
+      </div>
+      <div class="vp-item">
+        <div class="vp-icon"><i class="fa-solid fa-file-shield"></i></div>
+        <div>
+          <div class="vp-title">Carfax Certified</div>
+          <div class="vp-desc">Full vehicle history available on every car. Know exactly what you're buying.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ BODY STYLES ═══════════════════════ -->
+<section class="section section-alt" aria-label="Shop by body style">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">Browse by Type</div>
+      <h2 class="section-title">Find Your Style</h2>
+      <p class="section-sub">From fuel-efficient sedans to capable trucks — we've got something for everyone.</p>
+    </div>
+    <div class="bs-grid">
+      <a href="srp.html?body=SUV" class="bs-card">
+        <div class="bs-emoji">🚙</div>
+        <div class="bs-name">SUV</div>
+        <div class="bs-count">38 available</div>
+      </a>
+      <a href="srp.html?body=Sedan" class="bs-card">
+        <div class="bs-emoji">🚗</div>
+        <div class="bs-name">Sedan</div>
+        <div class="bs-count">45 available</div>
+      </a>
+      <a href="srp.html?body=Truck" class="bs-card">
+        <div class="bs-emoji">🛻</div>
+        <div class="bs-name">Truck</div>
+        <div class="bs-count">22 available</div>
+      </a>
+      <a href="srp.html?body=Coupe" class="bs-card">
+        <div class="bs-emoji">🏎️</div>
+        <div class="bs-name">Coupe</div>
+        <div class="bs-count">14 available</div>
+      </a>
+      <a href="srp.html?body=Hatchback" class="bs-card">
+        <div class="bs-emoji">🚘</div>
+        <div class="bs-name">Hatchback</div>
+        <div class="bs-count">19 available</div>
+      </a>
+      <a href="srp.html" class="bs-card">
+        <div class="bs-emoji">🚐</div>
+        <div class="bs-name">Minivan</div>
+        <div class="bs-count">8 available</div>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ FEATURED VEHICLES ═══════════════════════ -->
+<section class="section" aria-label="Featured vehicles">
+  <div class="container">
+    <div class="section-row">
+      <div>
+        <div class="section-tag">In Stock Now</div>
+        <h2 class="section-title">Featured Vehicles</h2>
+      </div>
+      <a href="srp.html" class="btn btn-outline">View All <i class="fa-solid fa-arrow-right"></i></a>
+    </div>
+    <div class="v-grid" id="featured-grid">
+      <!-- Rendered by app.js -->
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ HOW IT WORKS ═══════════════════════ -->
+<section class="section section-dark" aria-label="How it works">
+  <div class="container">
+    <div class="section-header">
+      <div class="section-tag">Simple &amp; Straightforward</div>
+      <h2 class="section-title">How DriveClear Works</h2>
+      <p class="section-sub">We've removed the stress, the haggling, and the hidden fees from car buying.</p>
+    </div>
+    <div class="steps-grid">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-title">Search &amp; Save</div>
+        <div class="step-desc">Browse our full inventory online. Filter by make, price, mileage, and more. Save your favorites to your garage.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-title">Test Drive</div>
+        <div class="step-desc">Visit any DriveClear location or have the car brought to you. Our no-pressure advisors are there to help — not sell.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-title">Drive Home Happy</div>
+        <div class="step-desc">Complete your purchase in as little as 45 minutes. One price, no fees, and our 7-day return guarantee for peace of mind.</div>
+      </div>
+    </div>
+    <div style="text-align:center;margin-top:44px">
+      <a href="srp.html" class="btn btn-primary btn-lg">Start Shopping <i class="fa-solid fa-arrow-right"></i></a>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ TRUST STRIP ═══════════════════════ -->
+<section class="trust-strip" aria-label="Trust indicators">
+  <div class="container">
+    <div class="trust-inner">
+      <div class="trust-item"><i class="fa-solid fa-star"></i> 4.8/5 Average Rating</div>
+      <div class="trust-item"><i class="fa-solid fa-users"></i> 80,000+ Happy Customers</div>
+      <div class="trust-item"><i class="fa-solid fa-award"></i> J.D. Power #2 Used Car Site</div>
+      <div class="trust-item"><i class="fa-solid fa-map-location-dot"></i> 50+ Locations Nationwide</div>
+      <div class="trust-item"><i class="fa-solid fa-headset"></i> 7-Day Customer Support</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ FOOTER ═══════════════════════ -->
+<footer class="footer" role="contentinfo">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <a href="index.html" class="nav-logo">
+          <div class="logo-mark">DC</div>
+          Drive<span class="accent">Clear</span>
+        </a>
+        <p>DriveClear is the smarter way to buy a used car. Transparent pricing, zero dealer fees, and a 7-day return guarantee on every vehicle.</p>
+        <div class="footer-social">
+          <a href="#" aria-label="Facebook"><i class="fa-brands fa-facebook-f"></i></a>
+          <a href="#" aria-label="Instagram"><i class="fa-brands fa-instagram"></i></a>
+          <a href="#" aria-label="Twitter"><i class="fa-brands fa-x-twitter"></i></a>
+          <a href="#" aria-label="YouTube"><i class="fa-brands fa-youtube"></i></a>
+        </div>
+      </div>
+      <div>
+        <div class="footer-col-title">Shop</div>
+        <ul class="footer-links">
+          <li><a href="srp.html">All Used Cars</a></li>
+          <li><a href="srp.html?body=SUV">SUVs</a></li>
+          <li><a href="srp.html?body=Sedan">Sedans</a></li>
+          <li><a href="srp.html?body=Truck">Trucks</a></li>
+          <li><a href="srp.html">Under $20,000</a></li>
+          <li><a href="srp.html">New Arrivals</a></li>
+        </ul>
+      </div>
+      <div>
+        <div class="footer-col-title">Company</div>
+        <ul class="footer-links">
+          <li><a href="#">About DriveClear</a></li>
+          <li><a href="#">How It Works</a></li>
+          <li><a href="#">Careers</a></li>
+          <li><a href="#">Press</a></li>
+          <li><a href="#">Investor Relations</a></li>
+        </ul>
+      </div>
+      <div>
+        <div class="footer-col-title">Support</div>
+        <ul class="footer-links">
+          <li><a href="financing.html">Financing</a></li>
+          <li><a href="sell-trade.html">Sell / Trade In</a></li>
+          <li><a href="#">Find a Location</a></li>
+          <li><a href="#">Contact Us</a></li>
+          <li><a href="#">FAQ</a></li>
+          <li><a href="#">Warranty</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2024 DriveClear Automotive, Inc. All rights reserved.</p>
+      <p>
+        <a href="#" style="color:rgba(255,255,255,0.4);margin-right:16px">Privacy Policy</a>
+        <a href="#" style="color:rgba(255,255,255,0.4);margin-right:16px">Terms of Use</a>
+        <a href="#" style="color:rgba(255,255,255,0.4)">Accessibility</a>
+      </p>
+    </div>
+  </div>
+</footer>
+
+<script src="js/inventory.js"></script>
+<script src="js/app.js"></script>
+  <!--
+  <script
+  src="https://cdn.jsdelivr.net/gh/APEX-SONIC-XD/Lens@v0.3.2/dist/widget.iife.js"
+  data-project-id="DriveClear"
+  data-supabase-url="https://zwyuluoxcfhiemvajsrk.supabase.co"
+  data-supabase-anon-key="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp3eXVsdW94Y2ZoaWVtdmFqc3JrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0NjUwOTQsImV4cCI6MjA5NTA0MTA5NH0.NKovxLY9NRuqwU96SJsmMkrrNFXIpztixcXOc85-fFo"
+  defer
+></script>
+  -->
+</body>
+</html>
