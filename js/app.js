@@ -329,7 +329,6 @@ function initSRP() {
     if (inp) inp.addEventListener('input', debounce(applyAndRender, 400));
   });
   if (searchInput) searchInput.addEventListener('input', debounce(applyAndRender, 300));
-  searchInput?.closest('form.nav-search')?.addEventListener('submit', e => { e.preventDefault(); applyAndRender(); });
   if (sortSel) sortSel.addEventListener('change', applyAndRender);
   if (clearBtn) clearBtn.addEventListener('click', () => {
     document.querySelectorAll('.fp-make, .fp-body, .fp-drive').forEach(cb => cb.checked = false);
@@ -567,6 +566,7 @@ function initVDP() {
   initPayCalc(v.price);
   renderSimilar(v);
   updateVDPSaveBtn(v.id);
+  initVDPAiMode(v);
 
   // Breadcrumb
   const bc = document.getElementById('bc-vehicle');
@@ -781,6 +781,273 @@ function generateMockAnswer(q) {
   }
   return `<p>Great question — a DriveClear finance specialist can walk you through the details for your specific situation.</p>
           <p>You can also adjust the inputs in the <a href="#payment-calc">Payment Calculator</a> below, or call <strong>(800) 555-1234</strong>.</p>`;
+}
+
+// ─── VDP AI Assist Mode ──────────────────────────────────
+// A toggle that turns the page into an "ask anything" surface: hovering any
+// explained element shows a quick snippet; clicking opens a chat sidebar.
+function initVDPAiMode(v) {
+  const toggle = document.getElementById('ai-toggle');
+  const stateLbl = document.getElementById('ai-toggle-state');
+  const tip = document.getElementById('ai-tip');
+  const tipTitle = document.getElementById('ai-tip-title');
+  const tipText = document.getElementById('ai-tip-text');
+  const tipMore = document.getElementById('ai-tip-more');
+  const tipClose = document.getElementById('ai-tip-close');
+  const drawer = document.getElementById('ai-drawer');
+  const scrim = document.getElementById('ai-drawer-scrim');
+  const drawerClose = document.getElementById('ai-drawer-close');
+  const drawerTopic = document.getElementById('ai-drawer-topic');
+  const drawerBody = document.getElementById('ai-drawer-body');
+  const drawerChips = document.getElementById('ai-drawer-chips');
+  const drawerForm = document.getElementById('ai-drawer-form');
+  const drawerInput = document.getElementById('ai-drawer-input');
+  if (!toggle || !tip || !drawer) return;
+
+  // Mark every element we can explain.
+  const tag = (el, topic) => { if (el) el.setAttribute('data-ai-topic', topic); };
+  tag(document.getElementById('vdp-price'), 'price');
+  tag(document.getElementById('vdp-monthly'), 'payment');
+  tag(document.getElementById('vdp-mkt-pill'), 'market');
+  document.querySelectorAll('.vdp-stat').forEach(el => tag(el, 'stat'));
+  document.querySelectorAll('.vdp-flag').forEach(el => tag(el, 'flag'));
+  document.querySelectorAll('.hist-item').forEach(el => tag(el, 'history'));
+  document.querySelectorAll('.spec-item').forEach(el => tag(el, 'spec'));
+  document.querySelectorAll('.feat-item').forEach(el => tag(el, 'feature'));
+  tag(document.getElementById('payment-calc'), 'calc');
+  tag(document.querySelector('.gallery .g-main'), 'photos');
+
+  let aiOn = false;
+  let activeTarget = null;
+  let activeInfo = null;
+  let hideTimer = null;
+  let pinned = false;   // ADA: a clicked snippet stays open until dismissed
+
+  // Build a {title, text, key, chips} snippet for whatever element is hovered.
+  const aiInfo = (el) => {
+    const topic = el.getAttribute('data-ai-topic');
+    const T = (txt) => (el.querySelector(txt)?.textContent || '').trim();
+    switch (topic) {
+      case 'price':
+        return { key: 'price', title: 'One price, no haggle',
+          text: `The ${formatPrice(v.price)} you see is exactly what you pay — no dealer or doc fees.${v.marketSavings > 0 ? ` That's about ${formatPrice(v.marketSavings)} below market for a comparable ${v.year} ${v.make} ${v.model}.` : ''}`,
+          chips: ['Is this price negotiable?', 'How was this price set?', 'Are there any extra fees?'] };
+      case 'payment':
+        return { key: 'payment', title: 'Estimated monthly payment',
+          text: `This estimate assumes a 60-month loan${(typeof Profile !== 'undefined' && Profile.apr) ? ` at about ${Profile.apr()}% APR` : ''} with $0 down. Change the term, rate, or down payment in the calculator to see your real number.`,
+          chips: ['How does APR affect this?', 'What down payment should I put?', 'Can I lower the monthly payment?'] };
+      case 'market':
+        return { key: 'market', title: 'How pricing compares',
+          text: v.marketSavings > 0
+            ? `We benchmark every car against similar listings nearby. This one is priced ${formatPrice(v.marketSavings)} under the local average.`
+            : `This car is priced right at the local market average for its year, trim, and mileage.`,
+          chips: ['What is it compared against?', 'Will the price drop?', 'Is this a good deal?'] };
+      case 'stat': {
+        const label = T('.vdp-stat-l'), val = T('.vdp-stat-v');
+        if (/mileage/i.test(label)) {
+          const perYr = Math.round(v.mileage / Math.max(1, (new Date().getFullYear() - v.year)));
+          return { key: 'mileage', title: 'Mileage', text: `${val} on the odometer — roughly ${perYr.toLocaleString()} mi/year, ${perYr <= 13500 ? 'a bit below' : 'around'} the U.S. average of ~13,500.`,
+            chips: ['Is this high mileage?', 'How long will it last?', 'Does mileage affect the warranty?'] };
+        }
+        if (/engine/i.test(label)) return { key: 'engine', title: 'Engine', text: `${val} — paired with ${v.hp} HP and a ${v.transmission}.`, chips: ['Is this engine reliable?', 'What fuel does it take?', 'How does it perform?'] };
+        if (/mpg/i.test(label)) return { key: 'mpg', title: 'Fuel economy', text: `${val} MPG city/highway. Real-world mileage varies with driving style, but this is efficient for a ${v.body.toLowerCase()}.`, chips: ['What will gas cost me?', 'City vs highway?', 'How does it compare?'] };
+        if (/drivetrain/i.test(label)) {
+          const d = v.drivetrain;
+          const exp = d === 'AWD' ? 'All-wheel drive sends power to all four wheels for better grip in rain and snow.'
+            : d === '4WD' ? 'Four-wheel drive adds capability for towing and rougher terrain.'
+            : d === 'FWD' ? 'Front-wheel drive is efficient and predictable — great for everyday driving.'
+            : 'Rear-wheel drive favors balance and performance.';
+          return { key: 'drivetrain', title: `${d} drivetrain`, text: exp, chips: ['Do I need AWD?', 'How is it in snow?', 'Does it affect MPG?'] };
+        }
+        return { key: 'stat', title: label || 'Detail', text: `${label}: ${val}.`, chips: ['Tell me more', 'Why does this matter?'] };
+      }
+      case 'flag': {
+        const txt = el.textContent.trim();
+        if (/owner/i.test(txt)) return { key: 'owner', title: 'Ownership history', text: 'A single previous owner usually means more consistent maintenance and fewer surprises.', chips: ['Was it a personal car?', 'How does this affect value?'] };
+        if (/accident/i.test(txt)) return { key: 'accident', title: 'Accident-free', text: 'No accidents or structural damage are reported on this vehicle’s history record.', chips: ['How do you verify this?', 'Can I see the report?'] };
+        if (/carfax/i.test(txt)) return { key: 'carfax', title: 'Vehicle history report', text: 'A full history report is available — ownership, service records, title status, and more.', chips: ['What’s in the report?', 'Is it free?'] };
+        return { key: 'location', title: 'Where this car is', text: `This vehicle is located at ${v.location}. We can arrange delivery or a transfer.`, chips: ['Can it be delivered?', 'How far is it?'] };
+      }
+      case 'history': {
+        const title = T('.hist-title'), sub = T('.hist-sub');
+        return { key: 'history', title: title || 'Vehicle history', text: sub || 'Part of this car’s verified history record.', chips: ['Why does this matter?', 'How is this verified?'] };
+      }
+      case 'spec': {
+        const label = T('.spec-l'), val = T('.spec-v');
+        return { key: 'spec', title: label || 'Specification', text: `${label}: ${val}.`, chips: [`Why does ${label.toLowerCase()} matter?`, 'How does this compare?'] };
+      }
+      case 'feature': {
+        const f = el.textContent.trim();
+        return { key: 'feature', title: f, text: `${f} is included on this vehicle. Want to know how it works or whether it’s worth it?`, chips: [`How does ${f} work?`, 'Is this common in this class?'] };
+      }
+      case 'calc':
+        return { key: 'payment', title: 'Payment calculator', text: 'Slide your down payment, pick a term, and set a rate to see how your monthly payment changes — all estimates, no credit check.', chips: ['What term should I choose?', 'How much down is smart?', 'What’s my real rate?'] };
+      case 'photos':
+        return { key: 'photos', title: 'Photos & condition', text: `Real photos of this exact ${v.year} ${v.make} ${v.model}. Every car gets a 150-point inspection before listing.`, chips: ['What does the inspection cover?', 'Any cosmetic flaws?'] };
+      default:
+        return { key: 'general', title: 'About this vehicle', text: 'Ask me anything about this car.', chips: ['Is this a good deal?', 'Tell me about reliability'] };
+    }
+  };
+
+  // ── Hover tooltip ──────────────────────────────────────
+  const positionTip = (el) => {
+    const r = el.getBoundingClientRect();
+    tip.hidden = false;
+    const tr = tip.getBoundingClientRect();
+    let top = r.bottom + 10;
+    if (top + tr.height > window.innerHeight - 12) top = r.top - tr.height - 10;
+    let left = r.left + r.width / 2 - tr.width / 2;
+    left = Math.max(12, Math.min(left, window.innerWidth - tr.width - 12));
+    tip.style.top = `${Math.max(12, top)}px`;
+    tip.style.left = `${left}px`;
+  };
+
+  const showTip = (el) => {
+    activeTarget = el;
+    activeInfo = aiInfo(el);
+    tipTitle.textContent = activeInfo.title;
+    tipText.textContent = activeInfo.text;
+    tip.hidden = false;
+    clearTimeout(hideTimer);
+    requestAnimationFrame(() => { positionTip(el); tip.classList.add('show'); });
+  };
+  const hideTip = () => {
+    pinned = false;
+    tip.classList.remove('show', 'pinned');
+    hideTimer = setTimeout(() => { tip.hidden = true; }, 140);
+  };
+  // ADA: clicking pins the snippet so it stays put for click / keyboard users.
+  const pinTip = (el) => {
+    clearTimeout(hideTimer);
+    showTip(el);
+    pinned = true;
+    tip.classList.add('pinned');
+    setTimeout(() => tipMore.focus(), 60);
+  };
+
+  document.addEventListener('mouseover', (e) => {
+    if (!aiOn || pinned) return;
+    const el = e.target.closest('[data-ai-topic]');
+    if (!el || el === activeTarget) return;
+    clearTimeout(hideTimer);
+    showTip(el);
+  });
+  document.addEventListener('mouseout', (e) => {
+    if (!aiOn || pinned) return;
+    const to = e.relatedTarget;
+    if (to && (to.closest?.('[data-ai-topic]') === activeTarget || tip.contains(to))) return;
+    if (activeTarget && (!to || !activeTarget.contains(to))) { activeTarget = null; hideTip(); }
+  });
+  tip.addEventListener('mouseenter', () => clearTimeout(hideTimer));
+  tip.addEventListener('mouseleave', () => { if (!pinned) { activeTarget = null; hideTip(); } });
+
+  // ── Chat drawer ────────────────────────────────────────
+  const addMsg = (cls, html) => {
+    const el = document.createElement('div');
+    el.className = `pa-msg ${cls}`;
+    el.innerHTML = cls === 'pa-msg-bot'
+      ? `<div class="pa-msg-avatar"><i class="fa-solid fa-wand-magic-sparkles"></i></div><div class="pa-msg-bubble">${html}</div>`
+      : `<div class="pa-msg-bubble">${html}</div>`;
+    drawerBody.appendChild(el);
+    drawerBody.scrollTop = drawerBody.scrollHeight;
+    return el;
+  };
+  const renderChips = (list) => {
+    drawerChips.innerHTML = (list || []).map(q => `<button type="button" class="pa-chip" data-q="${escapeHtml(q)}">${escapeHtml(q)}</button>`).join('');
+  };
+
+  const askDrawer = (text) => {
+    const q = (text || '').trim();
+    if (!q) return;
+    addMsg('pa-msg-user', escapeHtml(q));
+    drawerInput.value = '';
+    const typing = addMsg('pa-msg-bot pa-typing', `<span class="pa-typing-dots"><span></span><span></span><span></span></span>`);
+    setTimeout(() => { typing.remove(); addMsg('pa-msg-bot', generateVdpAnswer(activeInfo?.key, q, v)); }, 650);
+  };
+
+  const openDrawer = (info) => {
+    activeInfo = info || activeInfo || aiInfo(document.getElementById('vdp-price'));
+    drawerTopic.innerHTML = `<span class="pa-dot"></span> ${escapeHtml(activeInfo.title)}`;
+    drawerBody.innerHTML = '';
+    addMsg('pa-msg-bot', `<div class="pa-msg-label">${escapeHtml(activeInfo.title)}</div><p>${activeInfo.text}</p>`);
+    renderChips(activeInfo.chips);
+    scrim.hidden = false;
+    drawer.classList.add('open');
+    drawer.setAttribute('aria-hidden', 'false');
+    requestAnimationFrame(() => scrim.classList.add('show'));
+    setTimeout(() => drawerInput.focus(), 220);
+  };
+  const closeDrawer = () => {
+    drawer.classList.remove('open');
+    drawer.setAttribute('aria-hidden', 'true');
+    scrim.classList.remove('show');
+    setTimeout(() => { scrim.hidden = true; }, 200);
+  };
+
+  tipMore.addEventListener('click', () => { hideTip(); openDrawer(activeInfo); });
+  tipClose && tipClose.addEventListener('click', () => { activeTarget = null; hideTip(); });
+  document.addEventListener('click', (e) => {
+    if (!aiOn) return;
+    if (tip.contains(e.target)) return;               // interacting with the open snippet
+    const el = e.target.closest('[data-ai-topic]');
+    if (!el) {                                        // clicked empty space → dismiss a pinned snippet
+      if (pinned) { activeTarget = null; hideTip(); }
+      return;
+    }
+    if (e.target.closest('a, button, input, select, textarea')) return; // let real controls work
+    e.preventDefault();
+    pinTip(el);
+  });
+  drawerClose.addEventListener('click', closeDrawer);
+  scrim.addEventListener('click', closeDrawer);
+  drawerForm.addEventListener('submit', (e) => { e.preventDefault(); askDrawer(drawerInput.value); });
+  drawerChips.addEventListener('click', (e) => {
+    const chip = e.target.closest('.pa-chip');
+    if (chip) askDrawer(chip.dataset.q || chip.textContent);
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (drawer.classList.contains('open')) closeDrawer();
+    else if (pinned) { activeTarget = null; hideTip(); }
+  });
+
+  // ── Toggle ─────────────────────────────────────────────
+  const setMode = (on) => {
+    aiOn = on;
+    document.body.classList.toggle('ai-mode', on);
+    toggle.classList.toggle('on', on);
+    toggle.setAttribute('aria-checked', on ? 'true' : 'false');
+    if (stateLbl) stateLbl.textContent = on ? 'On' : 'Off';
+    if (!on) { activeTarget = null; hideTip(); closeDrawer(); }
+  };
+  toggle.addEventListener('click', () => setMode(!aiOn));
+}
+
+// Topic-aware canned follow-ups for the VDP AI drawer (UI-only demo content).
+function generateVdpAnswer(key, q, v) {
+  const t = (q || '').toLowerCase();
+  if (t.includes('apr') || t.includes('rate') || t.includes('interest') || t.includes('down') || t.includes('afford') || t.includes('budget') || t.includes('trade'))
+    return generateMockAnswer(q);
+  switch (key) {
+    case 'price': case 'market':
+      return `<p>Every DriveClear price is set by comparing this exact ${v.year} ${v.make} ${v.model} ${v.trim} against recent local sales — then we remove dealer and doc fees. It's a fixed, no-haggle price.</p><p>${v.marketSavings > 0 ? `Right now it's about <strong>${formatPrice(v.marketSavings)} below</strong> the local average.` : `It's priced right at the local average.`}</p>`;
+    case 'mileage':
+      return `<p>At ${formatMileage(v.mileage)}, this ${v.year} ${v.make} is well within a healthy range — modern vehicles routinely run past 150,000 miles with regular maintenance.</p><p>It also passed our 150-point inspection.</p>`;
+    case 'mpg':
+      return `<p>Rated ${v.mpgCity} city / ${v.mpgHwy} hwy. For ~12,000 miles a year of mixed driving, expect a moderate monthly fuel cost — efficient for a ${v.body.toLowerCase()}.</p>`;
+    case 'drivetrain':
+      return `<p>This vehicle is <strong>${v.drivetrain}</strong>. ${v.drivetrain === 'AWD' || v.drivetrain === '4WD' ? 'Great for confidence in rain, snow, and light off-pavement.' : 'Efficient and easy to live with for everyday commuting.'}</p>`;
+    case 'engine':
+      return `<p>It's a ${v.engine} making ${v.hp} HP through a ${v.transmission}. Smooth, proven, and easy to service.</p>`;
+    case 'owner': case 'accident': case 'carfax': case 'history':
+      return `<p>This car has a verified history: ${v.owners} owner${v.owners > 1 ? 's' : ''}${v.accidentFree ? ', no reported accidents' : ''}, and a clean title. A full report is available on request.</p>`;
+    case 'feature': case 'spec':
+      return `<p>Happy to dig in — this ${v.year} ${v.make} ${v.model} comes well equipped for its class. Want me to compare it with a similar vehicle in stock?</p>`;
+    case 'photos':
+      return `<p>The photos show this exact car. Our 150-point inspection covers brakes, tires, fluids, electronics, and cosmetics — and anything notable is disclosed.</p>`;
+    default:
+      return `<p>Great question about the ${v.year} ${v.make} ${v.model}. A DriveClear specialist can give you the full detail, or you can call <strong>(800) 555-1234</strong>.</p>`;
+  }
 }
 
 // ─── Gallery ────────────────────────────────────────────
@@ -1780,14 +2047,32 @@ function setupNavSuggest(form) {
 
   input.addEventListener('input', debounce(render, 130));
   input.addEventListener('focus', () => { if (input.value.trim().length >= 2) render(); });
+  // Submitting the search parses the query into real SRP filters — merged with the
+  // participant profile — instead of a raw text search. Note: parseSearchParams expects
+  // lowercase input.
+  const submitSearch = () => {
+    const text = input.value.trim();
+    const base = (typeof Profile !== 'undefined' && Profile.toParams) ? Profile.toParams() : {};
+    const P = Object.assign({}, base, parseSearchParams(text.toLowerCase()));
+    if (Object.keys(P).length) window.location.href = paramHref(P);
+    else if (text) window.location.href = 'srp.html?q=' + encodeURIComponent(text);
+    else window.location.href = 'srp.html';
+  };
+
   input.addEventListener('keydown', e => {
-    if (!panel.classList.contains('open')) return;
-    if (e.key === 'ArrowDown') { e.preventDefault(); setActive(active + 1); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(active - 1); }
+    const isOpen = panel.classList.contains('open');
+    if (e.key === 'ArrowDown' && isOpen) { e.preventDefault(); setActive(active + 1); }
+    else if (e.key === 'ArrowUp' && isOpen) { e.preventDefault(); setActive(active - 1); }
+    else if (e.key === 'Escape') { close(); }
     else if (e.key === 'Enter') {
-      if (active >= 0 && actions[active]) { e.preventDefault(); window.location.href = actions[active]; }
-    } else if (e.key === 'Escape') { close(); }
+      e.preventDefault();
+      if (isOpen && active >= 0 && actions[active]) window.location.href = actions[active];
+      else submitSearch();
+    }
   });
+
+  form.addEventListener('submit', e => { e.preventDefault(); submitSearch(); });
+
   // Prevent blur from firing before an option click registers
   panel.addEventListener('mousedown', e => e.preventDefault());
   document.addEventListener('click', e => { if (!form.contains(e.target)) close(); });

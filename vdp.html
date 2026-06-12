@@ -422,6 +422,51 @@
   </div>
 </footer>
 
+<!-- ═══════════════════════ AI ASSIST MODE ═══════════════════════ -->
+<!-- Toggle: turns the page into an "ask anything" surface. VDP-only. -->
+<button class="ai-toggle" id="ai-toggle" type="button" role="switch" aria-checked="false" aria-label="Toggle AI Assist mode">
+  <span class="ai-toggle-ic"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
+  <span class="ai-toggle-text">
+    <span class="ai-toggle-name">AI Assist</span>
+    <span class="ai-toggle-state" id="ai-toggle-state">Off</span>
+  </span>
+  <span class="ai-switch"><span class="ai-switch-knob"></span></span>
+</button>
+
+<!-- Hover snippet that explains whatever element is under the AI cursor -->
+<div class="ai-tip" id="ai-tip" role="tooltip" hidden>
+  <button type="button" class="ai-tip-close" id="ai-tip-close" aria-label="Dismiss"><i class="fa-solid fa-xmark"></i></button>
+  <div class="ai-tip-title" id="ai-tip-title"></div>
+  <div class="ai-tip-text" id="ai-tip-text"></div>
+  <button type="button" class="ai-tip-more" id="ai-tip-more">
+    Ask AI about this <i class="fa-solid fa-arrow-right"></i>
+  </button>
+</div>
+
+<!-- Slide-in chat sidebar for a deeper conversation about an element -->
+<div class="ai-drawer-scrim" id="ai-drawer-scrim" hidden></div>
+<aside class="ai-drawer" id="ai-drawer" aria-label="DriveClear AI assistant" aria-hidden="true">
+  <div class="ai-drawer-head">
+    <div class="ai-drawer-id">
+      <span class="ai-drawer-avatar"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
+      <div>
+        <div class="ai-drawer-name">DriveClear Assistant</div>
+        <div class="ai-drawer-sub" id="ai-drawer-topic"><span class="pa-dot"></span> Ask about this vehicle</div>
+      </div>
+    </div>
+    <button type="button" class="ai-drawer-close" id="ai-drawer-close" aria-label="Close assistant">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+  </div>
+  <div class="ai-drawer-body" id="ai-drawer-body"></div>
+  <div class="ai-drawer-chips" id="ai-drawer-chips" aria-label="Suggested questions"></div>
+  <form class="ai-drawer-form" id="ai-drawer-form">
+    <input type="text" class="ai-drawer-input" id="ai-drawer-input" placeholder="Ask a follow-up question…" autocomplete="off" aria-label="Ask a follow-up question">
+    <button type="submit" class="ai-drawer-send" aria-label="Send message"><i class="fa-solid fa-arrow-up"></i></button>
+  </form>
+  <div class="ai-drawer-footer"><i class="fa-solid fa-shield-halved"></i> AI-assisted answers · Demo content</div>
+</aside>
+
 <script src="js/inventory.js"></script>
 <script src="js/profile.js"></script>
 <script src="js/app.js"></script>
