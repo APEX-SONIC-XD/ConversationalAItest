@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('img').forEach(img => {
     img.addEventListener('error', function () {
       this.style.display = 'none';
-      if (this.parentElement) this.parentElement.style.background = 'linear-gradient(135deg,#1a2640 0%,#243352 100%)';
+      if (this.parentElement) this.parentElement.style.background = 'linear-gradient(135deg,#eef2f7 0%,#dfe6ee 100%)';
     });
   });
 
@@ -48,6 +48,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Conversational nav search suggestions (all pages)
+  initNavSearchSuggest();
+
   // SRP init
   if (document.getElementById('srp-grid')) initSRP();
 
@@ -58,10 +61,24 @@ document.addEventListener('DOMContentLoaded', () => {
   const featGrid = document.getElementById('featured-grid');
   if (featGrid) renderCards(VEHICLES.slice(0, 6), featGrid);
 
+  // Personalize the homepage AI recommendation banner from the profile
+  initHomeRec();
+
   // Interior pages
   if (document.getElementById('sell-trade-form')) initSellTradePage();
   if (document.getElementById('fin-calc-root')) initFinancingPage();
 });
+
+// ─── Homepage AI recommendation banner (reads participant profile) ───
+function initHomeRec() {
+  const sub = document.querySelector('.ai-rec-sub');
+  if (!sub || typeof Profile === 'undefined' || !Profile.hasData()) return;
+  const summary = Profile.summary();
+  const tier = PARTICIPANT.creditTier
+    ? `, ${PARTICIPANT.creditTier} credit (est. ${Profile.apr()}% APR)`
+    : '';
+  sub.innerHTML = `Based on what you told me — <strong>${summary}${tier}</strong> — here's what's in stock at your dealer (plus a few within a short drive). I've folded in expert reviews and verified owner sentiment.`;
+}
 
 // ─── Make/Model Dropdown ──────────────────────────────────
 const MODEL_MAP = {
@@ -118,7 +135,8 @@ function renderCards(vehicles, container) {
 }
 
 function cardHTML(v) {
-  const monthly = calcMonthly(v.price);
+  const apr = (typeof Profile !== 'undefined' && Profile.apr) ? Profile.apr() : 6.9;
+  const monthly = calcMonthly(v.price, 0, apr);
   const badgeClass = v.dealBadge ? `badge-${v.dealBadge}` : '';
   const mktHtml = v.marketSavings > 0
     ? `<span class="v-mkt mkt-below">$${v.marketSavings.toLocaleString()} Below Market</span>`
@@ -140,7 +158,7 @@ function cardHTML(v) {
         <span class="v-price">${formatPrice(v.price)}</span>
         ${mktHtml}
       </div>
-      <div class="v-monthly">Est. <b>${formatPrice(monthly)}/mo</b> · 6.9% APR, 60 mo</div>
+      <div class="v-monthly">Est. <b>${formatPrice(monthly)}/mo</b> · ${apr}% APR, 60 mo</div>
       <div class="v-meta">
         <span class="v-meta-item"><i class="fa-solid fa-gauge"></i> ${formatMileage(v.mileage)}</span>
         <span class="v-meta-item"><i class="fa-solid fa-car-side"></i> ${v.body}</span>
@@ -184,11 +202,14 @@ function initSRP() {
   const state = {
     make: urlP.getAll('make'),
     body: urlP.getAll('body'),
-    minYear: parseInt(urlP.get('minYear')) || 2018,
-    maxYear: parseInt(urlP.get('maxYear')) || 2023,
+    drive: urlP.getAll('drive'),
+    minYear: parseInt(urlP.get('minYear')) || 2010,
+    maxYear: parseInt(urlP.get('maxYear')) || 2024,
     minPrice: parseInt(urlP.get('minPrice')) || 0,
     maxPrice: parseInt(urlP.get('maxPrice')) || 50000,
     maxMiles: parseInt(urlP.get('maxMiles')) || 100000,
+    minMpg: parseInt(urlP.get('minMpg')) || 0,
+    maxDist: parseInt(urlP.get('maxDist')) || 0,
     sort: urlP.get('sort') || 'recommended',
     query: urlP.get('q') || '',
   };
@@ -210,21 +231,48 @@ function initSRP() {
       if (cb) cb.checked = true;
     });
   }
+  if (state.drive.length) {
+    state.drive.forEach(d => {
+      const cb = document.querySelector(`.fp-drive[value="${d}"]`);
+      if (cb) cb.checked = true;
+    });
+  }
 
   // Price inputs
   const minPriceIn = document.getElementById('fp-min-price');
   const maxPriceIn = document.getElementById('fp-max-price');
   const maxMilesIn = document.getElementById('fp-max-miles');
+  const minYearIn = document.getElementById('fp-min-year');
+  const maxYearIn = document.getElementById('fp-max-year');
   if (minPriceIn) minPriceIn.value = state.minPrice || '';
   if (maxPriceIn) maxPriceIn.value = state.maxPrice < 50000 ? state.maxPrice : '';
   if (maxMilesIn) maxMilesIn.value = state.maxMiles < 100000 ? state.maxMiles : '';
+  if (minYearIn && urlP.get('minYear')) minYearIn.value = state.minYear;
+  if (maxYearIn && urlP.get('maxYear')) maxYearIn.value = state.maxYear;
+
+  // Seed from the participant profile when the page wasn't opened with explicit filters.
+  const URL_FILTER_KEYS = ['make', 'body', 'drive', 'minYear', 'maxYear', 'minPrice', 'maxPrice', 'maxMiles', 'minMpg', 'maxDist', 'q'];
+  if (typeof Profile !== 'undefined' && Profile.toParams && !URL_FILTER_KEYS.some(k => urlP.has(k))) {
+    const pp = Profile.toParams();
+    [].concat(pp.make || []).forEach(m => { const cb = document.querySelector(`.fp-make[value="${m}"]`); if (cb) cb.checked = true; });
+    if (pp.body) { const cb = document.querySelector(`.fp-body[value="${pp.body}"]`); if (cb) cb.checked = true; }
+    if (pp.drive) { const cb = document.querySelector(`.fp-drive[value="${pp.drive}"]`); if (cb) cb.checked = true; }
+    if (pp.maxPrice && maxPriceIn) maxPriceIn.value = pp.maxPrice;
+    if (pp.maxMiles && maxMilesIn) maxMilesIn.value = pp.maxMiles;
+    if (pp.minYear && minYearIn) minYearIn.value = pp.minYear;
+    state.minMpg = pp.minMpg || 0;
+    state.maxDist = pp.maxDist || 0;
+  }
 
   function readFilters() {
     state.make = [...document.querySelectorAll('.fp-make:checked')].map(c => c.value);
     state.body = [...document.querySelectorAll('.fp-body:checked')].map(c => c.value);
+    state.drive = [...document.querySelectorAll('.fp-drive:checked')].map(c => c.value);
     state.minPrice = parseInt(minPriceIn?.value) || 0;
     state.maxPrice = parseInt(maxPriceIn?.value) || 50000;
     state.maxMiles = parseInt(maxMilesIn?.value) || 100000;
+    state.minYear = parseInt(minYearIn?.value) || 2010;
+    state.maxYear = parseInt(maxYearIn?.value) || 2024;
     state.query = searchInput?.value.trim().toLowerCase() || '';
     state.sort = sortSel?.value || 'recommended';
   }
@@ -234,8 +282,12 @@ function initSRP() {
     let results = VEHICLES.filter(v => {
       if (state.make.length && !state.make.includes(v.make)) return false;
       if (state.body.length && !state.body.includes(v.body)) return false;
+      if (state.drive.length && !state.drive.includes(v.drivetrain)) return false;
       if (v.price < state.minPrice || v.price > state.maxPrice) return false;
       if (v.mileage > state.maxMiles) return false;
+      if (v.year < state.minYear || v.year > state.maxYear) return false;
+      if (state.minMpg && v.mpgHwy < state.minMpg) return false;
+      if (state.maxDist && vehicleDistance(v) > state.maxDist) return false;
       if (state.query) {
         const q = state.query;
         const haystack = `${v.year} ${v.make} ${v.model} ${v.trim} ${v.body} ${v.extColor}`.toLowerCase();
@@ -257,6 +309,7 @@ function initSRP() {
     renderCards(results, grid);
     renderActiveTags(activeTagsEl, state);
     renderPagination(results.length);
+    return results.length;
   }
 
   // Filter collapse toggles
@@ -269,23 +322,45 @@ function initSRP() {
   });
 
   // Filter change listeners
-  document.querySelectorAll('.fp-make, .fp-body').forEach(cb => {
+  document.querySelectorAll('.fp-make, .fp-body, .fp-drive').forEach(cb => {
     cb.addEventListener('change', applyAndRender);
   });
-  [minPriceIn, maxPriceIn, maxMilesIn].forEach(inp => {
+  [minPriceIn, maxPriceIn, maxMilesIn, minYearIn, maxYearIn].forEach(inp => {
     if (inp) inp.addEventListener('input', debounce(applyAndRender, 400));
   });
   if (searchInput) searchInput.addEventListener('input', debounce(applyAndRender, 300));
+  searchInput?.closest('form.nav-search')?.addEventListener('submit', e => { e.preventDefault(); applyAndRender(); });
   if (sortSel) sortSel.addEventListener('change', applyAndRender);
   if (clearBtn) clearBtn.addEventListener('click', () => {
-    document.querySelectorAll('.fp-make, .fp-body').forEach(cb => cb.checked = false);
+    document.querySelectorAll('.fp-make, .fp-body, .fp-drive').forEach(cb => cb.checked = false);
     if (minPriceIn) minPriceIn.value = '';
     if (maxPriceIn) maxPriceIn.value = '';
     if (maxMilesIn) maxMilesIn.value = '';
+    if (minYearIn) minYearIn.value = 2018;
+    if (maxYearIn) maxYearIn.value = 2024;
     if (searchInput) searchInput.value = '';
-    state.make = []; state.body = []; state.minPrice = 0; state.maxPrice = 50000; state.maxMiles = 100000; state.query = '';
+    state.make = []; state.body = []; state.drive = [];
+    state.minPrice = 0; state.maxPrice = 50000; state.maxMiles = 100000;
+    state.minYear = 2010; state.maxYear = 2024; state.minMpg = 0; state.maxDist = 0; state.query = '';
     applyAndRender();
   });
+
+  initShopChat();
+
+  // Filter mode switch (AI conversation vs manual filters)
+  if (filterPanel) {
+    document.querySelectorAll('.fp-mode-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.fp-mode-btn').forEach(b => {
+          const on = b === btn;
+          b.classList.toggle('active', on);
+          b.setAttribute('aria-selected', on ? 'true' : 'false');
+        });
+        filterPanel.classList.remove('mode-ai', 'mode-manual');
+        filterPanel.classList.add('mode-' + btn.dataset.mode);
+      });
+    });
+  }
 
   // Mobile filter toggle
   if (filterToggle && filterPanel) {
@@ -299,6 +374,130 @@ function initSRP() {
   if (urlP.get('body')) {
     const cb = document.querySelector(`.fp-body[value="${urlP.get('body')}"]`);
     if (cb) cb.checked = true;
+  }
+
+  // ─── AI shopping chat (client-side intent parser, no backend) ───
+  function initShopChat() {
+    const form = document.getElementById('fp-chat-form');
+    const input = document.getElementById('fp-chat-input');
+    const log = document.getElementById('fp-chat-log');
+    if (!form || !input || !log) return;
+
+    const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+    function push(role, html) {
+      const el = document.createElement('div');
+      el.className = `fp-msg fp-msg-${role}`;
+      el.innerHTML = html;
+      log.appendChild(el);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function parseIntent(text) {
+      const t = ' ' + text.toLowerCase().replace(/\s+/g, ' ') + ' ';
+      const intent = { makes: [], bodies: [], drives: [] };
+
+      if (t.includes('honda')) intent.makes.push('Honda');
+      if (t.includes('toyota')) intent.makes.push('Toyota');
+      if (t.includes('ford')) intent.makes.push('Ford');
+      if (t.includes('chevy') || t.includes('chevrolet')) intent.makes.push('Chevrolet');
+      if (t.includes('hyundai')) intent.makes.push('Hyundai');
+      if (t.includes('mazda')) intent.makes.push('Mazda');
+      if (t.includes('volkswagen') || /\bvw\b/.test(t)) intent.makes.push('Volkswagen');
+      if (t.includes('nissan')) intent.makes.push('Nissan');
+      if (t.includes('kia')) intent.makes.push('Kia');
+
+      if (/\b(suv|crossover|cuv)s?\b/.test(t)) intent.bodies.push('SUV');
+      if (/\bsedans?\b/.test(t)) intent.bodies.push('Sedan');
+      if (/\b(truck|pickup)s?\b/.test(t)) intent.bodies.push('Truck');
+
+      if (/\bawd\b|all[- ]?wheel/.test(t)) intent.drives.push('AWD');
+      if (/\bfwd\b|front[- ]?wheel/.test(t)) intent.drives.push('FWD');
+      if (/\b4wd\b|4x4|four[- ]?wheel/.test(t)) intent.drives.push('4WD');
+
+      const ym = t.match(/\b(20[1-2]\d)\b/);
+      if (ym) intent.minYear = parseInt(ym[1]);
+
+      if (/low (mile|mileage)/.test(t)) intent.maxMiles = 30000;
+      const milesM = t.match(/(\d{1,3}(?:,\d{3})?)\s*(k?)\s*(?:miles|mi)\b/);
+      if (milesM) {
+        let n = parseInt(milesM[1].replace(/,/g, ''));
+        if (milesM[2] === 'k' || n < 1000) n *= 1000;
+        intent.maxMiles = n;
+      }
+
+      // Price — strip year + mileage tokens first so they aren't read as dollars
+      let pctx = t;
+      if (ym) pctx = pctx.replace(ym[0], ' ');
+      pctx = pctx.replace(/(\d{1,3}(?:,\d{3})?)\s*k?\s*(?:miles|mi)\b/g, ' ');
+      let pm = pctx.match(/\$?\s*(\d{1,3})\s*k\b/);
+      if (pm) intent.maxPrice = parseInt(pm[1]) * 1000;
+      else {
+        pm = pctx.match(/\$\s*(\d{1,3}(?:,\d{3})+)/) ||
+             pctx.match(/(?:under|below|less than|up to|max|budget|around)\s*\$?\s*(\d{4,6})\b/);
+        if (pm) intent.maxPrice = parseInt(pm[1].replace(/,/g, ''));
+      }
+      return intent;
+    }
+
+    function applyIntent(intent) {
+      intent.makes.forEach(m => { const cb = document.querySelector(`.fp-make[value="${m}"]`); if (cb) cb.checked = true; });
+      intent.bodies.forEach(b => { const cb = document.querySelector(`.fp-body[value="${b}"]`); if (cb) cb.checked = true; });
+      intent.drives.forEach(d => { const cb = document.querySelector(`.fp-drive[value="${d}"]`); if (cb) cb.checked = true; });
+      if (intent.maxPrice && maxPriceIn) maxPriceIn.value = intent.maxPrice;
+      if (intent.maxMiles && maxMilesIn) maxMilesIn.value = intent.maxMiles;
+      if (intent.minYear && minYearIn) minYearIn.value = intent.minYear;
+    }
+
+    function buildReply(intent, count) {
+      const crit = [];
+      if (intent.drives.length) crit.push(intent.drives.join('/'));
+      if (intent.makes.length) crit.push(intent.makes.join(' or '));
+      if (intent.bodies.length) crit.push(intent.bodies.join(' or '));
+      if (intent.maxPrice) crit.push('under ' + formatPrice(intent.maxPrice));
+      if (intent.maxMiles) crit.push('under ' + intent.maxMiles.toLocaleString() + ' mi');
+      if (intent.minYear) crit.push(intent.minYear + ' or newer');
+
+      if (!crit.length) {
+        return `I can filter by make, body style, price, mileage, drivetrain, and year. Try <em>“AWD SUV under $30k, low miles.”</em>`;
+      }
+      const desc = crit.join(', ');
+      if (count === 0) {
+        return `No matches for <strong>${desc}</strong> right now. Want to loosen the price or mileage?`;
+      }
+      return `Showing <strong>${count}</strong> ${count === 1 ? 'match' : 'matches'} for <strong>${desc}</strong> — filters updated on the left.`;
+    }
+
+    function handle(text) {
+      text = (text || '').trim();
+      if (!text) return;
+      push('user', esc(text));
+
+      if (/\b(reset|clear|start over|show all|show everything)\b/i.test(text)) {
+        if (clearBtn) clearBtn.click();
+        push('ai', `Cleared every filter — showing the full inventory.`);
+        return;
+      }
+
+      const intent = parseIntent(text);
+      applyIntent(intent);
+      const count = applyAndRender();
+      push('ai', buildReply(intent, count));
+    }
+
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      handle(input.value);
+      input.value = '';
+    });
+    document.querySelectorAll('.fp-chip').forEach(chip => {
+      chip.addEventListener('click', () => handle(chip.textContent));
+    });
+
+    const sum = (typeof Profile !== 'undefined' && Profile.hasData && Profile.hasData()) ? Profile.summary() : '';
+    push('ai', sum
+      ? `Hi! Based on what you've shared, I'm showing <strong>${sum}</strong>. Tell me what to change — e.g. <em>“add AWD”</em> or <em>“cheaper.”</em>`
+      : `Hi! Tell me what you're after and I'll filter these results — e.g. <em>“AWD SUV under $30k.”</em>`);
   }
 
   applyAndRender();
@@ -381,7 +580,8 @@ function initVDP() {
 }
 
 function populateVDP(v) {
-  const monthly = calcMonthly(v.price);
+  const apr = (typeof Profile !== 'undefined' && Profile.apr) ? Profile.apr() : 6.9;
+  const monthly = calcMonthly(v.price, 0, apr);
   const set = (id, val) => { const el = document.getElementById(id); if(el) el.innerHTML = val; };
 
   set('vdp-year', v.year);
@@ -554,9 +754,15 @@ function escapeHtml(s) {
 // Canned UI-only responses — purely for demoing the chat surface.
 function generateMockAnswer(q) {
   const text = q.toLowerCase();
+  const tier = (typeof PARTICIPANT !== 'undefined') ? PARTICIPANT.creditTier : null;
+  const apr = (typeof Profile !== 'undefined' && Profile.apr) ? Profile.apr() : 6.9;
+  const budget = (typeof PARTICIPANT !== 'undefined') ? PARTICIPANT.maxPrice : null;
   if (text.includes('apr') || text.includes('rate') || text.includes('interest')) {
-    return `<p>A lower APR means a smaller share of each payment goes to interest. On a 60-month loan, every <strong>1% lower APR</strong> typically drops your monthly payment by about <strong>$10–$15</strong> per $10K financed.</p>
-            <p>Getting pre-approved is the fastest way to see your real rate — it's a soft pull and won't affect your credit.</p>`;
+    const lead = tier
+      ? `<p>Based on your <strong>${tier} credit</strong>, your estimated APR is about <strong>${apr}%</strong>. `
+      : `<p>`;
+    return `${lead}A lower APR means a smaller share of each payment goes to interest. On a 60-month loan, every <strong>1% lower APR</strong> typically drops your monthly payment by about <strong>$10–$15</strong> per $10K financed.</p>
+            <p>Getting pre-approved is the fastest way to confirm your real rate — it's a soft pull and won't affect your credit.</p>`;
   }
   if (text.includes('down') || text.includes('cash')) {
     return `<p>A larger down payment lowers your monthly payment and total interest paid. We generally suggest <strong>10–20%</strong> down if it's comfortable for you.</p>
@@ -567,7 +773,10 @@ function generateMockAnswer(q) {
             <p>Want me to start a trade-in estimate?</p>`;
   }
   if (text.includes('afford') || text.includes('budget')) {
-    return `<p>A common guideline is to keep your auto payment under <strong>10–15% of your monthly take-home pay</strong>, and total transportation costs under 20%.</p>
+    const lead = budget
+      ? `<p>Keeping you under your <strong>$${budget.toLocaleString()}</strong> budget — at about ${apr}% APR over 60 months that's roughly <strong>${formatPrice(calcMonthly(budget, 0, apr))}/mo</strong> before any down payment. `
+      : `<p>`;
+    return `${lead}A common guideline is to keep your auto payment under <strong>10–15% of your monthly take-home pay</strong>, and total transportation costs under 20%.</p>
             <p>Adjust the term and down payment in the calculator to land at a payment that fits your budget.</p>`;
   }
   return `<p>Great question — a DriveClear finance specialist can walk you through the details for your specific situation.</p>
@@ -804,7 +1013,11 @@ function renderCompareTray() {
     btn.addEventListener('click', () => toggleCompare(parseInt(btn.dataset.id)));
   });
   document.getElementById('ct-clear')?.addEventListener('click', clearCompare);
-  document.getElementById('ct-compare')?.addEventListener('click', openCompareModal);
+  document.getElementById('ct-compare')?.addEventListener('click', () => {
+    const ids = getCompareList();
+    if (ids.length < 2) return;
+    window.location.href = 'compare.html?ids=' + ids.join(',');
+  });
 }
 
 // ─── Compare Modal ────────────────────────────────────
@@ -1155,6 +1368,12 @@ function initFinancingPage() {
   const resultEl = document.getElementById('fin-calc-result');
   const downLabel = document.getElementById('fin-down-label');
 
+  // Seed rate from the participant's credit tier and price from their budget.
+  if (typeof Profile !== 'undefined') {
+    if (rateIn && PARTICIPANT.creditTier) rateIn.value = Profile.apr();
+    if (priceIn && PARTICIPANT.maxPrice) priceIn.value = PARTICIPANT.maxPrice;
+  }
+
   function updateCalc() {
     const price = parseInt(priceIn?.value) || 25000;
     const down = parseInt(downIn?.value) || 0;
@@ -1207,3 +1426,369 @@ document.addEventListener('DOMContentLoaded', () => {
     if (getCompareList().length) renderCompareTray();
   }, 100);
 });
+
+// ─── Conversational nav search suggestions ────────────────
+function initNavSearchSuggest() {
+  if (typeof VEHICLES === 'undefined') return;
+  document.querySelectorAll('form.nav-search').forEach(setupNavSuggest);
+}
+
+const MAKE_WORDS = {
+  honda: 'Honda', toyota: 'Toyota', ford: 'Ford', chevy: 'Chevrolet', chevrolet: 'Chevrolet',
+  hyundai: 'Hyundai', mazda: 'Mazda', volkswagen: 'Volkswagen', nissan: 'Nissan', kia: 'Kia',
+};
+
+// Turn a free-text / conversational query into structured search params.
+function parseSearchParams(q) {
+  const t = ' ' + q + ' ';
+  const P = {};
+  if (/\b(suv|crossover|cuv|family|families|kids)\b/.test(t)) P.body = 'SUV';
+  else if (/\b(sedan|sedans|commuter|commute|daily driver)\b/.test(t)) P.body = 'Sedan';
+  else if (/\b(truck|trucks|pickup|haul|hauling|tow|towing|work)\b/.test(t)) P.body = 'Truck';
+
+  for (const k in MAKE_WORDS) { if (t.includes(k)) { P.make = MAKE_WORDS[k]; break; } }
+  if (/\bvw\b/.test(t)) P.make = 'Volkswagen';
+
+  if (/\bawd\b|all[- ]?wheel|four season|snow/.test(t)) P.drive = 'AWD';
+  else if (/\bfwd\b|front[- ]?wheel/.test(t)) P.drive = 'FWD';
+  else if (/\b4wd\b|4x4|four[- ]?wheel/.test(t)) P.drive = '4WD';
+
+  let pm = t.match(/\$?\s*(\d{1,3})\s*k\b/) ||
+           t.match(/(?:under|below|less than|up to|max|budget|around)\s*\$?\s*(\d{4,6})\b/) ||
+           t.match(/\$\s*(\d{4,6})\b/);
+  if (pm) P.maxPrice = (/k\b/.test(pm[0]) && pm[1].length <= 3) ? parseInt(pm[1]) * 1000 : parseInt(pm[1]);
+  if (!P.maxPrice && /\b(cheap|cheapest|budget|affordable|inexpensive)\b/.test(t)) P.maxPrice = 22000;
+
+  const milesMatch = t.match(/(?:under|below|less than|up to|max)\s*(\d{1,3})\s*k?\s*(?:mi|mile|miles)/);
+  if (milesMatch) P.maxMiles = parseInt(milesMatch[1]) * (milesMatch[1].length <= 3 ? 1000 : 1);
+  if (!P.maxMiles && /low mile|low mileage|fewest mile|lowest mile|barely used/.test(t)) P.maxMiles = 30000;
+
+  const ym = t.match(/\b(20[12]\d)\b/);
+  if (ym) {
+    if (/newer|or up|and up|\+|after|since/.test(t)) P.minYear = parseInt(ym[1]);
+    else P.year = parseInt(ym[1]);
+  } else if (/\b(newer|newest|late model|recent)\b/.test(t)) P.minYear = 2021;
+
+  const distMatch = t.match(/within\s*(\d{2,3})\s*(?:mi|mile|miles)/);
+  if (distMatch) P.maxDist = parseInt(distMatch[1]);
+  else if (/\b(near me|nearby|close by|close to me|local|around me)\b/.test(t)) P.maxDist = 50;
+
+  if (/\b(mpg|fuel|economy|economical|efficient|efficiency|gas|eco|hybrid)\b/.test(t)) P.minMpg = 33;
+
+  return P;
+}
+
+// Deterministic synthetic distance (miles) per vehicle — stable across the app.
+function vehicleDistance(v) {
+  return ((v.id * 7) % 12) * 9 + 6; // ~6–105 miles
+}
+
+function paramMatches(v, P) {
+  if (P.make && v.make !== P.make) return false;
+  if (P.body && v.body !== P.body) return false;
+  if (P.drive && v.drivetrain !== P.drive) return false;
+  if (P.maxPrice && v.price > P.maxPrice) return false;
+  if (P.maxMiles && v.mileage > P.maxMiles) return false;
+  if (P.year && v.year !== P.year) return false;
+  if (P.minYear && v.year < P.minYear) return false;
+  if (P.maxYear && v.year > P.maxYear) return false;
+  if (P.minMpg && v.mpgHwy < P.minMpg) return false;
+  if (P.maxDist && vehicleDistance(v) > P.maxDist) return false;
+  return true;
+}
+
+function paramLabel(P) {
+  const parts = [];
+  if (P.drive) parts.push(P.drive);
+  if (P.year) parts.push(P.year);
+  else if (P.minYear) parts.push(P.minYear + '+');
+  if (P.make) parts.push(P.make);
+  if (P.body === 'SUV') parts.push('SUVs');
+  else if (P.body === 'Truck') parts.push('Trucks');
+  else if (P.body === 'Sedan') parts.push('Sedans');
+  else parts.push('vehicles');
+  let s = parts.join(' ');
+  const extra = [];
+  if (P.minMpg) extra.push('great MPG');
+  if (P.maxMiles) extra.push('under ' + (P.maxMiles / 1000) + 'k mi');
+  if (P.maxDist) extra.push('within ' + P.maxDist + ' mi');
+  if (P.maxPrice) extra.push('under ' + formatPrice(P.maxPrice));
+  if (extra.length) s += ' · ' + extra.join(', ');
+  return s;
+}
+
+function paramHref(P) {
+  const u = new URLSearchParams();
+  if (P.make) [].concat(P.make).forEach(m => u.append('make', m));
+  if (P.body) u.set('body', P.body);
+  if (P.drive) u.set('drive', P.drive);
+  if (P.maxPrice) u.set('maxPrice', P.maxPrice);
+  if (P.maxMiles) u.set('maxMiles', P.maxMiles);
+  if (P.year) { u.set('minYear', P.year); u.set('maxYear', P.year); }
+  if (P.minYear) u.set('minYear', P.minYear);
+  if (P.maxYear) u.set('maxYear', P.maxYear);
+  if (P.minMpg) u.set('minMpg', P.minMpg);
+  if (P.maxDist) u.set('maxDist', P.maxDist);
+  if (P.sort) u.set('sort', P.sort);
+  return 'srp.html?' + u.toString();
+}
+
+function coreParams(P) {
+  const c = {};
+  if (P.body) c.body = P.body;
+  if (P.drive) c.drive = P.drive;
+  if (P.maxPrice) c.maxPrice = P.maxPrice;
+  if (P.minMpg) c.minMpg = P.minMpg;
+  return c;
+}
+
+function paramIcon(P) {
+  if (P.body === 'Truck') return 'fa-truck-pickup';
+  if (P.body) return 'fa-car-side';
+  if (P.minMpg) return 'fa-gas-pump';
+  if (P.drive) return 'fa-snowflake';
+  if (P.maxPrice) return 'fa-dollar-sign';
+  if (P.make) return 'fa-tag';
+  if (P.maxMiles) return 'fa-gauge';
+  return 'fa-layer-group';
+}
+
+function buildSearchSuggestions(rawQ) {
+  const q = rawQ.trim().toLowerCase();
+  const out = { vehicles: [], groups: [] };
+  if (q.length < 2) return out;
+
+  // Exact / close vehicle matches by name (make/model/trim/year) → detail page.
+  // Segment words (e.g. "suv") deliberately don't list individual cars here —
+  // those drive the recommendation groups instead.
+  const words = q.split(/\s+/).filter(Boolean);
+  out.vehicles = VEHICLES.filter(v => {
+    const name = `${v.year} ${v.make} ${v.model} ${v.trim}`.toLowerCase();
+    return name.includes(q) || (words.length <= 3 && words.every(w => name.includes(w)));
+  }).slice(0, 3).map(v => ({
+    title: `${v.year} ${v.make} ${v.model}`,
+    sub: `${v.trim} · ${formatPrice(v.price)}`,
+    href: `vdp.html?id=${v.id}`,
+  }));
+
+  // Conversational → grouped searches
+  const toSample = v => ({
+    title: `${v.year} ${v.make} ${v.model}`,
+    sub: `${v.mileage.toLocaleString()} mi · ${formatPrice(v.price)}`,
+    href: `vdp.html?id=${v.id}`,
+    img: (v.images && v.images[0]) || '',
+  });
+
+  // Start from the participant profile (budget/body always anchor the groups),
+  // then let anything typed override or add to it.
+  const base = (typeof Profile !== 'undefined' && Profile.toParams) ? Profile.toParams() : {};
+  const typed = parseSearchParams(q);
+  const P = Object.assign({}, base, typed);
+  const facets = Object.keys(P);
+
+  // Core pool — constraints that never relax. Reused by discovery fill below.
+  const coreOf = v =>
+    (!P.body || v.body === P.body) &&
+    (!P.drive || v.drivetrain === P.drive) &&
+    (!P.maxPrice || v.price <= P.maxPrice) &&
+    (!P.minMpg || v.mpgHwy >= P.minMpg);
+  const corePool = facets.length ? VEHICLES.filter(coreOf) : VEHICLES.slice();
+
+  const usedSigs = new Set();
+  const pushGroup = (label, note, icon, pool, hrefParams) => {
+    if (!pool.length) return;
+    const sig = pool.slice(0, 3).map(v => v.id).join('-');
+    if (usedSigs.has(sig)) return;       // skip groups that preview the same cars
+    usedSigs.add(sig);
+    out.groups.push({
+      label, note, icon,
+      href: paramHref(hrefParams),
+      count: pool.length,
+      samples: pool.slice(0, 3).map(toSample),
+    });
+  };
+
+  if (facets.length) {
+    const coreCars = corePool;
+    const anchored = !!(P.body || P.maxPrice); // need a functional anchor to relax around
+
+    // 1) Exactly what they asked for
+    pushGroup(paramLabel(P), 'Matches your search', paramIcon(P),
+      VEHICLES.filter(v => paramMatches(v, P)), P);
+
+    // 2) Better value — price exception: cheaper than the budget, equal/better car
+    if (P.maxPrice) {
+      const cheaper = coreCars
+        .filter(v => v.price < P.maxPrice)
+        .sort((a, b) => (b.marketSavings || 0) - (a.marketSavings || 0) || a.price - b.price || a.mileage - b.mileage);
+      pushGroup('Better value below your budget', `More car for less than ${formatPrice(P.maxPrice)}`,
+        'fa-piggy-bank', cheaper, Object.assign(coreParams(P), { sort: 'price-asc' }));
+    }
+
+    // 3) Other brands — make is flexible
+    if (P.make && anchored) {
+      const alts = coreCars.filter(v => v.make !== P.make);
+      const altMakes = [...new Set(alts.map(v => v.make))].slice(0, 3);
+      pushGroup('Other brands to consider', altMakes.join(', ') || 'Alternative makes',
+        'fa-shuffle', alts, Object.assign(coreParams(P), { make: altMakes }));
+    }
+
+    // 4) Nearby model years — year is flexible (±2)
+    if (P.year && anchored) {
+      const near = coreCars.filter(v => Math.abs(v.year - P.year) <= 2 && v.year !== P.year);
+      pushGroup('Similar model years', `${P.year - 2}–${P.year + 2}`,
+        'fa-calendar-days', near, Object.assign(coreParams(P), { minYear: P.year - 2, maxYear: P.year + 2 }));
+    }
+
+    // 5) A little more mileage — mileage is flexible (up to +20%)
+    if (P.maxMiles && anchored) {
+      const relaxed = Math.round((P.maxMiles * 1.2) / 1000) * 1000;
+      const more = coreCars.filter(v => v.mileage > P.maxMiles && v.mileage <= relaxed);
+      pushGroup('A little more mileage', `Up to ${relaxed / 1000}k mi`,
+        'fa-gauge-high', more, Object.assign(coreParams(P), { maxMiles: relaxed }));
+    }
+
+    // 6) Worth a short drive — location is flexible (out to 2× the radius)
+    if (P.maxDist && anchored) {
+      const far = coreCars.filter(v => {
+        const d = vehicleDistance(v);
+        return d > P.maxDist && d <= P.maxDist * 2;
+      });
+      pushGroup('Worth a short drive', `${P.maxDist}–${P.maxDist * 2} mi away`,
+        'fa-location-dot', far, Object.assign(coreParams(P), { maxDist: P.maxDist * 2 }));
+    }
+  }
+
+  // Plain text search — only when nothing structured was understood (no profile/facets).
+  if (!out.groups.length && !facets.length) {
+    const textHits = VEHICLES.filter(v => {
+      const hay = `${v.year} ${v.make} ${v.model} ${v.trim} ${v.body} ${v.extColor}`.toLowerCase();
+      return hay.includes(q) || (words.length <= 3 && words.every(w => hay.includes(w)));
+    });
+    if (textHits.length) {
+      pushGroup(`Search “${rawQ.trim()}”`, 'All matches', 'fa-magnifying-glass',
+        textHits, { /* href below */ });
+      out.groups[out.groups.length - 1].href = 'srp.html?q=' + encodeURIComponent(rawQ.trim());
+    }
+  }
+
+  // Top up to three recommendation groups with discovery angles.
+  // Keep the budget ceiling (the non-negotiable) but relax body if the strict
+  // pool is too thin, so we can still surface three groups — hrefs match the pool.
+  let discPool = corePool, discParams = coreParams(P);
+  if (discPool.length < 3) {
+    const priced = VEHICLES.filter(v =>
+      (!P.maxPrice || v.price <= P.maxPrice) &&
+      (!P.drive || v.drivetrain === P.drive) &&
+      (!P.minMpg || v.mpgHwy >= P.minMpg));
+    if (priced.length >= 3) {
+      discPool = priced;
+      discParams = {};
+      if (P.maxPrice) discParams.maxPrice = P.maxPrice;
+      if (P.drive) discParams.drive = P.drive;
+      if (P.minMpg) discParams.minMpg = P.minMpg;
+    } else {
+      discPool = VEHICLES.slice();
+      discParams = {};
+    }
+  }
+  const discoveries = [
+    { label: 'Biggest savings', note: 'Most below market', icon: 'fa-tags',
+      sort: (a, b) => (b.marketSavings || 0) - (a.marketSavings || 0), params: { sort: 'recommended' } },
+    { label: 'Lowest mileage', note: 'Gently driven', icon: 'fa-gauge-high',
+      sort: (a, b) => a.mileage - b.mileage, params: { sort: 'miles-asc' } },
+    { label: 'Newest model years', note: 'Latest arrivals', icon: 'fa-calendar-days',
+      sort: (a, b) => b.year - a.year, params: { sort: 'year-desc' } },
+  ];
+  for (const d of discoveries) {
+    if (out.groups.length >= 3) break;
+    pushGroup(d.label, d.note, d.icon, discPool.slice().sort(d.sort), Object.assign({}, discParams, d.params));
+  }
+
+  out.groups = out.groups.slice(0, 3);
+  return out;
+}
+
+function setupNavSuggest(form) {
+  const input = form.querySelector('input');
+  if (!input) return;
+  const panel = document.createElement('div');
+  panel.className = 'nav-suggest';
+  panel.setAttribute('role', 'listbox');
+  form.appendChild(panel);
+
+  let actions = [];   // ordered hrefs for keyboard nav
+  let active = -1;
+
+  const close = () => { panel.classList.remove('open'); active = -1; };
+  const setActive = i => {
+    const opts = panel.querySelectorAll('[data-i]');
+    if (!opts.length) return;
+    active = (i + opts.length) % opts.length;
+    opts.forEach((o, idx) => o.classList.toggle('active', idx === active));
+    opts[active].scrollIntoView({ block: 'nearest' });
+  };
+
+  const miniCar = s => {
+    const i = actions.push(s.href) - 1;
+    return `<a class="ns-car" role="option" data-i="${i}" href="${s.href}">
+      <span class="ns-car-img" style="background-image:url('${s.img}')"></span>
+      <span class="ns-car-info">
+        <span class="ns-car-name">${s.title}</span>
+        <span class="ns-car-spec">${s.sub}</span>
+      </span>
+    </a>`;
+  };
+
+  const render = () => {
+    const data = buildSearchSuggestions(input.value);
+    actions = [];
+    if (!data.vehicles.length && !data.groups.length) { panel.innerHTML = ''; close(); return; }
+    let html = '';
+    if (data.vehicles.length) {
+      html += `<div class="ns-head">Matching vehicles</div>`;
+      data.vehicles.forEach(v => {
+        const i = actions.push(v.href) - 1;
+        html += `<a class="ns-item" role="option" data-i="${i}" href="${v.href}">
+          <span class="ns-ic"><i class="fa-solid fa-car"></i></span>
+          <span class="ns-main"><span class="ns-title">${v.title}</span><span class="ns-sub">${v.sub}</span></span>
+        </a>`;
+      });
+    }
+    if (data.groups.length) {
+      html += `<div class="ns-head">Suggested searches</div>`;
+      data.groups.forEach(g => {
+        const i = actions.push(g.href) - 1;
+        html += `<div class="ns-group">
+          <a class="ns-group-head" role="option" data-i="${i}" href="${g.href}">
+            <span class="ns-ic"><i class="fa-solid ${g.icon}"></i></span>
+            <span class="ns-group-main">
+              <span class="ns-group-label">${g.label}</span>
+              ${g.note ? `<span class="ns-group-note">${g.note}</span>` : ''}
+            </span>
+            <span class="ns-count">${g.count}</span>
+          </a>
+          <div class="ns-cars">${g.samples.map(miniCar).join('')}</div>
+          <a class="ns-shop" href="${g.href}">Shop all ${g.count} <i class="fa-solid fa-arrow-right"></i></a>
+        </div>`;
+      });
+    }
+    panel.innerHTML = html;
+    active = -1;
+    panel.classList.add('open');
+  };
+
+  input.addEventListener('input', debounce(render, 130));
+  input.addEventListener('focus', () => { if (input.value.trim().length >= 2) render(); });
+  input.addEventListener('keydown', e => {
+    if (!panel.classList.contains('open')) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); setActive(active + 1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(active - 1); }
+    else if (e.key === 'Enter') {
+      if (active >= 0 && actions[active]) { e.preventDefault(); window.location.href = actions[active]; }
+    } else if (e.key === 'Escape') { close(); }
+  });
+  // Prevent blur from firing before an option click registers
+  panel.addEventListener('mousedown', e => e.preventDefault());
+  document.addEventListener('click', e => { if (!form.contains(e.target)) close(); });
+}

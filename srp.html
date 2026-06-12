@@ -18,18 +18,16 @@
       <div class="logo-mark">DC</div>
       Drive<span class="accent">Clear</span>
     </a>
+    <form class="nav-search" role="search" action="srp.html">
+      <i class="fa-solid fa-magnifying-glass"></i>
+      <input type="text" id="srp-search-input" name="q" placeholder="Search make, model, year…" aria-label="Search vehicles" autocomplete="off">
+    </form>
     <ul class="nav-links">
       <li><a href="srp.html" class="active">Used Cars</a></li>
       <li><a href="sell-trade.html">Sell / Trade</a></li>
       <li><a href="financing.html">Financing</a></li>
-      <li><a href="#">How It Works</a></li>
-      <li><a href="#">Locations</a></li>
     </ul>
     <div class="nav-right">
-      <a href="tel:+18005551234" class="nav-phone">
-        <i class="fa-solid fa-phone"></i> (800) 555-1234
-      </a>
-      <a href="financing.html" class="btn btn-primary btn-sm">Get Pre-Approved</a>
       <button class="nav-hamburger" aria-label="Menu">
         <span></span><span></span><span></span>
       </button>
@@ -42,18 +40,12 @@
   <a href="srp.html">Used Cars</a>
   <a href="sell-trade.html">Sell / Trade</a>
   <a href="financing.html">Financing</a>
-  <a href="#">How It Works</a>
-  <a href="#">Locations</a>
 </nav>
 
 <!-- ═══════════════════════ SRP SEARCH BAR ═══════════════════════ -->
 <div class="srp-bar" role="search">
   <div class="container">
     <div class="srp-bar-inner">
-      <div class="srp-search">
-        <i class="fa-solid fa-magnifying-glass"></i>
-        <input type="text" id="srp-search-input" placeholder="Search make, model, year…" aria-label="Search vehicles">
-      </div>
       <span class="srp-count" id="srp-count">Loading…</span>
       <div class="srp-sort-wrap">
         <span>Sort:</span>
@@ -72,141 +64,45 @@
   </div>
 </div>
 
-<!-- ═══════════════════════ CROSS-DEALER COMPARE (NEW) ═══════════════════════ -->
-<div class="container">
-  <section class="xdc" aria-label="Compare new cars across dealers">
-    <div class="xdc-head">
-      <div class="xdc-head-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
-      <div>
-        <div class="xdc-eyebrow">DriveClear Assistant · Cross-dealer compare</div>
-        <h2 class="xdc-title">New AWD sedans — compared on what matters</h2>
-        <p class="xdc-sub">Skipping the frills. Here's <strong>engine performance, drivetrain, year, mileage, price, and value</strong> for new European sedans across nearby dealers. Best in each row is highlighted.</p>
-      </div>
-    </div>
-
-    <div class="xdc-table-wrap">
-      <table class="xdc-table">
-        <thead>
-          <tr>
-            <th class="xdc-rowlabel">Spec</th>
-            <th>
-              <div class="xdc-veh">2024 Audi A4 quattro</div>
-              <div class="xdc-veh-trim">Premium · AWD Sedan</div>
-            </th>
-            <th>
-              <div class="xdc-veh">2024 BMW 330i xDrive</div>
-              <div class="xdc-veh-trim">Sport Line · AWD Sedan</div>
-            </th>
-            <th>
-              <div class="xdc-veh">2024 Mercedes C300 4MATIC</div>
-              <div class="xdc-veh-trim">Premium · AWD Sedan</div>
-            </th>
-            <th>
-              <div class="xdc-veh">2024 Volvo S60 B5</div>
-              <div class="xdc-veh-trim">Plus · AWD Sedan</div>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td class="xdc-rowlabel"><i class="fa-solid fa-store"></i> Dealer</td>
-            <td>DriveClear Boulder</td>
-            <td>Front Range BMW</td>
-            <td>Foothills Mercedes</td>
-            <td>Mountain Volvo</td>
-          </tr>
-          <tr>
-            <td class="xdc-rowlabel"><i class="fa-solid fa-route"></i> Distance</td>
-            <td class="xdc-best">At your dealer</td>
-            <td>35 min · Denver</td>
-            <td>50 min · Lakewood</td>
-            <td>1h 05m · Ft. Collins</td>
-          </tr>
-          <tr>
-            <td class="xdc-rowlabel"><i class="fa-solid fa-calendar"></i> Year</td>
-            <td>2024</td>
-            <td>2024</td>
-            <td>2024</td>
-            <td>2024</td>
-          </tr>
-          <tr>
-            <td class="xdc-rowlabel"><i class="fa-solid fa-gauge"></i> Mileage</td>
-            <td>12 mi (new)</td>
-            <td class="xdc-best">6 mi (new)</td>
-            <td>9 mi (new)</td>
-            <td>15 mi (new)</td>
-          </tr>
-          <tr>
-            <td class="xdc-rowlabel"><i class="fa-solid fa-engine"></i> Engine</td>
-            <td>2.0L Turbo I4</td>
-            <td>2.0L Turbo I4</td>
-            <td>2.0L Turbo I4</td>
-            <td>2.0L Turbo + Hybrid</td>
-          </tr>
-          <tr>
-            <td class="xdc-rowlabel"><i class="fa-solid fa-gauge-high"></i> Horsepower</td>
-            <td>261 hp</td>
-            <td>255 hp</td>
-            <td>255 hp</td>
-            <td class="xdc-best">247 hp · 295 lb-ft</td>
-          </tr>
-          <tr>
-            <td class="xdc-rowlabel"><i class="fa-solid fa-stopwatch"></i> 0–60 mph</td>
-            <td class="xdc-best">5.2 s</td>
-            <td>5.3 s</td>
-            <td>5.9 s</td>
-            <td>5.9 s</td>
-          </tr>
-          <tr>
-            <td class="xdc-rowlabel"><i class="fa-solid fa-snowflake"></i> Drivetrain</td>
-            <td>quattro AWD</td>
-            <td>xDrive AWD</td>
-            <td>4MATIC AWD</td>
-            <td>AWD</td>
-          </tr>
-          <tr>
-            <td class="xdc-rowlabel"><i class="fa-solid fa-gas-pump"></i> MPG (comb.)</td>
-            <td>27</td>
-            <td>30</td>
-            <td>27</td>
-            <td class="xdc-best">31</td>
-          </tr>
-          <tr>
-            <td class="xdc-rowlabel"><i class="fa-solid fa-tag"></i> Price</td>
-            <td class="xdc-price">$44,200</td>
-            <td class="xdc-price">$43,750</td>
-            <td class="xdc-price">$47,900</td>
-            <td class="xdc-price xdc-best">$42,900</td>
-          </tr>
-          <tr>
-            <td class="xdc-rowlabel"><i class="fa-solid fa-arrow-trend-down"></i> Value</td>
-            <td><span class="xdc-val xdc-val-at">At market</span></td>
-            <td><span class="xdc-val xdc-val-great">$1,800 below</span></td>
-            <td><span class="xdc-val xdc-val-at">At market</span></td>
-            <td><span class="xdc-val xdc-val-good">$900 below</span></td>
-          </tr>
-          <tr class="xdc-cta-row">
-            <td class="xdc-rowlabel"></td>
-            <td><a href="#" class="btn btn-outline btn-sm btn-block">View</a></td>
-            <td><a href="#" class="btn btn-outline btn-sm btn-block">View</a></td>
-            <td><a href="#" class="btn btn-outline btn-sm btn-block">View</a></td>
-            <td><a href="#" class="btn btn-primary btn-sm btn-block">View</a></td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    <div class="xdc-foot">
-      <i class="fa-solid fa-circle-info"></i> AI pick: <strong>BMW 330i xDrive</strong> balances strongest value with near-best performance; <strong>Volvo S60</strong> is the lowest price and most efficient.
-    </div>
-  </section>
-</div>
-
 <!-- ═══════════════════════ SRP BODY ═══════════════════════ -->
 <div class="container">
   <div class="srp-body" id="srp-root">
 
     <!-- ─── Filter Panel ─── -->
-    <aside class="filter-panel" id="filter-panel" aria-label="Vehicle filters">
+    <aside class="filter-panel mode-ai" id="filter-panel" aria-label="Vehicle filters">
+      <!-- Mode switch: AI conversation vs manual filters -->
+      <div class="fp-mode-switch" role="tablist" aria-label="Filter mode">
+        <button class="fp-mode-btn active" type="button" data-mode="ai" role="tab" aria-selected="true">
+          <i class="fa-solid fa-wand-magic-sparkles"></i> Ask AI
+        </button>
+        <button class="fp-mode-btn" type="button" data-mode="manual" role="tab" aria-selected="false">
+          <i class="fa-solid fa-sliders"></i> Filters
+        </button>
+      </div>
+
+      <!-- AI shopping assistant -->
+      <div class="fp-chat" id="fp-chat">
+        <div class="fp-chat-head">
+          <div class="fp-chat-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+          <div>
+            <div class="fp-chat-title">Shop with AI</div>
+            <div class="fp-chat-sub">Describe your ideal car</div>
+          </div>
+        </div>
+        <div class="fp-chat-log" id="fp-chat-log" aria-live="polite"></div>
+        <div class="fp-chat-chips" id="fp-chat-chips">
+          <button class="fp-chip" type="button">AWD SUV under $30k</button>
+          <button class="fp-chip" type="button">Low-mileage sedan</button>
+          <button class="fp-chip" type="button">Toyota or Honda, 2021 or newer</button>
+        </div>
+        <form class="fp-chat-form" id="fp-chat-form">
+          <input type="text" id="fp-chat-input" placeholder="e.g. AWD SUV, low miles, under $30k" autocomplete="off" aria-label="Describe the car you want">
+          <button type="submit" aria-label="Send message"><i class="fa-solid fa-arrow-up"></i></button>
+        </form>
+      </div>
+
+      <!-- Manual filters -->
+      <div class="fp-manual" id="fp-manual">
       <div class="fp-head">
         <h3>Filters</h3>
         <button class="fp-clear" id="fp-clear">Clear All</button>
@@ -316,6 +212,8 @@
           <label class="fp-opt"><input type="checkbox"> Navigation</label>
         </div>
       </div>
+      </div>
+      <!-- /fp-manual -->
 
     </aside>
 
@@ -387,6 +285,7 @@
 </footer>
 
 <script src="js/inventory.js"></script>
+<script src="js/profile.js"></script>
 <script src="js/app.js"></script>
 <script>
   // Price preset buttons
@@ -404,8 +303,6 @@
     });
   });
 </script>
-<script src="js/inventory.js"></script>
-<script src="js/app.js"></script>
   <!--
   <script
   src="https://cdn.jsdelivr.net/gh/APEX-SONIC-XD/Lens@v0.3.2/dist/widget.iife.js"

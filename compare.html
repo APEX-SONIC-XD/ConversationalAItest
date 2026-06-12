@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Compare Cars Across Dealers — DriveClear</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<!-- ═══════════════════════ NAV ═══════════════════════ -->
+<nav class="nav" role="navigation">
+  <div class="container nav-inner">
+    <a href="index.html" class="nav-logo">
+      <div class="logo-mark">DC</div>
+      Drive<span class="accent">Clear</span>
+    </a>
+    <form class="nav-search" role="search" action="srp.html">
+      <i class="fa-solid fa-magnifying-glass"></i>
+      <input type="text" name="q" placeholder="Search make, model, year…" aria-label="Search vehicles" autocomplete="off">
+    </form>
+    <ul class="nav-links">
+      <li><a href="srp.html">Used Cars</a></li>
+      <li><a href="sell-trade.html">Sell / Trade</a></li>
+      <li><a href="financing.html">Financing</a></li>
+    </ul>
+    <div class="nav-right">
+      <button class="nav-hamburger" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<nav class="mobile-nav">
+  <a href="index.html">Home</a>
+  <a href="srp.html">Used Cars</a>
+  <a href="sell-trade.html">Sell / Trade</a>
+  <a href="financing.html">Financing</a>
+</nav>
+
+<!-- ═══════════════════════ BREADCRUMB ═══════════════════════ -->
+<div class="breadcrumb">
+  <div class="container">
+    <div class="bc-inner">
+      <a href="index.html">Home</a>
+      <i class="fa-solid fa-chevron-right"></i>
+      <a href="srp.html">Used Cars</a>
+      <i class="fa-solid fa-chevron-right"></i>
+      <span>Compare</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ COMPARE PAGE ═══════════════════════ -->
+<div class="container" style="padding-top:40px;padding-bottom:24px">
+  <section class="xdc" aria-label="Compare new cars across dealers">
+    <div class="xdc-head">
+      <div class="xdc-head-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+      <div>
+        <div class="xdc-eyebrow">DriveClear Assistant · Cross-dealer compare</div>
+        <h2 class="xdc-title">New AWD sedans — compared on what matters</h2>
+        <p class="xdc-sub">Skipping the frills. Here's <strong>engine performance, drivetrain, year, mileage, price, and value</strong> for new European sedans across nearby dealers. Best in each row is highlighted.</p>
+      </div>
+    </div>
+
+    <!-- Conversational analysis -->
+    <div class="cmp-chat" id="cmp-chat">
+      <div class="cmp-chat-log" id="cmp-chat-log" aria-live="polite"></div>
+      <div class="cmp-chat-chips">
+        <button class="cmp-chip" type="button">I care most about price</button>
+        <button class="cmp-chip" type="button">Best fuel economy</button>
+        <button class="cmp-chip" type="button">Most fun to drive</button>
+        <button class="cmp-chip" type="button">Closest to me</button>
+        <button class="cmp-chip" type="button">Best overall value</button>
+      </div>
+      <form class="cmp-chat-form" id="cmp-chat-form">
+        <input type="text" id="cmp-chat-input" placeholder="Tell the assistant what matters most — e.g. “I want the cheapest with good mpg”" autocomplete="off" aria-label="Tell the assistant what matters most">
+        <button type="submit" aria-label="Send message"><i class="fa-solid fa-arrow-up"></i></button>
+      </form>
+    </div>
+
+    <div class="xdc-table-wrap">
+      <table class="xdc-table">
+        <thead>
+          <tr>
+            <th class="xdc-rowlabel">Spec</th>
+            <th data-veh="audi">
+              <div class="xdc-veh">2024 Audi A4 quattro</div>
+              <div class="xdc-veh-trim">Premium · AWD Sedan</div>
+            </th>
+            <th data-veh="bmw">
+              <div class="xdc-veh">2024 BMW 330i xDrive</div>
+              <div class="xdc-veh-trim">Sport Line · AWD Sedan</div>
+            </th>
+            <th data-veh="merc">
+              <div class="xdc-veh">2024 Mercedes C300 4MATIC</div>
+              <div class="xdc-veh-trim">Premium · AWD Sedan</div>
+            </th>
+            <th data-veh="volvo">
+              <div class="xdc-veh">2024 Volvo S60 B5</div>
+              <div class="xdc-veh-trim">Plus · AWD Sedan</div>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="xdc-rowlabel"><i class="fa-solid fa-store"></i> Dealer</td>
+            <td>DriveClear Boulder</td>
+            <td>Front Range BMW</td>
+            <td>Foothills Mercedes</td>
+            <td>Mountain Volvo</td>
+          </tr>
+          <tr data-metric="dist">
+            <td class="xdc-rowlabel"><i class="fa-solid fa-route"></i> Distance</td>
+            <td class="xdc-best">At your dealer</td>
+            <td>35 min · Denver</td>
+            <td>50 min · Lakewood</td>
+            <td>1h 05m · Ft. Collins</td>
+          </tr>
+          <tr>
+            <td class="xdc-rowlabel"><i class="fa-solid fa-calendar"></i> Year</td>
+            <td>2024</td>
+            <td>2024</td>
+            <td>2024</td>
+            <td>2024</td>
+          </tr>
+          <tr data-metric="miles">
+            <td class="xdc-rowlabel"><i class="fa-solid fa-gauge"></i> Mileage</td>
+            <td>12 mi (new)</td>
+            <td class="xdc-best">6 mi (new)</td>
+            <td>9 mi (new)</td>
+            <td>15 mi (new)</td>
+          </tr>
+          <tr>
+            <td class="xdc-rowlabel"><i class="fa-solid fa-engine"></i> Engine</td>
+            <td>2.0L Turbo I4</td>
+            <td>2.0L Turbo I4</td>
+            <td>2.0L Turbo I4</td>
+            <td>2.0L Turbo + Hybrid</td>
+          </tr>
+          <tr data-metric="hp">
+            <td class="xdc-rowlabel"><i class="fa-solid fa-gauge-high"></i> Horsepower</td>
+            <td>261 hp</td>
+            <td>255 hp</td>
+            <td>255 hp</td>
+            <td class="xdc-best">247 hp · 295 lb-ft</td>
+          </tr>
+          <tr data-metric="zero">
+            <td class="xdc-rowlabel"><i class="fa-solid fa-stopwatch"></i> 0–60 mph</td>
+            <td class="xdc-best">5.2 s</td>
+            <td>5.3 s</td>
+            <td>5.9 s</td>
+            <td>5.9 s</td>
+          </tr>
+          <tr>
+            <td class="xdc-rowlabel"><i class="fa-solid fa-snowflake"></i> Drivetrain</td>
+            <td>quattro AWD</td>
+            <td>xDrive AWD</td>
+            <td>4MATIC AWD</td>
+            <td>AWD</td>
+          </tr>
+          <tr data-metric="mpg">
+            <td class="xdc-rowlabel"><i class="fa-solid fa-gas-pump"></i> MPG (comb.)</td>
+            <td>27</td>
+            <td>30</td>
+            <td>27</td>
+            <td class="xdc-best">31</td>
+          </tr>
+          <tr data-metric="price">
+            <td class="xdc-rowlabel"><i class="fa-solid fa-tag"></i> Price</td>
+            <td class="xdc-price">$44,200</td>
+            <td class="xdc-price">$43,750</td>
+            <td class="xdc-price">$47,900</td>
+            <td class="xdc-price xdc-best">$42,900</td>
+          </tr>
+          <tr data-metric="value">
+            <td class="xdc-rowlabel"><i class="fa-solid fa-arrow-trend-down"></i> Value</td>
+            <td><span class="xdc-val xdc-val-at">At market</span></td>
+            <td><span class="xdc-val xdc-val-great">$1,800 below</span></td>
+            <td><span class="xdc-val xdc-val-at">At market</span></td>
+            <td><span class="xdc-val xdc-val-good">$900 below</span></td>
+          </tr>
+          <tr class="xdc-cta-row">
+            <td class="xdc-rowlabel"></td>
+            <td><a href="#" class="btn btn-outline btn-sm btn-block">View</a></td>
+            <td><a href="#" class="btn btn-outline btn-sm btn-block">View</a></td>
+            <td><a href="#" class="btn btn-outline btn-sm btn-block">View</a></td>
+            <td><a href="#" class="btn btn-primary btn-sm btn-block">View</a></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="xdc-foot" id="xdc-foot">
+      <i class="fa-solid fa-circle-info"></i> AI pick: <strong>BMW 330i xDrive</strong> balances strongest value with near-best performance; <strong>Volvo S60</strong> is the lowest price and most efficient.
+    </div>
+  </section>
+</div>
+
+<!-- ═══════════════════════ FOOTER ═══════════════════════ -->
+<footer class="footer" role="contentinfo">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <a href="index.html" class="nav-logo">
+          <div class="logo-mark">DC</div>
+          Drive<span class="accent">Clear</span>
+        </a>
+        <p>DriveClear is the smarter way to buy a used car. Transparent pricing, zero dealer fees, and a 7-day return guarantee.</p>
+        <div class="footer-social">
+          <a href="#" aria-label="Facebook"><i class="fa-brands fa-facebook-f"></i></a>
+          <a href="#" aria-label="Instagram"><i class="fa-brands fa-instagram"></i></a>
+          <a href="#" aria-label="Twitter"><i class="fa-brands fa-x-twitter"></i></a>
+          <a href="#" aria-label="YouTube"><i class="fa-brands fa-youtube"></i></a>
+        </div>
+      </div>
+      <div>
+        <div class="footer-col-title">Shop</div>
+        <ul class="footer-links">
+          <li><a href="srp.html">All Used Cars</a></li>
+          <li><a href="srp.html?body=SUV">SUVs</a></li>
+          <li><a href="srp.html?body=Sedan">Sedans</a></li>
+          <li><a href="srp.html?body=Truck">Trucks</a></li>
+        </ul>
+      </div>
+      <div>
+        <div class="footer-col-title">Company</div>
+        <ul class="footer-links">
+          <li><a href="#">About DriveClear</a></li>
+          <li><a href="#">How It Works</a></li>
+          <li><a href="#">Careers</a></li>
+          <li><a href="#">Contact Us</a></li>
+        </ul>
+      </div>
+      <div>
+        <div class="footer-col-title">Support</div>
+        <ul class="footer-links">
+          <li><a href="financing.html">Financing</a></li>
+          <li><a href="sell-trade.html">Sell / Trade In</a></li>
+          <li><a href="#">Find a Location</a></li>
+          <li><a href="#">FAQ</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2024 DriveClear Automotive, Inc. All rights reserved.</p>
+      <p>
+        <a href="#" style="color:rgba(255,255,255,0.4);margin-right:16px">Privacy Policy</a>
+        <a href="#" style="color:rgba(255,255,255,0.4)">Terms of Use</a>
+      </p>
+    </div>
+  </div>
+</footer>
+
+<script src="js/inventory.js"></script>
+<script src="js/profile.js"></script>
+<script src="js/app.js"></script>
+<script src="js/compare.js"></script>
+</body>
+</html>
