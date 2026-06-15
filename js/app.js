@@ -1618,10 +1618,10 @@ function initSellTradePage() {
     });
   });
 
-  form?.addEventListener('submit', e => {
+  // Go straight to the confirmation page on click — no required fields needed.
+  form?.querySelector('button[type="submit"]')?.addEventListener('click', e => {
     e.preventDefault();
-    document.getElementById('sell-trade-form-wrap')?.classList.add('hidden');
-    document.getElementById('sell-trade-success')?.classList.add('visible');
+    window.location.href = 'trade-confirmation.html';
   });
 }
 
