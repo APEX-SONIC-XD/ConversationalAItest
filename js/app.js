@@ -190,6 +190,17 @@ function toggleSave(id) {
 }
 
 // ─── SRP ─────────────────────────────────────────────────
+function renderMakeFilters() {
+  if (typeof VEHICLES === 'undefined') return;
+  const container = document.getElementById('fp-make-opts');
+  if (!container) return;
+  const counts = {};
+  VEHICLES.forEach(v => { counts[v.make] = (counts[v.make] || 0) + 1; });
+  container.innerHTML = Object.keys(counts).sort().map(m =>
+    `<label class="fp-opt"><input type="checkbox" class="fp-make" value="${m}"> ${m} <span class="fp-opt-count">${counts[m]}</span></label>`
+  ).join('');
+}
+
 function updateFilterCounts() {
   if (typeof VEHICLES === 'undefined') return;
   const tally = (field, val) => VEHICLES.filter(v => v[field] === val).length;
@@ -236,6 +247,8 @@ function initSRP() {
   // Pre-fill search input
   if (searchInput) searchInput.value = state.query;
   if (sortSel) sortSel.value = state.sort;
+
+  renderMakeFilters();
 
   // Pre-check filter checkboxes from URL params
   if (state.make.length) {
@@ -415,16 +428,11 @@ function initSRP() {
       const t = ' ' + text.toLowerCase().replace(/\s+/g, ' ') + ' ';
       const intent = { makes: [], bodies: [], drives: [] };
 
-      if (t.includes('honda')) intent.makes.push('Honda');
-      if (t.includes('toyota')) intent.makes.push('Toyota');
-      if (t.includes('ford')) intent.makes.push('Ford');
-      if (t.includes('chevy') || t.includes('chevrolet')) intent.makes.push('Chevrolet');
-      if (t.includes('hyundai')) intent.makes.push('Hyundai');
-      if (t.includes('mazda')) intent.makes.push('Mazda');
-      if (t.includes('volkswagen') || /\bvw\b/.test(t)) intent.makes.push('Volkswagen');
-      if (t.includes('nissan')) intent.makes.push('Nissan');
-      if (t.includes('kia')) intent.makes.push('Kia');
-      if (t.includes('subaru')) intent.makes.push('Subaru');
+      Object.keys(MAKE_WORDS).sort((a, b) => b.length - a.length).forEach(k => {
+        const re = new RegExp('\\b' + k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b');
+        const make = MAKE_WORDS[k];
+        if (re.test(t) && !intent.makes.includes(make)) intent.makes.push(make);
+      });
 
       if (/\b(suv|crossover|cuv)s?\b/.test(t)) intent.bodies.push('SUV');
       if (/\bsedans?\b/.test(t)) intent.bodies.push('Sedan');
@@ -2228,9 +2236,21 @@ function initNavSearchSuggest() {
 
 const MAKE_WORDS = {
   honda: 'Honda', toyota: 'Toyota', ford: 'Ford', chevy: 'Chevrolet', chevrolet: 'Chevrolet',
-  hyundai: 'Hyundai', mazda: 'Mazda', volkswagen: 'Volkswagen', nissan: 'Nissan', kia: 'Kia',
-  subaru: 'Subaru',
+  hyundai: 'Hyundai', mazda: 'Mazda', volkswagen: 'Volkswagen', vw: 'Volkswagen', nissan: 'Nissan',
+  kia: 'Kia', subaru: 'Subaru', acura: 'Acura', lexus: 'Lexus', bmw: 'BMW',
+  mercedes: 'Mercedes-Benz', benz: 'Mercedes-Benz', audi: 'Audi', jeep: 'Jeep', gmc: 'GMC',
+  buick: 'Buick', dodge: 'Dodge', chrysler: 'Chrysler', mitsubishi: 'Mitsubishi', volvo: 'Volvo',
+  genesis: 'Genesis', cadillac: 'Cadillac', lincoln: 'Lincoln', ram: 'Ram', mini: 'MINI',
 };
+
+function matchMakeFromText(t) {
+  const keys = Object.keys(MAKE_WORDS).sort((a, b) => b.length - a.length);
+  for (const k of keys) {
+    const re = new RegExp('\\b' + k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b');
+    if (re.test(t)) return MAKE_WORDS[k];
+  }
+  return null;
+}
 
 // Turn a free-text / conversational query into structured search params.
 function parseSearchParams(q) {
@@ -2240,8 +2260,8 @@ function parseSearchParams(q) {
   else if (/\b(sedan|sedans|commuter|commute|daily driver)\b/.test(t)) P.body = 'Sedan';
   else if (/\b(truck|trucks|pickup|haul|hauling|tow|towing|work)\b/.test(t)) P.body = 'Truck';
 
-  for (const k in MAKE_WORDS) { if (t.includes(k)) { P.make = MAKE_WORDS[k]; break; } }
-  if (/\bvw\b/.test(t)) P.make = 'Volkswagen';
+  const matchedMake = matchMakeFromText(t);
+  if (matchedMake) P.make = matchedMake;
 
   if (/\bawd\b|all[- ]?wheel|four season|snow/.test(t)) P.drive = 'AWD';
   else if (/\bfwd\b|front[- ]?wheel/.test(t)) P.drive = 'FWD';
