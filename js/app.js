@@ -258,7 +258,7 @@ function initSRP() {
     const pp = Profile.toParams();
     [].concat(pp.make || []).forEach(m => { const cb = document.querySelector(`.fp-make[value="${m}"]`); if (cb) cb.checked = true; });
     if (pp.body) { const cb = document.querySelector(`.fp-body[value="${pp.body}"]`); if (cb) cb.checked = true; }
-    if (pp.drive) { const cb = document.querySelector(`.fp-drive[value="${pp.drive}"]`); if (cb) cb.checked = true; }
+    if (pp.drive) { (Array.isArray(pp.drive) ? pp.drive : [pp.drive]).forEach(d => { const cb = document.querySelector(`.fp-drive[value="${d}"]`); if (cb) cb.checked = true; }); }
     if (pp.maxPrice && maxPriceIn) maxPriceIn.value = pp.maxPrice;
     if (pp.maxMiles && maxMilesIn) maxMilesIn.value = pp.maxMiles;
     if (pp.minYear && minYearIn) minYearIn.value = pp.minYear;
@@ -1710,7 +1710,16 @@ function initFinancePrep() {
   const budget = (typeof PARTICIPANT !== 'undefined' && PARTICIPANT.maxPrice) ? PARTICIPANT.maxPrice : null;
   // Max the participant is approved to finance (falls back to their budget guideline).
   const approved = (typeof PARTICIPANT !== 'undefined' && PARTICIPANT.maxApproved) ? PARTICIPANT.maxApproved : budget;
-  const price = budget || approved || 25000;
+  // Comfortable monthly-payment ceiling, if the participant gave one. With a
+  // monthly target, the real buying ceiling is whichever is lower: their stated
+  // budget, or what that payment can finance at their rate (60-mo reference).
+  const maxMonthly = (typeof PARTICIPANT !== 'undefined' && PARTICIPANT.maxMonthly) ? PARTICIPANT.maxMonthly : null;
+  let price = budget || approved || 25000;
+  let impliedMax = null;
+  if (maxMonthly) {
+    impliedMax = Math.round(fpMaxPrice(maxMonthly, apr, 60) / 100) * 100;
+    price = Math.min(price, impliedMax);
+  }
 
   // Live "AI is generating" placeholder, then reveal the personalized content.
   const fpGen = (el, delay, buildHtml) => {
@@ -1723,6 +1732,7 @@ function initFinancePrep() {
   const bits = [];
   if (tier) bits.push(tier + ' credit');
   if (budget) bits.push('~' + formatPrice(budget) + ' budget');
+  if (maxMonthly) bits.push('~' + formatPrice(maxMonthly) + '/mo target');
   const profileLine = bits.join(' · ');
   const byline = profileLine
     ? `<i class="fa-solid fa-wand-magic-sparkles"></i> Generated for you · <span>${profileLine}</span>`
@@ -1737,7 +1747,7 @@ function initFinancePrep() {
   const takeawayEl = document.getElementById('fp-numbers-takeaway');
   const mo60 = calcMonthly(price, 0, apr, 60);
   const tierLabel = tier ? ` · ${tier} credit` : '';
-  const priceLabel = (budget || approved) ? formatPrice(price) : '$25,000';
+  const priceLabel = (budget || approved || maxMonthly) ? formatPrice(price) : '$25,000';
   const downMax = Math.max(5000, Math.round((price * 0.3) / 500) * 500);
 
   if (numbersEl) {
@@ -1764,6 +1774,7 @@ function initFinancePrep() {
           <div class="fp-primary-v" id="fp-monthly"></div>
           <div class="fp-primary-l" id="fp-monthly-sub"></div>
         </div>
+        ${maxMonthly ? `<p class="calc-note" style="margin-top:10px"><i class="fa-solid fa-circle-info"></i> Based on your <strong>${formatPrice(maxMonthly)}/mo</strong> target at ${apr}%, you can finance about <strong>${formatPrice(impliedMax)}</strong>${budget && impliedMax < budget ? ` — comfortably under your ${formatPrice(budget)} budget.` : '.'}</p>` : ''}
         <div class="fp-numbers fp-numbers-3">
           <div class="fp-num">
             <div class="fp-num-v">${apr}% APR</div>
@@ -1774,8 +1785,8 @@ function initFinancePrep() {
             <div class="fp-num-l" id="fp-interest-sub"></div>
           </div>
           <div class="fp-num">
-            <div class="fp-num-v">${formatPrice(approved || price)}</div>
-            <div class="fp-num-l">The most you're approved to finance — keep the out-the-door price under this</div>
+            <div class="fp-num-v">${formatPrice(price)}</div>
+            <div class="fp-num-l">${maxMonthly ? `Your ceiling at ${formatPrice(maxMonthly)}/mo — keep the out-the-door price under this` : "The most you're approved to finance — keep the out-the-door price under this"}</div>
           </div>
         </div>
         <div class="fp-afford">
@@ -1954,18 +1965,21 @@ function initTradePrep() {
   const root = document.getElementById('trade-prep');
   if (!root) return;
 
-  // Read whatever the participant entered on the sell/trade form; fall back
-  // to a sensible default vehicle so empty submits still produce a real demo.
+  // Vehicle priority: what they typed on the sell/trade form (sessionStorage),
+  // then the participant profile's trade-in, then a sensible demo default.
   let saved = {};
   try { saved = JSON.parse(sessionStorage.getItem('dcTrade') || '{}'); } catch (e) { saved = {}; }
+  const pTrade = (typeof PARTICIPANT !== 'undefined' && PARTICIPANT.tradeIn) ? PARTICIPANT.tradeIn : {};
   const NOW_YEAR = new Date().getFullYear();
   const car = {
-    year: parseInt(saved.year, 10) || 2019,
-    make: saved.make || 'Honda',
-    model: saved.model || 'Accord',
-    mileage: parseInt(saved.mileage, 10) || 60000,
-    condition: saved.condition || 'good',
+    year: parseInt(saved.year, 10) || pTrade.year || 2019,
+    make: saved.make || pTrade.make || 'Honda',
+    model: saved.model || pTrade.model || 'Accord',
+    mileage: parseInt(saved.mileage, 10) || pTrade.mileage || 60000,
+    condition: saved.condition || pTrade.condition || 'good',
   };
+  // Remaining loan payoff (0 = paid off). Only known from the profile today.
+  const payoff = (typeof pTrade.payoff === 'number') ? pTrade.payoff : null;
   const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
   const signed = n => n === 0 ? '$0' : (n > 0 ? '+' : '−') + '$' + Math.abs(n).toLocaleString('en-US');
 
@@ -2016,7 +2030,7 @@ function initTradePrep() {
       <div class="tp-water-row"><span>Local demand · ${car.make}</span><span class="pos">${demandLabel}</span></div>
       <div class="tp-water-total"><span>Your no-haggle offer</span><span>${formatPrice(V0)}</span></div>
     </div>
-    <p class="calc-note">Transparent by design — no haggling, and the offer is guaranteed for 7 days.</p>`);
+    <p class="calc-note">Transparent by design — no haggling, and the offer is guaranteed for 7 days.${payoff === 0 ? ' Your loan is paid off, so the entire offer is yours — apply it to your next car or take the cash.' : ''}</p>`);
 
   // ── A. Timing & depreciation explorer (interactive) ──
   const timingEl = document.getElementById('tp-timing-body');

@@ -23,16 +23,21 @@ const PARTICIPANT = {
   // ── Core shopping intent ──
   maxPrice: null,      // number — hard budget ceiling (never exceeded)
   maxApproved: null,   // number — max financing approved for (finance/prequal pages); falls back to maxPrice
+  maxMonthly: null,    // number — comfortable monthly payment ceiling (binds the finance pages alongside maxPrice)
   body: null,          // 'SUV' | 'Sedan' | 'Truck'
-  makes: [],           // preferred makes, e.g. ['Honda']
+  makes: [],           // preferred makes, e.g. ['Honda', 'Toyota']
   minYear: null,       // number
   maxMiles: null,      // number
-  drivetrain: null,    // 'AWD' | 'FWD' | '4WD'
+  drivetrain: null,    // 'AWD' | 'FWD' | '4WD' — or an array to accept several, e.g. ['AWD', '4WD']
   minMpg: null,        // number (highway)
   maxDist: null,       // miles willing to travel
 
   // ── Qualitative needs (mapped to filters via NEED_PRESETS) ──
   needs: [],           // e.g. ['family','commuter','firstCar','sporty','winter']
+
+  // ── Trade-in (seeds trade-confirmation.html when they didn't fill the form) ──
+  // payoff: remaining loan balance; 0 = paid off / owned outright. null = no trade-in stated.
+  tradeIn: null,
 
   // ── Study context ──
   creditTier: null,    // 'poor' | 'fair' | 'good' | 'great'
@@ -52,8 +57,8 @@ const NEED_PRESETS = {
   fuel:      { minMpg: 33 },
   hauling:   { body: 'Truck' },
   work:      { body: 'Truck' },
-  winter:    { drivetrain: 'AWD' },
-  snow:      { drivetrain: 'AWD' },
+  winter:    { drive: 'AWD' },
+  snow:      { drive: 'AWD' },
   // 'safe' / 'reliable' / 'sporty' have no single measurable field —
   // they still inform greetings (summary) and ranking (priorities).
   safe:      {},
@@ -81,7 +86,11 @@ const Profile = {
     }
     if (PARTICIPANT.minYear != null) P.minYear = PARTICIPANT.minYear;
     if (PARTICIPANT.maxMiles != null) P.maxMiles = PARTICIPANT.maxMiles;
-    if (PARTICIPANT.drivetrain) P.drive = PARTICIPANT.drivetrain;
+    if (PARTICIPANT.drivetrain && (!Array.isArray(PARTICIPANT.drivetrain) || PARTICIPANT.drivetrain.length)) {
+      P.drive = Array.isArray(PARTICIPANT.drivetrain)
+        ? (PARTICIPANT.drivetrain.length === 1 ? PARTICIPANT.drivetrain[0] : PARTICIPANT.drivetrain.slice())
+        : PARTICIPANT.drivetrain;
+    }
     if (PARTICIPANT.minMpg != null) P.minMpg = PARTICIPANT.minMpg;
     if (PARTICIPANT.maxDist != null) P.maxDist = PARTICIPANT.maxDist;
     return P;
@@ -116,7 +125,7 @@ const Profile = {
   summary() {
     const P = this.toParams();
     const parts = [];
-    if (P.drive) parts.push(P.drive);
+    if (P.drive) parts.push(Array.isArray(P.drive) ? P.drive.join('/') : P.drive);
     if (P.minYear) parts.push(P.minYear + '+');
     if (Array.isArray(P.make)) parts.push(P.make.join('/'));
     else if (P.make) parts.push(P.make);
