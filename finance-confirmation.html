@@ -71,6 +71,49 @@
   </div>
 </div>
 
+<!-- ═══════════════════════ AI FINANCE PREP ═══════════════════════ -->
+<div class="container">
+  <section class="fin-prep" id="fin-prep" data-prep-mode="finance" aria-label="Dealership finance prep">
+    <div class="fin-prep-head">
+      <div class="section-tag"><i class="fa-solid fa-wand-magic-sparkles"></i> AI Finance Prep</div>
+      <h2 class="section-title">Walk in ready for the finance conversation</h2>
+      <p class="section-sub">A quick, personalized brief so the numbers and the jargon never catch you off guard at the dealership.</p>
+    </div>
+
+    <div class="info-card fp-card">
+      <h3 class="fin-prep-card-title"><i class="fa-solid fa-calculator"></i> Know your numbers</h3>
+      <div class="fp-ai-byline" id="fp-numbers-byline"></div>
+      <div id="fp-numbers-body"></div>
+      <div class="fp-takeaway" id="fp-numbers-takeaway" hidden></div>
+      <p class="calc-note">Estimates for illustration only — they give you a confident anchor for the conversation.</p>
+    </div>
+
+    <div class="info-card fp-card">
+      <h3 class="fin-prep-card-title"><i class="fa-solid fa-circle-question"></i> Questions to ask the finance manager</h3>
+      <div class="fp-ai-byline" id="fp-questions-byline"></div>
+      <div class="faq-list" id="fp-questions" style="margin-top:6px"></div>
+      <button type="button" class="fp-more-btn" id="fp-more-q"><i class="fa-solid fa-wand-magic-sparkles"></i> Generate more questions</button>
+    </div>
+
+    <div class="info-card fp-chat-card">
+      <h3 class="fin-prep-card-title"><i class="fa-solid fa-comments"></i> Finance jargon decoder</h3>
+      <p class="form-card-sub" style="margin-bottom:16px">Not sure what a term means? Ask and I'll translate it into plain English.</p>
+      <div class="fp-chat-body" id="fp-chat-body"></div>
+      <div class="fp-chips" id="fp-chat-chips">
+        <button type="button" class="pa-chip" data-q="APR vs money factor?">APR vs money factor?</button>
+        <button type="button" class="pa-chip" data-q="Is GAP insurance worth it?">Is GAP worth it?</button>
+        <button type="button" class="pa-chip" data-q="What's an extended warranty (VSC)?">Extended warranty (VSC)?</button>
+        <button type="button" class="pa-chip" data-q="Buy rate vs my rate?">Buy rate vs my rate?</button>
+        <button type="button" class="pa-chip" data-q="Monthly or out-the-door?">Monthly or out-the-door?</button>
+      </div>
+      <form class="fp-chat-form" id="fp-chat-form">
+        <input type="text" class="fp-chat-input" id="fp-chat-input" placeholder="Ask about any finance term…" autocomplete="off" aria-label="Ask about a finance term">
+        <button type="submit" class="fp-chat-send" aria-label="Send"><i class="fa-solid fa-arrow-up"></i></button>
+      </form>
+    </div>
+  </section>
+</div>
+
 <!-- ═══════════════════════ FOOTER ═══════════════════════ -->
 <footer class="footer" role="contentinfo">
   <div class="container">

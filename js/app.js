@@ -67,6 +67,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // Interior pages
   if (document.getElementById('sell-trade-form')) initSellTradePage();
   if (document.getElementById('fin-calc-root')) initFinancingPage();
+  if (document.getElementById('fin-prep')) initFinancePrep();
+  if (document.getElementById('trade-prep')) initTradePrep();
 });
 
 // ─── Homepage AI recommendation banner (reads participant profile) ───
@@ -1619,8 +1621,21 @@ function initSellTradePage() {
   });
 
   // Go straight to the confirmation page on click — no required fields needed.
+  // Stash whatever the participant entered so the confirmation page can
+  // personalize the trade estimate (graceful defaults fill any gaps).
   form?.querySelector('button[type="submit"]')?.addEventListener('click', e => {
     e.preventDefault();
+    try {
+      const data = {
+        intent: form.querySelector('#st-intent')?.value || 'trade',
+        year: form.querySelector('#st-year')?.value || '',
+        make: form.querySelector('#st-make')?.value || '',
+        model: form.querySelector('#st-model')?.value || '',
+        mileage: form.querySelector('#st-mileage')?.value || '',
+        condition: form.querySelector('#st-condition')?.value || '',
+      };
+      sessionStorage.setItem('dcTrade', JSON.stringify(data));
+    } catch (err) { /* sessionStorage unavailable — confirmation page uses defaults */ }
     window.location.href = 'trade-confirmation.html';
   });
 }
@@ -1683,6 +1698,484 @@ function initFinancingPage() {
       if (!wasOpen) item?.classList.add('open');
     });
   });
+}
+
+// ─── Dealership Finance Prep (confirmation pages) ─────────
+function initFinancePrep() {
+  const root = document.getElementById('fin-prep');
+  if (!root) return;
+  const mode = root.dataset.prepMode || 'finance';
+  const apr = (typeof Profile !== 'undefined' && Profile.apr) ? Profile.apr() : 6.9;
+  const tier = (typeof PARTICIPANT !== 'undefined') ? PARTICIPANT.creditTier : null;
+  const budget = (typeof PARTICIPANT !== 'undefined' && PARTICIPANT.maxPrice) ? PARTICIPANT.maxPrice : null;
+  // Max the participant is approved to finance (falls back to their budget guideline).
+  const approved = (typeof PARTICIPANT !== 'undefined' && PARTICIPANT.maxApproved) ? PARTICIPANT.maxApproved : budget;
+  const price = budget || approved || 25000;
+
+  // Live "AI is generating" placeholder, then reveal the personalized content.
+  const fpGen = (el, delay, buildHtml) => {
+    if (!el) return;
+    el.innerHTML = '<div class="fp-generating"><span class="pa-typing-dots"><span></span><span></span><span></span></span><span>Personalizing from your profile…</span></div>';
+    setTimeout(() => { el.innerHTML = buildHtml(); el.classList.add('fp-reveal-item'); }, delay);
+  };
+
+  // AI byline shown on each generated card, drawn from the participant profile.
+  const bits = [];
+  if (tier) bits.push(tier + ' credit');
+  if (budget) bits.push('~' + formatPrice(budget) + ' budget');
+  const profileLine = bits.join(' · ');
+  const byline = profileLine
+    ? `<i class="fa-solid fa-wand-magic-sparkles"></i> Generated for you · <span>${profileLine}</span>`
+    : '<i class="fa-solid fa-wand-magic-sparkles"></i> AI-generated for your visit';
+  ['fp-numbers-byline', 'fp-questions-byline'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = byline;
+  });
+
+  // ── 1. "Know your numbers" — interactive payment explorer ──
+  const numbersEl = document.getElementById('fp-numbers-body');
+  const takeawayEl = document.getElementById('fp-numbers-takeaway');
+  const mo60 = calcMonthly(price, 0, apr, 60);
+  const tierLabel = tier ? ` · ${tier} credit` : '';
+  const priceLabel = (budget || approved) ? formatPrice(price) : '$25,000';
+  const downMax = Math.max(5000, Math.round((price * 0.3) / 500) * 500);
+
+  if (numbersEl) {
+    numbersEl.innerHTML = '<div class="fp-generating"><span class="pa-typing-dots"><span></span><span></span><span></span></span><span>Personalizing from your profile…</span></div>';
+    setTimeout(() => {
+      let term = 60;
+      let down = 0;
+      numbersEl.innerHTML = `
+        <div class="fp-controls">
+          <div class="fp-control">
+            <span class="fp-control-label">Loan term</span>
+            <div class="fp-term-toggle" role="group" aria-label="Loan term">
+              <button type="button" data-term="48">48 mo</button>
+              <button type="button" data-term="60" class="active">60 mo</button>
+              <button type="button" data-term="72">72 mo</button>
+            </div>
+          </div>
+          <div class="fp-control">
+            <span class="fp-control-label">Down payment · <strong id="fp-down-label">$0</strong></span>
+            <input type="range" id="fp-down-slider" class="fp-slider" min="0" max="${downMax}" step="500" value="0" aria-label="Down payment">
+          </div>
+        </div>
+        <div class="fp-primary">
+          <div class="fp-primary-v" id="fp-monthly"></div>
+          <div class="fp-primary-l" id="fp-monthly-sub"></div>
+        </div>
+        <div class="fp-numbers fp-numbers-3">
+          <div class="fp-num">
+            <div class="fp-num-v">${apr}% APR</div>
+            <div class="fp-num-l">Your estimated rate${tierLabel} — your anchor if they quote higher</div>
+          </div>
+          <div class="fp-num">
+            <div class="fp-num-v" id="fp-interest"></div>
+            <div class="fp-num-l" id="fp-interest-sub"></div>
+          </div>
+          <div class="fp-num">
+            <div class="fp-num-v">${formatPrice(approved || price)}</div>
+            <div class="fp-num-l">The most you're approved to finance — keep the out-the-door price under this</div>
+          </div>
+        </div>
+        <div class="fp-afford">
+          <div class="fp-afford-title"><i class="fa-solid fa-gauge-high"></i> How much car each monthly payment buys</div>
+          <div class="fp-afford-sub">Pick a monthly loan payment you're comfortable with to see the car price it reaches — at ${apr}% over <span id="fp-afford-term">60</span> months. Any down payment is added on top of what the loan covers.</div>
+          <div class="fp-afford-rows" id="fp-afford"></div>
+        </div>`;
+      numbersEl.classList.add('fp-reveal-item');
+
+      const monthlyV = numbersEl.querySelector('#fp-monthly');
+      const monthlySub = numbersEl.querySelector('#fp-monthly-sub');
+      const interestV = numbersEl.querySelector('#fp-interest');
+      const interestSub = numbersEl.querySelector('#fp-interest-sub');
+      const affordEl = numbersEl.querySelector('#fp-afford');
+      const affordTerm = numbersEl.querySelector('#fp-afford-term');
+      const downLabel = numbersEl.querySelector('#fp-down-label');
+      const slider = numbersEl.querySelector('#fp-down-slider');
+      const termBtns = numbersEl.querySelectorAll('.fp-term-toggle button');
+
+      const recompute = () => {
+        const monthly = calcMonthly(price, down, apr, term);
+        const financed = Math.max(0, price - down);
+        const interest = Math.max(0, Math.round(monthly * term - financed));
+        const allIn = Math.round(monthly * term + down);
+        monthlyV.textContent = `${formatPrice(monthly)}/mo`;
+        monthlySub.textContent = `estimated payment · ${term} mo · ${formatPrice(down)} down on ${priceLabel}`;
+        interestV.textContent = formatPrice(interest);
+        interestSub.textContent = `Total interest over ${term} mo · ${formatPrice(allIn)} all-in`;
+        affordTerm.textContent = term;
+        affordEl.innerHTML = [300, 400, 500].map(m => {
+          const total = Math.round(fpMaxPrice(m, apr, term, down) / 500) * 500;
+          const financed = total - down;
+          const cap = down > 0
+            ? `${formatPrice(financed)} financed + ${formatPrice(down)} down`
+            : 'car price';
+          return `<div class="fp-afford-cell"><span class="fp-afford-m">If you pay $${m}/mo</span><span class="fp-afford-p">≈ ${formatPrice(total)}</span><span class="fp-afford-cap">${cap}</span></div>`;
+        }).join('');
+      };
+
+      termBtns.forEach(b => b.addEventListener('click', () => {
+        term = parseInt(b.dataset.term, 10) || 60;
+        termBtns.forEach(x => x.classList.toggle('active', x === b));
+        recompute();
+      }));
+      slider.addEventListener('input', () => {
+        down = parseInt(slider.value, 10) || 0;
+        downLabel.textContent = formatPrice(down);
+        recompute();
+      });
+      recompute();
+    }, 450);
+  }
+
+  // AI "my take" — a short reasoning callout tuned to the credit tier.
+  if (takeawayEl) {
+    let take;
+    if (tier === 'great' || tier === 'good')
+      take = `Your ${apr}% rate is already strong — make the dealer match or beat it, and keep the focus on the out-the-door price so add-ons don't creep into your ${formatPrice(mo60)}/mo.`;
+    else if (tier === 'fair' || tier === 'poor')
+      take = `At ${apr}%, a bigger down payment or a co-signer could lower your rate — ask what specifically moves you to a better tier before you sign.`;
+    else
+      take = `Anchor on your ${apr}% estimate and the out-the-door price, not the monthly payment. A longer term lowers the payment but quietly adds thousands in interest.`;
+    setTimeout(() => {
+      takeawayEl.innerHTML = `<i class="fa-solid fa-lightbulb"></i><div><strong>My take:</strong> ${take}</div>`;
+      takeawayEl.hidden = false;
+      takeawayEl.classList.add('fp-reveal-item');
+    }, 950);
+  }
+
+  // ── 2. "Questions to ask the finance manager" (AI-generated + expandable) ──
+  const qEl = document.getElementById('fp-questions');
+  const faqItem = o => `<div class="faq-item"><button type="button" class="faq-q">${o.q} <i class="fa-solid fa-chevron-down"></i></button><div class="faq-a">${o.a}</div></div>`;
+  const tailored = [];
+  if (mode === 'prequal')
+    tailored.push({ q: `I'm pre-qualified around ${apr}% — can you beat that rate?`, a: `You walked in with a real number, so make them compete. If they can't beat ${apr}%, you can simply finance through DriveClear instead.` });
+  if (tier === 'fair' || tier === 'poor')
+    tailored.push({ q: 'What would help me qualify for a lower rate?', a: 'A larger down payment, a co-signer, or a shorter term can each lower your rate. Ask which one actually moves your tier.' });
+  const baseQs = [
+    { q: "What's the out-the-door price?", a: "It bundles tax, title, fees, and any add-ons — the only number that matters. Negotiate this total, never the monthly payment." },
+    { q: 'Is this my buy rate, or is it marked up?', a: "Dealers can add points to the lender's rate (dealer reserve) and keep the difference. Ask to see the buy rate and which lender approved you." },
+    { q: 'Can I see the amount financed and total interest?', a: 'The monthly payment hides the real cost. Total interest over the full term tells you what the loan actually costs.' },
+    { q: 'Which add-ons are optional?', a: "GAP, extended warranties, and paint/fabric protection are optional. You can decline them or buy later — don't let them get packed into the payment." },
+  ];
+  const initialQs = tailored.concat(baseQs);
+  const morePool = [
+    { q: 'Is there a prepayment penalty?', a: 'You want the freedom to pay early or refinance later without being charged a fee for it.' },
+    { q: 'Can I get the final offer in writing?', a: 'A written offer protects you from "yo-yo" financing, where the rate quietly changes after you\'ve driven off the lot.' },
+    { q: 'How is my trade-in being valued separately?', a: 'Keep the trade a separate negotiation from the car price and the financing — dealers can blur them together to hide a weak number.' },
+    { q: 'What will this loan cost me in total?', a: 'Ask for the car price + all interest + all fees combined, so you can see the true lifetime cost — not just the monthly.' },
+  ];
+  fpGen(qEl, 950, () => initialQs.map(faqItem).join(''));
+
+  // Single-open accordion via delegation (covers questions added later).
+  qEl?.addEventListener('click', e => {
+    const btn = e.target.closest('.faq-q');
+    if (!btn) return;
+    const item = btn.closest('.faq-item');
+    const wasOpen = item?.classList.contains('open');
+    qEl.querySelectorAll('.faq-item').forEach(i => i.classList.remove('open'));
+    if (!wasOpen) item?.classList.add('open');
+  });
+
+  // "Generate more questions" — AI reveals additional tailored questions.
+  const moreBtn = document.getElementById('fp-more-q');
+  if (moreBtn) moreBtn.disabled = true;
+  setTimeout(() => { if (moreBtn && morePool.length) moreBtn.disabled = false; }, 1000);
+  moreBtn?.addEventListener('click', () => {
+    if (!morePool.length) return;
+    moreBtn.disabled = true;
+    const loading = document.createElement('div');
+    loading.className = 'fp-generating';
+    loading.innerHTML = '<span class="pa-typing-dots"><span></span><span></span><span></span></span><span>Generating more questions…</span>';
+    qEl.appendChild(loading);
+    setTimeout(() => {
+      loading.remove();
+      morePool.splice(0, 2).forEach(o => {
+        const wrap = document.createElement('div');
+        wrap.innerHTML = faqItem(o);
+        const item = wrap.firstElementChild;
+        item.classList.add('fp-reveal-item');
+        qEl.appendChild(item);
+      });
+      if (!morePool.length) {
+        moreBtn.innerHTML = '<i class="fa-solid fa-check"></i> That\'s every key question';
+        moreBtn.classList.add('done');
+      } else {
+        moreBtn.disabled = false;
+      }
+    }, 700);
+  });
+
+  // ── 4. Finance jargon decoder chat ──
+  const body = document.getElementById('fp-chat-body');
+  const form = document.getElementById('fp-chat-form');
+  const input = document.getElementById('fp-chat-input');
+  const chips = document.getElementById('fp-chat-chips');
+  if (!body || !form) return;
+
+  const addMsg = (cls, html) => {
+    const el = document.createElement('div');
+    el.className = `pa-msg ${cls}`;
+    el.innerHTML = cls.includes('pa-msg-bot')
+      ? `<div class="pa-msg-avatar"><i class="fa-solid fa-wand-magic-sparkles"></i></div><div class="pa-msg-bubble">${html}</div>`
+      : `<div class="pa-msg-bubble">${html}</div>`;
+    body.appendChild(el);
+    body.scrollTop = body.scrollHeight;
+    return el;
+  };
+
+  const ask = q => {
+    const text = (q || '').trim();
+    if (!text) return;
+    addMsg('pa-msg-user', escapeHtml(text));
+    if (input) input.value = '';
+    const typing = addMsg('pa-msg-bot pa-typing', '<span class="pa-typing-dots"><span></span><span></span><span></span></span>');
+    setTimeout(() => {
+      typing.remove();
+      addMsg('pa-msg-bot', generateFinancePrepAnswer(text));
+    }, 550);
+  };
+
+  form.addEventListener('submit', e => { e.preventDefault(); ask(input?.value); });
+  chips?.addEventListener('click', e => {
+    const chip = e.target.closest('.pa-chip');
+    if (chip) ask(chip.dataset.q || chip.textContent);
+  });
+
+  const greeting = mode === 'prequal'
+    ? '<div class="pa-msg-label">Before you shop</div><p>You\'re pre-qualified — that\'s real leverage. Ask me to translate any finance term so nothing in the dealership catches you off guard.</p>'
+    : '<div class="pa-msg-label">Before you sign</div><p>Your application is in. Let\'s make sure no finance-office jargon trips you up — tap a term below or ask me anything.</p>';
+  addMsg('pa-msg-bot', greeting);
+}
+
+// ─── Trade-in Insights (trade confirmation page) ─────────
+function initTradePrep() {
+  const root = document.getElementById('trade-prep');
+  if (!root) return;
+
+  // Read whatever the participant entered on the sell/trade form; fall back
+  // to a sensible default vehicle so empty submits still produce a real demo.
+  let saved = {};
+  try { saved = JSON.parse(sessionStorage.getItem('dcTrade') || '{}'); } catch (e) { saved = {}; }
+  const NOW_YEAR = new Date().getFullYear();
+  const car = {
+    year: parseInt(saved.year, 10) || 2019,
+    make: saved.make || 'Honda',
+    model: saved.model || 'Accord',
+    mileage: parseInt(saved.mileage, 10) || 60000,
+    condition: saved.condition || 'good',
+  };
+  const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+  const signed = n => n === 0 ? '$0' : (n > 0 ? '+' : '−') + '$' + Math.abs(n).toLocaleString('en-US');
+
+  // ── Mock valuation (deterministic, client-side) ──
+  const age = Math.min(15, Math.max(0, NOW_YEAR - car.year));
+  const base = Math.round(34000 * Math.pow(0.90, age));
+  const expectedMiles = age * 12000;
+  const milesDiff = expectedMiles - car.mileage; // + means fewer miles than average
+  let mileageAdj = Math.round(milesDiff * 0.05);
+  const cap25 = Math.round(base * 0.25);
+  mileageAdj = Math.max(-cap25, Math.min(cap25, mileageAdj));
+  const condPct = { excellent: 0.06, good: 0, fair: -0.10 }[car.condition] ?? 0;
+  const condAdj = Math.round(base * condPct);
+  const popular = ['Honda', 'Toyota', 'Mazda'];
+  const demandAdj = popular.includes(car.make) ? Math.round(base * 0.03) : 0;
+  const V0 = Math.max(500, Math.round((base + mileageAdj + condAdj + demandAdj) / 100) * 100);
+
+  // ── Trade-vs-sell economics ──
+  const TAX_RATE = 0.07;
+  const PRIVATE_PREMIUM = 0.12;
+  const privatePrice = Math.round((V0 * (1 + PRIVATE_PREMIUM)) / 100) * 100;
+  const taxSavings = Math.round((V0 * TAX_RATE) / 10) * 10;
+  const privateExtra = privatePrice - V0;
+  const netPrivateAdvantage = privateExtra - taxSavings; // >0 → private still ahead
+
+  // ── Shared AI byline + generating reveal ──
+  const byline = `<i class="fa-solid fa-wand-magic-sparkles"></i> Based on your car · <span>${car.year} ${car.make} ${car.model} · ${Math.round(car.mileage / 1000)}k mi · ${car.condition} condition</span>`;
+  ['tp-offer-byline', 'tp-timing-byline', 'tp-compare-byline'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = byline;
+  });
+  const tpGen = (el, delay, buildHtml) => {
+    if (!el) return;
+    el.innerHTML = '<div class="fp-generating"><span class="pa-typing-dots"><span></span><span></span><span></span></span><span>Analyzing your vehicle…</span></div>';
+    setTimeout(() => { el.innerHTML = buildHtml(); el.classList.add('fp-reveal-item'); }, delay);
+  };
+
+  // ── C. "How we built your offer" transparency waterfall ──
+  const milesDesc = milesDiff >= 0
+    ? `${Math.round(milesDiff / 1000)}k under average`
+    : `${Math.round(-milesDiff / 1000)}k over average`;
+  const demandLabel = demandAdj > 0 ? signed(demandAdj) : 'Stable';
+  tpGen(document.getElementById('tp-offer-body'), 450, () => `
+    <div class="tp-water">
+      <div class="tp-water-row"><span>Base market value · ${car.year} ${car.make} ${car.model}</span><span>${formatPrice(base)}</span></div>
+      <div class="tp-water-row"><span>Mileage · ${car.mileage.toLocaleString('en-US')} mi (${milesDesc})</span><span class="${mileageAdj >= 0 ? 'pos' : 'neg'}">${signed(mileageAdj)}</span></div>
+      <div class="tp-water-row"><span>Condition · ${cap(car.condition)}</span><span class="${condAdj >= 0 ? 'pos' : 'neg'}">${signed(condAdj)}</span></div>
+      <div class="tp-water-row"><span>Local demand · ${car.make}</span><span class="pos">${demandLabel}</span></div>
+      <div class="tp-water-total"><span>Your no-haggle offer</span><span>${formatPrice(V0)}</span></div>
+    </div>
+    <p class="calc-note">Transparent by design — no haggling, and the offer is guaranteed for 7 days.</p>`);
+
+  // ── A. Timing & depreciation explorer (interactive) ──
+  const timingEl = document.getElementById('tp-timing-body');
+  if (timingEl) {
+    timingEl.innerHTML = '<div class="fp-generating"><span class="pa-typing-dots"><span></span><span></span><span></span></span><span>Analyzing your vehicle…</span></div>';
+    setTimeout(() => {
+      let months = 0;
+      let milesPerMo = 1000;
+      const ageRate = 0.008;     // monthly value decay from age
+      const perMileLoss = 0.05;  // $ lost per mile driven
+      timingEl.innerHTML = `
+        <div class="fp-controls">
+          <div class="fp-control">
+            <span class="fp-control-label">When will you trade?</span>
+            <div class="fp-term-toggle" role="group" aria-label="Trade timing">
+              <button type="button" data-mo="0" class="active">Now</button>
+              <button type="button" data-mo="3">3 mo</button>
+              <button type="button" data-mo="6">6 mo</button>
+              <button type="button" data-mo="12">12 mo</button>
+            </div>
+          </div>
+          <div class="fp-control">
+            <span class="fp-control-label">Miles you drive / month · <strong id="tp-miles-label">1,000</strong></span>
+            <input type="range" id="tp-miles" class="fp-slider" min="0" max="2500" step="100" value="1000" aria-label="Miles driven per month">
+          </div>
+        </div>
+        <div class="fp-primary">
+          <div class="fp-primary-v" id="tp-value"></div>
+          <div class="fp-primary-l" id="tp-value-sub"></div>
+        </div>
+        <div class="tp-delta" id="tp-delta"></div>`;
+      timingEl.classList.add('fp-reveal-item');
+
+      const valueV = timingEl.querySelector('#tp-value');
+      const valueSub = timingEl.querySelector('#tp-value-sub');
+      const deltaEl = timingEl.querySelector('#tp-delta');
+      const milesLabel = timingEl.querySelector('#tp-miles-label');
+      const milesSlider = timingEl.querySelector('#tp-miles');
+      const moBtns = timingEl.querySelectorAll('.fp-term-toggle button');
+
+      const valueAt = (t, mpm) => Math.max(0, Math.round((V0 * Math.pow(1 - ageRate, t) - mpm * t * perMileLoss) / 50) * 50);
+
+      const recompute = () => {
+        const v = valueAt(months, milesPerMo);
+        valueV.textContent = formatPrice(v);
+        if (months === 0) {
+          valueSub.textContent = "Today's locked offer — guaranteed 7 days, zero obligation";
+          deltaEl.className = 'tp-delta tp-delta-good';
+          deltaEl.innerHTML = '<i class="fa-solid fa-lock"></i> Lock this in now and the number can\'t drop on you.';
+        } else {
+          const loss = V0 - v;
+          const perMo = Math.round(loss / months);
+          valueSub.textContent = `Estimated offer if you wait ${months} months`;
+          deltaEl.className = 'tp-delta tp-delta-warn';
+          deltaEl.innerHTML = `<i class="fa-solid fa-arrow-trend-down"></i> About <strong>−${formatPrice(loss)}</strong> vs today (~${formatPrice(perMo)}/mo of value slipping away).`;
+        }
+      };
+
+      moBtns.forEach(b => b.addEventListener('click', () => {
+        months = parseInt(b.dataset.mo, 10) || 0;
+        moBtns.forEach(x => x.classList.toggle('active', x === b));
+        recompute();
+      }));
+      milesSlider.addEventListener('input', () => {
+        milesPerMo = parseInt(milesSlider.value, 10) || 0;
+        milesLabel.textContent = milesPerMo.toLocaleString('en-US');
+        recompute();
+      });
+      recompute();
+    }, 700);
+  }
+
+  // ── B. Trade-in vs. sell-it-yourself decision tool ──
+  let verdict;
+  if (netPrivateAdvantage <= 0)
+    verdict = `<i class="fa-solid fa-circle-check"></i> Once the <strong>${formatPrice(taxSavings)}</strong> tax break is counted, trading in actually comes out <strong>ahead by about ${formatPrice(Math.abs(netPrivateAdvantage))}</strong> — with none of the hassle.`;
+  else
+    verdict = `<i class="fa-solid fa-scale-balanced"></i> Selling yourself might net about <strong>${formatPrice(netPrivateAdvantage)}</strong> more after the tax break — worth it only if you're up for weeks of listing, calls, and test drives.`;
+  tpGen(document.getElementById('tp-compare-body'), 950, () => `
+    <div class="tp-compare">
+      <div class="tp-col tp-col-trade">
+        <div class="tp-col-tag"><i class="fa-solid fa-handshake"></i> Trade it in</div>
+        <div class="tp-col-v">${formatPrice(V0)}</div>
+        <ul class="tp-col-list">
+          <li><i class="fa-solid fa-plus"></i> ~${formatPrice(taxSavings)} sales-tax savings on your next car</li>
+          <li><i class="fa-solid fa-bolt"></i> Paid instantly — no listing or strangers</li>
+          <li><i class="fa-solid fa-lock"></i> Offer locked for 7 days</li>
+        </ul>
+      </div>
+      <div class="tp-col tp-col-sell">
+        <div class="tp-col-tag"><i class="fa-solid fa-tag"></i> Sell it yourself</div>
+        <div class="tp-col-v">${formatPrice(privatePrice)}</div>
+        <ul class="tp-col-list">
+          <li><i class="fa-solid fa-plus"></i> ~${formatPrice(privateExtra)} more before costs</li>
+          <li><i class="fa-solid fa-minus"></i> No trade-in tax break (≈ −${formatPrice(taxSavings)})</li>
+          <li><i class="fa-solid fa-clock"></i> Weeks of listing, calls & test drives</li>
+        </ul>
+      </div>
+    </div>
+    <div class="tp-verdict">${verdict}</div>`);
+
+  // ── E. AI "My take" synthesis ──
+  const takeawayEl = document.getElementById('tp-takeaway');
+  if (takeawayEl) {
+    const waitNote = `waiting even six months could shave roughly ${formatPrice(V0 - Math.round((V0 * Math.pow(0.992, 6) - 1000 * 6 * 0.05) / 50) * 50)} off it`;
+    const verdictNote = netPrivateAdvantage <= 0
+      ? `selling privately wouldn't beat it once the ${formatPrice(taxSavings)} tax break is in`
+      : `selling privately could net a bit more, but only if you've got weeks to spare`;
+    const take = `Your ${formatPrice(V0)} offer is locked for 7 days — ${verdictNote}, and ${waitNote}. Locking it in now is the confident move.`;
+    setTimeout(() => {
+      takeawayEl.innerHTML = `<i class="fa-solid fa-lightbulb"></i><div><strong>My take:</strong> ${take}</div>`;
+      takeawayEl.hidden = false;
+      takeawayEl.classList.add('fp-reveal-item');
+    }, 1150);
+  }
+}
+
+// Reverse amortization: the most a given monthly payment can finance,
+// plus the down payment, at a fixed APR over N months.
+function fpMaxPrice(monthly, annualRate, months, down = 0) {
+  const i = annualRate / 100 / 12;
+  if (i <= 0) return monthly * months + down;
+  const principal = monthly * (1 - Math.pow(1 + i, -months)) / i;
+  return principal + down;
+}
+
+// Plain-English answers for common dealership finance jargon.
+function generateFinancePrepAnswer(q) {
+  const t = (q || '').toLowerCase();
+  const apr = (typeof Profile !== 'undefined' && Profile.apr) ? Profile.apr() : 6.9;
+
+  if (t.includes('money factor') || (t.includes('apr') && t.includes('factor')))
+    return '<p><strong>APR</strong> is your loan\'s yearly interest cost as a percent. <strong>Money factor</strong> is the leasing version — multiply it by 2,400 to get the rough APR equivalent. For a purchase loan, keep the focus on APR.</p>';
+  if (t.includes('buy rate') || t.includes('markup') || t.includes('reserve'))
+    return '<p>The <strong>buy rate</strong> is the rate the lender gives the dealer. Dealers can mark it up (called <em>dealer reserve</em>) and pocket the difference. Ask: "Is this the buy rate, and which lender approved me?"</p>';
+  if (t.includes('apr') || t.includes('interest') || (t.includes('rate') && !t.includes('great') && !t.includes('accurate')))
+    return `<p><strong>APR</strong> is the yearly cost of borrowing. Your estimate is about <strong>${apr}%</strong> — every 1% lower saves roughly $10–$15/mo per $10k financed. If they quote higher, ask why.</p>`;
+  if (t.includes('gap'))
+    return '<p><strong>GAP</strong> covers the gap between what you owe and the car\'s value if it\'s totaled early in the loan. It\'s optional — handy with a small down payment, but often cheaper through your own insurer.</p>';
+  if (t.includes('warranty') || t.includes('vsc') || t.includes('service contract'))
+    return '<p>An <strong>extended warranty / VSC</strong> is an optional service contract. It\'s negotiable and can be added later — don\'t let it get folded into your monthly payment without a clear standalone price.</p>';
+  if (t.includes('out the door') || t.includes('out-the-door') || t.includes('otd') || t.includes('monthly') || t.includes('payment'))
+    return '<p>Always negotiate the <strong>out-the-door (OTD) price</strong> — the full total with tax, title, and fees — never the monthly payment. A low monthly can hide a longer term or padded add-ons.</p>';
+  if (t.includes('down'))
+    return '<p>A larger <strong>down payment</strong> lowers your loan and total interest. 10–20% is a common target — but keep an emergency cushion; don\'t drain your savings.</p>';
+  if (t.includes('72') || t.includes('60') || t.includes('48') || t.includes('term') || t.includes('length'))
+    return '<p>Longer <strong>terms</strong> (72+ months) shrink the monthly payment but cost far more interest and risk going "underwater." Pick the shortest term whose payment you can comfortably afford.</p>';
+  if (t.includes('trade'))
+    return '<p>Keep your <strong>trade-in</strong> a separate conversation from the car price and the financing — dealers can blur them together. Know your trade\'s value first (DriveClear gives a no-haggle offer).</p>';
+  if (t.includes('credit') || t.includes('score') || t.includes('fico'))
+    return '<p>Your <strong>credit score</strong> sets your rate tier. Pre-qualification uses a soft pull (no impact); a full application is a hard pull. Try not to let several dealers run your credit separately.</p>';
+  if (t.includes('doc') || t.includes('fee'))
+    return '<p><strong>Doc/processing fees</strong> are often padded. Ask for an itemized breakdown and question anything vague. DriveClear charges zero dealer fees.</p>';
+  if (t.includes('add-on') || t.includes('addon') || t.includes('packing') || t.includes('protection'))
+    return '<p>Watch for <strong>payment packing</strong> — optional add-ons (GAP, warranties, paint/fabric protection) slipped into the monthly number. Ask the price of each item and decline what you don\'t want.</p>';
+  if (t.includes('prequal') || t.includes('pre-qual') || t.includes('approv'))
+    return '<p><strong>Pre-qualification</strong> is a soft-pull estimate of your rate and budget — no credit impact and no obligation. A full <strong>approval/application</strong> is a hard pull that locks in real terms.</p>';
+
+  return '<p>Good question. The golden rule: negotiate the <strong>out-the-door price</strong>, confirm your <strong>APR isn\'t marked up</strong>, and treat every add-on as optional. Want me to explain GAP, extended warranties, or buy rate?</p>';
 }
 
 // ─── Init compare on page load ────────────────────────

@@ -22,6 +22,7 @@
 const PARTICIPANT = {
   // ── Core shopping intent ──
   maxPrice: null,      // number — hard budget ceiling (never exceeded)
+  maxApproved: null,   // number — max financing approved for (finance/prequal pages); falls back to maxPrice
   body: null,          // 'SUV' | 'Sedan' | 'Truck'
   makes: [],           // preferred makes, e.g. ['Honda']
   minYear: null,       // number
