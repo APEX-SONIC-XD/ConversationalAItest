@@ -2,7 +2,7 @@
 // reveals the actual body type during participant interviews.
 const SKETCH_IMG = 'https://plus.unsplash.com/premium_vector-1733984597729-fad43b660da0?fm=jpg&q=60&w=900&auto=format&fit=crop';
 
-const VEHICLES = [
+const BASE_VEHICLES = [
   {
     id: 1, stockNum: 'DC10001', vin: '1HGCV1F34MA001234',
     year: 2021, make: 'Honda', model: 'Accord', trim: 'Sport',
@@ -194,8 +194,76 @@ const VEHICLES = [
     images: [SKETCH_IMG, SKETCH_IMG, SKETCH_IMG],
     description: 'This 2021 Ford Escape SEL AWD is the ideal blend of practicality and modern tech. With a large SYNC 4 touchscreen, wireless CarPlay, and heated leather seats, it punches well above its price.',
     location: 'Lakewood, CO'
+  },
+  {
+    id: 13, stockNum: 'DC10013', vin: 'JF2SKADC5MH234567',
+    year: 2021, make: 'Subaru', model: 'Forester', trim: 'Premium',
+    body: 'SUV', extColor: 'Crystal White Pearl', intColor: 'Black',
+    price: 28990, mileage: 27400, mpgCity: 26, mpgHwy: 33,
+    engine: '2.5L 4-Cylinder', hp: 182,
+    transmission: 'CVT Lineartronic', drivetrain: 'AWD',
+    owners: 1, accidentFree: true,
+    dealBadge: 'great-deal', dealLabel: 'Great Deal', marketSavings: 1600,
+    features: ['EyeSight Driver Assist','Apple CarPlay / Android Auto','All-Weather Package',
+      'Heated Front Seats','Power Moonroof','X-Mode AWD',
+      'Blind Spot Detection','Rear Cross-Traffic Alert','Roof Rails','All-Wheel Drive'],
+    images: [SKETCH_IMG, SKETCH_IMG, SKETCH_IMG],
+    description: 'This 2021 Subaru Forester Premium is built for Colorado winters. Standard Symmetrical AWD, EyeSight safety, and excellent ground clearance make it a confident choice near the mountains.',
+    location: 'Boulder, CO'
+  },
+  {
+    id: 14, stockNum: 'DC10014', vin: '4S4BSANC5L3456789',
+    year: 2020, make: 'Subaru', model: 'Outback', trim: 'Limited',
+    body: 'SUV', extColor: 'Magnetite Gray Metallic', intColor: 'Saddle Brown',
+    price: 30988, mileage: 35800, mpgCity: 26, mpgHwy: 33,
+    engine: '2.5L 4-Cylinder', hp: 182,
+    transmission: 'CVT Lineartronic', drivetrain: 'AWD',
+    owners: 1, accidentFree: true,
+    dealBadge: 'hot-deal', dealLabel: 'Hot Deal', marketSavings: 1900,
+    features: ['EyeSight Driver Assist','11.6" STARLINK Multimedia','Apple CarPlay / Android Auto',
+      'Heated Leather Seats','Power Liftgate','Harmon Kardon Audio',
+      'Driver Focus Monitor','Reverse Automatic Braking','X-Mode AWD','All-Wheel Drive'],
+    images: [SKETCH_IMG, SKETCH_IMG, SKETCH_IMG],
+    description: 'A capable 2020 Subaru Outback Limited with the tech and comfort you want for ski trips and daily commuting. One owner, clean history, and ready for year-round driving.',
+    location: 'Fort Collins, CO'
   }
 ];
+
+// Expand the seed catalog into a full lot for the SRP — duplicates templates
+// with unique ids, stock numbers, and light price/mileage variation.
+const LOT_LOCATIONS = [
+  'Denver, CO', 'Aurora, CO', 'Englewood, CO', 'Littleton, CO',
+  'Lakewood, CO', 'Boulder, CO', 'Fort Collins, CO', 'Colorado Springs, CO',
+  'Westminster, CO', 'Arvada, CO',
+];
+
+const COPIES_PER_VEHICLE = 10;
+
+function expandInventory(templates, copiesPerTemplate) {
+  const out = [];
+  let nextId = 1;
+  templates.forEach((tpl, ti) => {
+    for (let copy = 0; copy < copiesPerTemplate; copy++) {
+      const stockIdx = 10001 + ti * copiesPerTemplate + copy;
+      const mileageBump = copy * 1100 + (ti % 4) * 350;
+      const priceSwing = (copy % 6) * 200 - 400;
+      out.push({
+        ...tpl,
+        id: nextId++,
+        stockNum: 'DC' + stockIdx,
+        vin: tpl.vin.slice(0, 12) + String(copy).padStart(5, '0'),
+        mileage: Math.max(8000, tpl.mileage + mileageBump - 1500),
+        price: Math.max(16000, tpl.price + priceSwing),
+        location: LOT_LOCATIONS[(ti + copy) % LOT_LOCATIONS.length],
+        features: tpl.features.slice(),
+        images: tpl.images.slice(),
+      });
+    }
+  });
+  return out;
+}
+
+const VEHICLES = expandInventory(BASE_VEHICLES, COPIES_PER_VEHICLE);
 
 function getVehicleById(id) {
   return VEHICLES.find(v => v.id === parseInt(id));

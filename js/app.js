@@ -190,6 +190,23 @@ function toggleSave(id) {
 }
 
 // ─── SRP ─────────────────────────────────────────────────
+function updateFilterCounts() {
+  if (typeof VEHICLES === 'undefined') return;
+  const tally = (field, val) => VEHICLES.filter(v => v[field] === val).length;
+  document.querySelectorAll('.fp-make').forEach(cb => {
+    const el = cb.closest('.fp-opt')?.querySelector('.fp-opt-count');
+    if (el) el.textContent = tally('make', cb.value);
+  });
+  document.querySelectorAll('.fp-body').forEach(cb => {
+    const el = cb.closest('.fp-opt')?.querySelector('.fp-opt-count');
+    if (el) el.textContent = tally('body', cb.value);
+  });
+  document.querySelectorAll('.fp-drive').forEach(cb => {
+    const el = cb.closest('.fp-opt')?.querySelector('.fp-opt-count');
+    if (el) el.textContent = tally('drivetrain', cb.value);
+  });
+}
+
 function initSRP() {
   const grid = document.getElementById('srp-grid');
   const countEl = document.getElementById('srp-count');
@@ -407,6 +424,7 @@ function initSRP() {
       if (t.includes('volkswagen') || /\bvw\b/.test(t)) intent.makes.push('Volkswagen');
       if (t.includes('nissan')) intent.makes.push('Nissan');
       if (t.includes('kia')) intent.makes.push('Kia');
+      if (t.includes('subaru')) intent.makes.push('Subaru');
 
       if (/\b(suv|crossover|cuv)s?\b/.test(t)) intent.bodies.push('SUV');
       if (/\bsedans?\b/.test(t)) intent.bodies.push('Sedan');
@@ -502,6 +520,7 @@ function initSRP() {
   }
 
   applyAndRender();
+  updateFilterCounts();
 }
 
 function renderActiveTags(container, state) {
@@ -2210,6 +2229,7 @@ function initNavSearchSuggest() {
 const MAKE_WORDS = {
   honda: 'Honda', toyota: 'Toyota', ford: 'Ford', chevy: 'Chevrolet', chevrolet: 'Chevrolet',
   hyundai: 'Hyundai', mazda: 'Mazda', volkswagen: 'Volkswagen', nissan: 'Nissan', kia: 'Kia',
+  subaru: 'Subaru',
 };
 
 // Turn a free-text / conversational query into structured search params.
