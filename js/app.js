@@ -190,6 +190,34 @@ function toggleSave(id) {
 }
 
 // ─── SRP ─────────────────────────────────────────────────
+const BODY_LABELS = {
+  SUV: 'SUV / Crossover',
+  Sedan: 'Sedan',
+  Truck: 'Truck',
+  Coupe: 'Coupe',
+  Hatchback: 'Hatchback',
+  Minivan: 'Minivan',
+};
+const BODY_ORDER = ['SUV', 'Sedan', 'Truck', 'Coupe', 'Hatchback', 'Minivan'];
+
+function renderBodyFilters() {
+  if (typeof VEHICLES === 'undefined') return;
+  const container = document.getElementById('fp-body-opts');
+  if (!container) return;
+  const counts = {};
+  VEHICLES.forEach(v => { counts[v.body] = (counts[v.body] || 0) + 1; });
+  const bodies = Object.keys(counts).sort((a, b) => {
+    const ai = BODY_ORDER.indexOf(a), bi = BODY_ORDER.indexOf(b);
+    if (ai === -1 && bi === -1) return a.localeCompare(b);
+    if (ai === -1) return 1;
+    if (bi === -1) return -1;
+    return ai - bi;
+  });
+  container.innerHTML = bodies.map(b =>
+    `<label class="fp-opt"><input type="checkbox" class="fp-body" value="${b}"> ${BODY_LABELS[b] || b} <span class="fp-opt-count">${counts[b]}</span></label>`
+  ).join('');
+}
+
 function renderMakeFilters() {
   if (typeof VEHICLES === 'undefined') return;
   const container = document.getElementById('fp-make-opts');
@@ -249,6 +277,7 @@ function initSRP() {
   if (sortSel) sortSel.value = state.sort;
 
   renderMakeFilters();
+  renderBodyFilters();
 
   // Pre-check filter checkboxes from URL params
   if (state.make.length) {
@@ -434,9 +463,12 @@ function initSRP() {
         if (re.test(t) && !intent.makes.includes(make)) intent.makes.push(make);
       });
 
-      if (/\b(suv|crossover|cuv)s?\b/.test(t)) intent.bodies.push('SUV');
+      if (/\b(suv|crossover|cuv|family|families|kids)\b/.test(t)) intent.bodies.push('SUV');
       if (/\bsedans?\b/.test(t)) intent.bodies.push('Sedan');
       if (/\b(truck|pickup)s?\b/.test(t)) intent.bodies.push('Truck');
+      if (/\b(coupe|coupes|sports car)\b/.test(t)) intent.bodies.push('Coupe');
+      if (/\b(hatchback|hatch)s?\b/.test(t)) intent.bodies.push('Hatchback');
+      if (/\b(minivan|minivans|van)\b/.test(t)) intent.bodies.push('Minivan');
 
       if (/\bawd\b|all[- ]?wheel/.test(t)) intent.drives.push('AWD');
       if (/\bfwd\b|front[- ]?wheel/.test(t)) intent.drives.push('FWD');
@@ -2259,6 +2291,9 @@ function parseSearchParams(q) {
   if (/\b(suv|crossover|cuv|family|families|kids)\b/.test(t)) P.body = 'SUV';
   else if (/\b(sedan|sedans|commuter|commute|daily driver)\b/.test(t)) P.body = 'Sedan';
   else if (/\b(truck|trucks|pickup|haul|hauling|tow|towing|work)\b/.test(t)) P.body = 'Truck';
+  else if (/\b(coupe|coupes|sports car|sporty)\b/.test(t)) P.body = 'Coupe';
+  else if (/\b(hatchback|hatch)\b/.test(t)) P.body = 'Hatchback';
+  else if (/\b(minivan|minivans|van)\b/.test(t)) P.body = 'Minivan';
 
   const matchedMake = matchMakeFromText(t);
   if (matchedMake) P.make = matchedMake;
@@ -2320,6 +2355,9 @@ function paramLabel(P) {
   if (P.body === 'SUV') parts.push('SUVs');
   else if (P.body === 'Truck') parts.push('Trucks');
   else if (P.body === 'Sedan') parts.push('Sedans');
+  else if (P.body === 'Coupe') parts.push('Coupes');
+  else if (P.body === 'Hatchback') parts.push('Hatchbacks');
+  else if (P.body === 'Minivan') parts.push('Minivans');
   else parts.push('vehicles');
   let s = parts.join(' ');
   const extra = [];

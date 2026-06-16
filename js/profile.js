@@ -24,7 +24,7 @@ const PARTICIPANT = {
   maxPrice: null,      // number — hard budget ceiling (never exceeded)
   maxApproved: null,   // number — max financing approved for (finance/prequal pages); falls back to maxPrice
   maxMonthly: null,    // number — comfortable monthly payment ceiling (binds the finance pages alongside maxPrice)
-  body: null,          // 'SUV' | 'Sedan' | 'Truck'
+  body: null,          // 'SUV' | 'Sedan' | 'Truck' | 'Coupe' | 'Hatchback' | 'Minivan'
   makes: [],           // preferred makes, e.g. ['Honda', 'Toyota']
   minYear: null,       // number
   maxMiles: null,      // number
@@ -132,6 +132,9 @@ const Profile = {
     if (P.body === 'SUV') parts.push('SUVs');
     else if (P.body === 'Truck') parts.push('trucks');
     else if (P.body === 'Sedan') parts.push('sedans');
+    else if (P.body === 'Coupe') parts.push('coupes');
+    else if (P.body === 'Hatchback') parts.push('hatchbacks');
+    else if (P.body === 'Minivan') parts.push('minivans');
     else parts.push('vehicles');
     let s = parts.join(' ');
     const extra = [];
