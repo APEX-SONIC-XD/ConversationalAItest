@@ -1760,6 +1760,30 @@ function initFinancingPage() {
 }
 
 // ─── Dealership Finance Prep (confirmation pages) ─────────
+function buildLenderPool(baseApr, price, tier, term = 60) {
+  const templates = [
+    { id: 'dcu', name: 'DriveClear Credit Union', rateAdj: -0.2, speed: 3, flex: 3, perk: 'Lowest rate in our network', why: 'Best APR at your credit tier — we\'d submit here first.' },
+    { id: 'mwaf', name: 'Mountain West Auto Finance', rateAdj: 0.3, speed: 5, flex: 4, perk: 'Same-day decision', why: 'Fastest approval — strong fit for Colorado buyers.' },
+    { id: 'ndl', name: 'National Drive Lending', rateAdj: 0.5, speed: 4, flex: 5, perk: 'Flexible on age & mileage', why: 'Backup if the vehicle is older or miles run high.' },
+  ];
+  if (tier === 'fair' || tier === 'poor') {
+    templates.find(l => l.id === 'dcu').rateAdj = 0.4;
+    templates.find(l => l.id === 'ndl').rateAdj = 0.15;
+  }
+  return templates.map(l => {
+    const lenderApr = Math.round((baseApr + l.rateAdj) * 10) / 10;
+    return { ...l, apr: lenderApr, monthly: calcMonthly(price, 0, lenderApr, term) };
+  });
+}
+
+function sortLenders(lenders, priority) {
+  const copy = lenders.slice();
+  if (priority === 'rate') copy.sort((a, b) => a.apr - b.apr || b.speed - a.speed);
+  else if (priority === 'speed') copy.sort((a, b) => b.speed - a.speed || a.apr - b.apr);
+  else copy.sort((a, b) => (b.speed + b.flex - b.apr * 0.5) - (a.speed + a.flex - a.apr * 0.5));
+  return copy;
+}
+
 function initFinancePrep() {
   const root = document.getElementById('fin-prep');
   if (!root) return;
@@ -1796,7 +1820,7 @@ function initFinancePrep() {
   const byline = profileLine
     ? `<i class="fa-solid fa-wand-magic-sparkles"></i> Generated for you · <span>${profileLine}</span>`
     : '<i class="fa-solid fa-wand-magic-sparkles"></i> AI-generated for your visit';
-  ['fp-numbers-byline', 'fp-questions-byline'].forEach(id => {
+  ['fp-numbers-byline', 'fp-questions-byline', 'fp-lenders-byline'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.innerHTML = byline;
   });
@@ -1915,12 +1939,115 @@ function initFinancePrep() {
     }, 950);
   }
 
-  // ── 2. "Questions to ask the finance manager" (AI-generated + expandable) ──
+  // ── 2. "Who we'd shop for you" — AI lender matching (finance confirmation only) ──
+  const lendersEl = document.getElementById('fp-lenders-body');
+  const lendersTakeaway = document.getElementById('fp-lenders-takeaway');
+  if (mode === 'finance' && lendersEl) {
+    const lenderPool = buildLenderPool(apr, price, tier, 60);
+    const lenderIntro = 'Based on your application, these are the lenders we\'d shop first — zero rate markups.';
+    lendersEl.innerHTML = '<div class="fp-generating"><span class="pa-typing-dots"><span></span><span></span><span></span></span><span>Matching you with lenders in our network…</span></div>';
+    setTimeout(() => {
+      let priority = 'overall';
+      let customLenderName = null;
+      let addPanelOpen = false;
+      const renderLenders = () => {
+        const ranked = sortLenders(lenderPool, priority);
+        const top = ranked[0];
+        const row = (l, i) => {
+          const isTop = i === 0;
+          return `<div class="fm-lender${isTop ? ' fm-lender-top' : ''}">
+            ${isTop ? '<div class="fm-lender-badge"><i class="fa-solid fa-wand-magic-sparkles"></i> AI top pick</div>' : ''}
+            <div class="fm-lender-head">
+              <strong>${l.name}</strong>
+              <span>${l.apr}% APR · ${formatPrice(l.monthly)}/mo</span>
+            </div>
+            <p class="fm-lender-why">${l.why}</p>
+            <div class="fm-lender-perk"><i class="fa-solid fa-check"></i> ${l.perk}</div>
+          </div>`;
+        };
+        const customRow = customLenderName ? `
+          <div class="fm-lender fm-lender-custom">
+            <div class="fm-lender-head">
+              <strong>${escapeHtml(customLenderName)}</strong>
+              <span>Requested</span>
+            </div>
+            <p class="fm-lender-why">We'll include this lender when we shop your application — no obligation to use them.</p>
+            <div class="fm-lender-perk"><i class="fa-solid fa-plus"></i> Added by you</div>
+          </div>` : '';
+        lendersEl.innerHTML = `
+          <p class="fm-lenders-intro">${lenderIntro}</p>
+          <div class="fp-controls">
+            <div class="fp-control">
+              <span class="fp-control-label">What matters most?</span>
+              <div class="fp-term-toggle fm-priority-toggle" role="group" aria-label="Lender priority">
+                <button type="button" data-priority="overall"${priority === 'overall' ? ' class="active"' : ''}>Best overall</button>
+                <button type="button" data-priority="rate"${priority === 'rate' ? ' class="active"' : ''}>Lowest rate</button>
+                <button type="button" data-priority="speed"${priority === 'speed' ? ' class="active"' : ''}>Fastest approval</button>
+              </div>
+            </div>
+          </div>
+          <div class="fm-lenders">${ranked.map(row).join('')}${customRow}</div>
+          <div class="fm-lender-add-wrap">
+            <button type="button" class="fm-lender-add-btn" id="fm-lender-add-toggle" aria-expanded="${addPanelOpen}">
+              <i class="fa-solid fa-plus"></i> ${customLenderName ? 'Add another lender' : 'Add a specific lender'}
+            </button>
+            <div class="fm-lender-add-panel"${addPanelOpen ? '' : ' hidden'}>
+              <label class="fm-lender-add-label" for="fm-lender-add-input">Already have a bank or credit union in mind?</label>
+              <div class="fm-lender-add-row">
+                <input type="text" id="fm-lender-add-input" class="fm-lender-add-input" placeholder="e.g. Navy Federal, local credit union…">
+                <button type="button" class="btn btn-ghost btn-sm" id="fm-lender-add-submit">Add lender</button>
+              </div>
+              <p class="fm-lender-add-note">For your reference only — we'll note it for your finance specialist.</p>
+            </div>
+          </div>
+          <p class="calc-note">Illustrative matches only — DriveClear shops multiple lenders so you never pay a marked-up rate.</p>`;
+        lendersEl.classList.add('fp-reveal-item');
+        lendersEl.querySelectorAll('.fm-priority-toggle button').forEach(b => {
+          b.addEventListener('click', () => {
+            priority = b.dataset.priority || 'overall';
+            renderLenders();
+          });
+        });
+        const addToggle = lendersEl.querySelector('#fm-lender-add-toggle');
+        const addPanel = lendersEl.querySelector('.fm-lender-add-panel');
+        const addInput = lendersEl.querySelector('#fm-lender-add-input');
+        const addSubmit = lendersEl.querySelector('#fm-lender-add-submit');
+        addToggle?.addEventListener('click', () => {
+          addPanelOpen = !addPanelOpen;
+          addToggle.setAttribute('aria-expanded', addPanelOpen ? 'true' : 'false');
+          if (addPanel) addPanel.hidden = !addPanelOpen;
+        });
+        addSubmit?.addEventListener('click', () => {
+          const name = (addInput?.value || '').trim();
+          if (!name) return;
+          customLenderName = name;
+          addPanelOpen = false;
+          renderLenders();
+        });
+        if (lendersTakeaway) {
+          const alt = ranked[1];
+          const take = priority === 'speed'
+            ? `${top.name} is your fastest path — but ask for ${alt.name} too if you want to compare the rate before you sign.`
+            : priority === 'rate'
+              ? `${top.name} leads on APR at ${top.apr}% — if the dealer pushes their in-house lender, you already know the number to beat.`
+              : `${top.name} balances rate and speed for your profile — we'd lead with them, then keep ${alt.name} as backup.`;
+          lendersTakeaway.innerHTML = `<i class="fa-solid fa-lightbulb"></i><div><strong>My take:</strong> ${take}</div>`;
+          lendersTakeaway.hidden = false;
+          lendersTakeaway.classList.add('fp-reveal-item');
+        }
+      };
+      renderLenders();
+    }, 700);
+  }
+
+  // ── 3. "Questions to ask the finance manager" (AI-generated + expandable) ──
   const qEl = document.getElementById('fp-questions');
   const faqItem = o => `<div class="faq-item"><button type="button" class="faq-q">${o.q} <i class="fa-solid fa-chevron-down"></i></button><div class="faq-a">${o.a}</div></div>`;
   const tailored = [];
   if (mode === 'prequal')
     tailored.push({ q: `I'm pre-qualified around ${apr}% — can you beat that rate?`, a: `You walked in with a real number, so make them compete. If they can't beat ${apr}%, you can simply finance through DriveClear instead.` });
+  if (mode === 'finance')
+    tailored.push({ q: 'Which lender approved me?', a: 'You have a right to know the lender name and whether it\'s the one with the best rate — not just the one that pays the dealer the most.' });
   if (tier === 'fair' || tier === 'poor')
     tailored.push({ q: 'What would help me qualify for a lower rate?', a: 'A larger down payment, a co-signer, or a shorter term can each lower your rate. Ask which one actually moves your tier.' });
   const baseQs = [
@@ -2221,6 +2348,8 @@ function generateFinancePrepAnswer(q) {
   const t = (q || '').toLowerCase();
   const apr = (typeof Profile !== 'undefined' && Profile.apr) ? Profile.apr() : 6.9;
 
+  if (t.includes('lender') || t.includes('who picks') || t.includes('who chooses') || t.includes('in-house') || t.includes('captive'))
+    return '<p>DriveClear shops your file across multiple lenders and passes through the <strong>buy rate</strong> — no markup. The dealer may push their in-house lender because they earn a bonus; you can ask for the lender name and compare against the matches you were shown.</p>';
   if (t.includes('money factor') || (t.includes('apr') && t.includes('factor')))
     return '<p><strong>APR</strong> is your loan\'s yearly interest cost as a percent. <strong>Money factor</strong> is the leasing version — multiply it by 2,400 to get the rough APR equivalent. For a purchase loan, keep the focus on APR.</p>';
   if (t.includes('buy rate') || t.includes('markup') || t.includes('reserve'))

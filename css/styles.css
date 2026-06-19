@@ -2411,3 +2411,58 @@ body.ai-mode textarea { cursor: text; }
 @media (max-width: 600px) {
   .tp-compare { grid-template-columns: 1fr; }
 }
+
+/* ─── Finance lender matching (confirmation pages) ─── */
+.fm-lenders-intro { font-size: 14px; color: var(--text-mid); margin-bottom: 16px; line-height: 1.5; }
+.fm-lenders { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
+.fm-lender {
+  border: 1px solid var(--border); border-radius: var(--r-lg); padding: 14px 16px;
+  background: var(--bg);
+}
+.fm-lender-top {
+  border-color: rgba(0, 191, 179, 0.45);
+  background: rgba(0, 191, 179, 0.05);
+  box-shadow: var(--sh-xs);
+}
+.fm-lender-badge {
+  display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.04em; color: var(--teal-dark, var(--teal));
+  margin-bottom: 8px;
+}
+.fm-lender-head {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+  flex-wrap: wrap; margin-bottom: 6px;
+}
+.fm-lender-head strong { font-size: 15px; color: var(--text-dark); }
+.fm-lender-head span { font-size: 14px; font-weight: 700; color: var(--teal-dark, var(--teal)); white-space: nowrap; }
+.fm-lender-why { font-size: 13.5px; color: var(--text-mid); line-height: 1.45; margin-bottom: 8px; }
+.fm-lender-perk {
+  display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-mid);
+}
+.fm-lender-perk i { color: var(--teal); font-size: 11px; }
+.fm-lender-custom {
+  border-style: dashed; border-color: var(--border-mid, var(--border));
+  background: #fff;
+}
+.fm-lender-custom .fm-lender-head span { color: var(--text-light); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.03em; }
+.fm-lender-add-wrap { margin-top: 14px; }
+.fm-lender-add-btn {
+  display: inline-flex; align-items: center; gap: 8px; width: 100%; justify-content: center;
+  padding: 11px 16px; border: 1px dashed var(--border-mid, var(--border)); border-radius: var(--r-lg);
+  background: transparent; color: var(--text-mid); font-size: 14px; font-weight: 600;
+  cursor: pointer; transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.fm-lender-add-btn:hover { border-color: var(--teal); color: var(--teal-dark, var(--teal)); background: rgba(0, 191, 179, 0.05); }
+.fm-lender-add-btn i { font-size: 12px; }
+.fm-lender-add-panel {
+  margin-top: 12px; padding: 14px; border: 1px solid var(--border); border-radius: var(--r-lg);
+  background: var(--bg);
+}
+.fm-lender-add-label { display: block; font-size: 13px; font-weight: 600; color: var(--text-dark); margin-bottom: 10px; }
+.fm-lender-add-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.fm-lender-add-input {
+  flex: 1; min-width: 180px; padding: 10px 12px; border: 1px solid var(--border);
+  border-radius: var(--r-md, 8px); font-size: 14px; font-family: inherit;
+}
+.fm-lender-add-input:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px rgba(0, 191, 179, 0.12); }
+.fm-lender-add-note { margin: 10px 0 0; font-size: 12px; color: var(--text-light); line-height: 1.45; }
