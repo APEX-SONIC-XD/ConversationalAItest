@@ -627,6 +627,7 @@ function initVDP() {
   initPayCalc(v.price);
   renderSimilar(v);
   updateVDPSaveBtn(v.id);
+  initPhotoHotspots(v);
   initVDPAiMode(v);
 
   // Breadcrumb
@@ -847,6 +848,36 @@ function generateMockAnswer(q) {
 // ─── VDP AI Assist Mode ──────────────────────────────────
 // A toggle that turns the page into an "ask anything" surface: hovering any
 // explained element shows a quick snippet; clicking opens a chat sidebar.
+
+const PHOTO_HOTSPOT_POSITIONS = [
+  { top: '30%', left: '78%' },
+  { top: '26%', left: '52%' },
+  { top: '44%', left: '32%' },
+  { top: '38%', left: '68%' },
+  { top: '70%', left: '58%' },
+];
+
+function pickHotspotFeatures(v) {
+  const priority = /sensing|safety|camera|blind|assist|collision|lane|carplay|airbag|braking|monitor/i;
+  return [...v.features]
+    .sort((a, b) => (priority.test(a) ? 0 : 1) - (priority.test(b) ? 0 : 1))
+    .slice(0, PHOTO_HOTSPOT_POSITIONS.length);
+}
+
+function initPhotoHotspots(v) {
+  const layer = document.getElementById('g-hotspots');
+  if (!layer) return;
+  const features = pickHotspotFeatures(v);
+  layer.innerHTML = features.map((f, i) => {
+    const pos = PHOTO_HOTSPOT_POSITIONS[i];
+    const safe = escapeHtml(f);
+    return `<button type="button" class="g-hotspot" style="top:${pos.top};left:${pos.left};" data-ai-topic="photo-feature" data-feature="${safe}" aria-label="${safe}">
+      <span class="g-hotspot-pulse"></span><span class="g-hotspot-dot"></span>
+      <span class="g-hotspot-label">${safe}</span>
+    </button>`;
+  }).join('');
+}
+
 function initVDPAiMode(v) {
   const toggle = document.getElementById('ai-toggle');
   const stateLbl = document.getElementById('ai-toggle-state');
@@ -865,6 +896,8 @@ function initVDPAiMode(v) {
   const drawerInput = document.getElementById('ai-drawer-input');
   if (!toggle || !tip || !drawer) return;
 
+  const photoBadge = document.getElementById('g-ai-photo-badge');
+
   // Mark every element we can explain.
   const tag = (el, topic) => { if (el) el.setAttribute('data-ai-topic', topic); };
   tag(document.getElementById('vdp-price'), 'price');
@@ -876,7 +909,34 @@ function initVDPAiMode(v) {
   document.querySelectorAll('.spec-item').forEach(el => tag(el, 'spec'));
   document.querySelectorAll('.feat-item').forEach(el => tag(el, 'feature'));
   tag(document.getElementById('payment-calc'), 'calc');
-  tag(document.querySelector('.gallery .g-main'), 'photos');
+
+  const gMain = document.querySelector('.gallery .g-main');
+  let hotspotsPinned = false;
+
+  const showPhotoHotspots = () => {
+    gMain?.classList.add('hotspots-active');
+    if (photoBadge) photoBadge.hidden = true;
+  };
+  const hidePhotoHotspots = () => {
+    if (hotspotsPinned) return;
+    gMain?.classList.remove('hotspots-active');
+    if (photoBadge && aiOn) photoBadge.hidden = false;
+  };
+
+  gMain?.addEventListener('mouseenter', () => { if (aiOn) showPhotoHotspots(); });
+  gMain?.addEventListener('mouseleave', (e) => {
+    if (!aiOn || !e.relatedTarget || gMain.contains(e.relatedTarget)) return;
+    hidePhotoHotspots();
+  });
+  gMain?.addEventListener('click', (e) => {
+    if (!aiOn) return;
+    if (e.target.closest('.g-arrow')) return;
+    if (e.target.closest('.g-hotspot')) return;
+    hotspotsPinned = !hotspotsPinned;
+    if (hotspotsPinned) showPhotoHotspots();
+    else hidePhotoHotspots();
+    e.stopPropagation();
+  });
 
   let aiOn = false;
   let activeTarget = null;
@@ -944,7 +1004,18 @@ function initVDPAiMode(v) {
       case 'calc':
         return { key: 'payment', title: 'Payment calculator', text: 'Slide your down payment, pick a term, and set a rate to see how your monthly payment changes — all estimates, no credit check.', chips: ['What term should I choose?', 'How much down is smart?', 'What’s my real rate?'] };
       case 'photos':
-        return { key: 'photos', title: 'Photos & condition', text: `Real photos of this exact ${v.year} ${v.make} ${v.model}. Every car gets a 150-point inspection before listing.`, chips: ['What does the inspection cover?', 'Any cosmetic flaws?'] };
+        return { key: 'photos', title: 'Photos & condition', text: `Real photos of this exact ${v.year} ${v.make} ${v.model}. Hover or click the photo to see feature highlights — every car also gets a 150-point inspection before listing.`, chips: ['What does the inspection cover?', 'Any cosmetic flaws?'] };
+      case 'photo-feature': {
+        const f = el.getAttribute('data-feature') || el.textContent.trim();
+        const safety = /sensing|safety|camera|blind|assist|collision|lane|braking|monitor/i.test(f);
+        return {
+          key: 'feature', title: f,
+          text: safety
+            ? `${f} is equipped on this ${v.year} ${v.make} ${v.model} — a meaningful safety feature for a newer driver. It helps reduce common risks on the road.`
+            : `${f} comes standard on this trim. Useful for everyday driving and resale value.`,
+          chips: [`How does ${f} work?`, 'Is this good for a new driver?', 'Is this common in this class?']
+        };
+      }
       default:
         return { key: 'general', title: 'About this vehicle', text: 'Ask me anything about this car.', chips: ['Is this a good deal?', 'Tell me about reliability'] };
     }
@@ -1070,6 +1141,11 @@ function initVDPAiMode(v) {
     if (e.key !== 'Escape') return;
     if (drawer.classList.contains('open')) closeDrawer();
     else if (pinned) { activeTarget = null; hideTip(); }
+    else if (hotspotsPinned) {
+      hotspotsPinned = false;
+      gMain?.classList.remove('hotspots-active');
+      if (photoBadge && aiOn) photoBadge.hidden = false;
+    }
   });
 
   // ── Toggle ─────────────────────────────────────────────
@@ -1079,6 +1155,11 @@ function initVDPAiMode(v) {
     toggle.classList.toggle('on', on);
     toggle.setAttribute('aria-checked', on ? 'true' : 'false');
     if (stateLbl) stateLbl.textContent = on ? 'On' : 'Off';
+    hotspotsPinned = false;
+    gMain?.classList.remove('hotspots-active');
+    const hotspots = document.getElementById('g-hotspots');
+    if (hotspots) hotspots.setAttribute('aria-hidden', on ? 'false' : 'true');
+    if (photoBadge) photoBadge.hidden = !on;
     if (!on) { activeTarget = null; hideTip(); closeDrawer(); }
   };
   toggle.addEventListener('click', () => setMode(!aiOn));

@@ -314,6 +314,12 @@ input, select, textarea { font-family: inherit; }
   background: var(--success-light); padding: 3px 8px; border-radius: var(--r-full);
   display: inline-flex; align-items: center; gap: 5px;
 }
+.ai-rec-pay {
+  font-size: 12.5px; color: var(--text-mid); display: inline-flex; align-items: center;
+  gap: 6px; margin-top: -2px;
+}
+.ai-rec-pay i { color: var(--teal-dark); font-size: 12px; }
+.ai-rec-pay strong { color: var(--teal-xdark); font-weight: 700; }
 .ai-rec-specs { display: flex; gap: 14px; flex-wrap: wrap; padding: 2px 0; }
 .ai-rec-specs span { font-size: 12px; color: var(--text-mid); display: inline-flex; align-items: center; gap: 5px; }
 .ai-rec-specs i { color: var(--text-light); font-size: 11px; }
@@ -327,6 +333,7 @@ input, select, textarea { font-family: inherit; }
 .ai-rec-owners .ai-rec-insight-label { color: var(--text-mid); }
 .ai-rec-insight p { font-size: 12.5px; color: var(--text-mid); line-height: 1.5; }
 .ai-rec-body .btn { margin-top: auto; }
+
 .ai-rec-foot {
   margin-top: 22px; text-align: center; font-size: 13px; color: var(--text-light);
 }
@@ -715,7 +722,7 @@ input, select, textarea { font-family: inherit; }
 .g-main img { width: 100%; height: 100%; object-fit: cover; transition: opacity 0.3s; }
 .g-main img.loading { opacity: 0; }
 .g-arrow {
-  position: absolute; top: 50%; transform: translateY(-50%);
+  position: absolute; top: 50%; transform: translateY(-50%); z-index: 5;
   width: 40px; height: 40px; background: rgba(255,255,255,0.9); border-radius: 50%;
   display: flex; align-items: center; justify-content: center; cursor: pointer;
   box-shadow: var(--sh-md); font-size: 15px; color: var(--text-dark); transition: all 0.2s; border: none;
@@ -728,6 +735,59 @@ input, select, textarea { font-family: inherit; }
   background: rgba(0,0,0,0.62); color: #fff; padding: 5px 12px;
   border-radius: var(--r-full); font-size: 12px; font-weight: 500;
 }
+
+/* AI mode — HubSpot-style feature hotspots on the hero photo (hover/click to reveal) */
+.g-hotspots {
+  position: absolute; inset: 0; z-index: 3;
+  opacity: 0; pointer-events: none; transition: opacity 0.25s;
+}
+body.ai-mode .g-main.hotspots-active .g-hotspots { opacity: 1; pointer-events: auto; }
+body.ai-mode .g-main { cursor: pointer; }
+.g-ai-photo-badge {
+  position: absolute; top: 14px; left: 14px; z-index: 4;
+  display: none; align-items: center; gap: 7px;
+  background: rgba(26,38,64,0.88); color: #fff; font-size: 12px; font-weight: 600;
+  padding: 7px 12px; border-radius: var(--r-full); backdrop-filter: blur(4px);
+  pointer-events: none;
+}
+body.ai-mode .g-ai-photo-badge { display: inline-flex; }
+body.ai-mode .g-main.hotspots-active .g-ai-photo-badge { display: none; }
+.g-ai-photo-badge i { color: var(--teal); font-size: 11px; }
+.g-hotspot {
+  position: absolute; transform: translate(-50%, -50%);
+  width: 28px; height: 28px; padding: 0; border: none; background: transparent;
+  cursor: inherit; z-index: 1;
+}
+.g-hotspot-dot {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 12px; height: 12px; border-radius: 50%;
+  background: var(--teal); border: 2px solid #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25); z-index: 2;
+}
+.g-hotspot-pulse {
+  position: absolute; inset: 0; border-radius: 50%;
+  background: rgba(0,191,179,0.35); animation: g-hotspot-pulse 2s ease-out infinite;
+}
+.g-hotspot-label {
+  position: absolute; left: 50%; bottom: calc(100% + 8px); transform: translateX(-50%);
+  white-space: nowrap; font-size: 11px; font-weight: 700; color: #fff;
+  background: rgba(26,38,64,0.92); padding: 5px 10px; border-radius: var(--r-full);
+  opacity: 0; pointer-events: none; transition: opacity 0.15s, transform 0.15s;
+  box-shadow: var(--sh-md);
+}
+.g-hotspot:hover .g-hotspot-label,
+.g-hotspot:focus-visible .g-hotspot-label,
+.g-hotspot.active .g-hotspot-label {
+  opacity: 1; transform: translateX(-50%) translateY(-2px);
+}
+.g-hotspot:hover .g-hotspot-dot,
+.g-hotspot:focus-visible .g-hotspot-dot { transform: translate(-50%, -50%) scale(1.15); }
+@keyframes g-hotspot-pulse {
+  0% { transform: scale(0.6); opacity: 0.9; }
+  70% { transform: scale(1.8); opacity: 0; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+
 .g-thumbs { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; padding: 8px; }
 .g-thumb {
   aspect-ratio: 4/3; overflow: hidden; border-radius: 6px;
@@ -944,8 +1004,8 @@ input, select, textarea { font-family: inherit; }
 .aidx-msg-bubble strong { font-weight: 700; }
 .aidx-msg-user { justify-content: flex-end; }
 .aidx-msg-user .aidx-msg-bubble { background: var(--teal); border-color: var(--teal); color: #fff; border-radius: 14px; border-bottom-right-radius: 4px; }
-.aidx-trim { font-size: 12px; color: var(--text-light); margin-bottom: 8px; }
-.aidx-priceline { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+.aidx-trim { font-size: 12px; color: var(--text-light); margin-bottom: 4px; }
+.aidx-priceline { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; flex-wrap: wrap; }
 .aidx-price { font-size: 20px; font-weight: 800; color: var(--text-dark); }
 .aidx-val { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: var(--r-full); }
 .aidx-val-great { background: var(--success-light); color: var(--success); }
@@ -972,6 +1032,52 @@ input, select, textarea { font-family: inherit; }
 .aidx-owners .aidx-block-label { color: var(--text-mid); }
 .aidx-watch { background: var(--warning-light); }
 .aidx-watch .aidx-block-label { color: var(--warning); }
+
+.aidx-carfax {
+  background: #fff; border: 1px solid var(--border); border-radius: var(--r-lg);
+  padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;
+}
+.aidx-carfax-head { display: flex; align-items: center; gap: 10px; }
+.aidx-carfax-logo {
+  font-size: 11px; font-weight: 800; letter-spacing: 0.5px; color: #fff;
+  background: #0052a5; padding: 4px 8px; border-radius: 4px; flex-shrink: 0;
+}
+.aidx-carfax-status { font-size: 14px; font-weight: 700; color: var(--success); }
+.aidx-carfax-list { margin: 0; padding: 0 0 0 18px; font-size: 12.5px; color: var(--text-mid); line-height: 1.6; }
+.aidx-carfax-vin { font-size: 11px; color: var(--text-light); font-family: monospace; }
+.aidx-carfax-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  font-size: 13px; font-weight: 700; color: var(--teal-xdark); background: var(--teal-light);
+  border: 1px solid rgba(0,191,179,0.35); padding: 9px 14px; border-radius: var(--r);
+  text-decoration: none; transition: all 0.15s; align-self: flex-start;
+}
+.aidx-carfax-btn:hover { background: var(--teal); color: #fff; border-color: var(--teal); }
+
+.aidx-reviews {
+  background: #fff; border: 1px solid var(--border); border-radius: var(--r-lg);
+  padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;
+}
+.aidx-reviews-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.aidx-reviews-title {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+  color: var(--teal-xdark); display: flex; align-items: center; gap: 6px;
+}
+.aidx-reviews-meta { font-size: 12px; color: var(--text-light); }
+.aidx-reviews-meta strong { color: var(--text-dark); font-weight: 800; }
+.aidx-review-row {
+  display: grid; grid-template-columns: 88px 1fr 32px; align-items: center; gap: 10px;
+  font-size: 12px; color: var(--text-mid);
+}
+.aidx-review-bar { height: 7px; background: var(--bg); border-radius: var(--r-full); overflow: hidden; }
+.aidx-review-fill { height: 100%; background: var(--teal); border-radius: var(--r-full); }
+.aidx-review-pct { font-size: 11px; font-weight: 700; color: var(--teal-xdark); text-align: right; }
+.aidx-reviews-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.aidx-reviews-col { font-size: 12px; }
+.aidx-reviews-col-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 4px; }
+.aidx-reviews-pros .aidx-reviews-col-label { color: var(--success); }
+.aidx-reviews-cons .aidx-reviews-col-label { color: var(--warning); }
+.aidx-reviews-col ul { margin: 0; padding-left: 16px; color: var(--text-mid); line-height: 1.5; }
+.aidx-reviews-note { font-size: 11px; color: var(--text-light); margin: 0; font-style: italic; }
 
 .aidx-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 14px 0; background: var(--bg); flex-shrink: 0; }
 .aidx-chip {
