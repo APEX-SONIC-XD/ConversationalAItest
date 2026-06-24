@@ -71,6 +71,7 @@ Pick **one** per update:
 
 ## Live build rules
 
+- **Participant context:** update `js/profile.js` only when changing what the participant "told us" (intent, homepage picks, appointment). Participant refreshes to see it — no on-screen controls.
 - Static HTML/CSS first; touch `js/app.js` only if needed
 - No backend, APIs, auth, or real credit checks
 - No multi-page flows in one prompt
@@ -82,9 +83,38 @@ Pick **one** per update:
 
 | Purpose | Path |
 |---------|------|
-| Pages | `index.html`, `srp.html`, `vdp.html`, `sell-trade.html`, `financing.html` |
-| Logic | `js/app.js`, `js/inventory.js` |
+| **Participant profile (SSOT)** | `js/profile.js` — intent, homepage picks, appointment, compare metrics |
+| Blank profile (between sessions) | `js/profile.blank.js` — copy into `profile.js` to reset |
+| Pages | `index.html`, `srp.html`, `vdp.html`, `compare.html`, `test-drive-confirmation.html`, `sell-trade.html`, `financing.html` |
+| Logic | `js/app.js`, `js/inventory.js`, `js/compare.js` |
 | Styles | `css/styles.css` |
+
+## Participant profile (`js/profile.js`)
+
+Single source of truth for live sessions. Facilitator updates via Cursor; participant **refreshes** to see changes.
+
+| Profile block | Drives |
+|---------------|--------|
+| Intent (`maxPrice`, `body`, `makes`, `drivetrain`, …) | SRP defaults, nav search, finance calc, compare priorities |
+| `homepage.picks` | Index AI rec cards + drawer (name, price, copy); optional VDP via `year`/`make`/`model` |
+| `homepage.appointment`, `titleAccent`, `dealerAddress` | Test drive confirmation prep |
+| `homepage.compare` + `pick.compareMetrics` | Compare page table + chat re-ranking |
+| `creditTier` | APR across VDP, financing, greetings |
+| `market.label` + `market.lotCities` | **All inventory** lot locations (SRP, VDP, featured, test drive Location row) |
+| `homepage.titleAccent`, `dealerAddress`, `appointment` | Visit dealer name/address/time (banner, test drive Where) |
+| `homepage.picks` | Index AI rec cards + drawer; `location: null` auto-fills from market |
+
+**Fast live prompt (profile-only):**
+
+```
+Update js/profile.js only for this participant:
+- Intent fields + homepage block (picks with name, price, copy;
+  year/make/model for VDP link; appointment + dealerAddress)
+- market.label + market.lotCities (rewrites every car's lot city on refresh)
+Don't edit HTML or app.js.
+```
+
+**Between sessions:** replace `PARTICIPANT` in `profile.js` with `js/profile.blank.js`, then fill for the next participant.
 
 ## VDP assistant (in-flow AI)
 

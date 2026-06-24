@@ -288,6 +288,8 @@ input, select, textarea { font-family: inherit; }
   overflow: hidden; box-shadow: var(--sh-xs); transition: all 0.22s;
   display: flex; flex-direction: column; cursor: pointer;
 }
+.ai-rec-card-static { cursor: default; }
+.ai-rec-card-static:hover { transform: none; box-shadow: var(--sh-xs); border-color: var(--border); }
 .ai-rec-card:hover { transform: translateY(-4px); box-shadow: var(--sh-lg); border-color: var(--border-mid); }
 .ai-rec-img {
   position: relative; aspect-ratio: 16/10;

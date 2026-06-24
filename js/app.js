@@ -4,6 +4,9 @@
 
 // ─── Mobile Nav ───────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+  // Profile market → inventory lot cities (must run before any page init).
+  if (typeof Profile !== 'undefined' && Profile.applyToInventory) Profile.applyToInventory();
+
   const hamburger = document.querySelector('.nav-hamburger');
   const mobileNav = document.querySelector('.mobile-nav');
   if (hamburger && mobileNav) {
@@ -57,12 +60,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // VDP init
   if (document.getElementById('vdp-root')) initVDP();
 
-  // Render homepage featured vehicles
-  const featGrid = document.getElementById('featured-grid');
-  if (featGrid) renderCards(VEHICLES.slice(0, 6), featGrid);
-
-  // Personalize the homepage AI recommendation banner from the profile
-  initHomeRec();
+  // Featured vehicles + homepage AI rec (profile-driven)
+  initFeaturedGrid();
+  initHomepageRec();
+  initComparePage();
 
   // Interior pages
   if (document.getElementById('sell-trade-form')) initSellTradePage();
@@ -72,15 +73,342 @@ document.addEventListener('DOMContentLoaded', () => {
   if (document.getElementById('td-confirm-root') || document.getElementById('td-prep')) initTestDriveConfirmation();
 });
 
-// ─── Homepage AI recommendation banner (reads participant profile) ───
-function initHomeRec() {
-  const sub = document.querySelector('.ai-rec-sub');
-  if (!sub || typeof Profile === 'undefined' || !Profile.hasData()) return;
-  const summary = Profile.summary();
-  const tier = PARTICIPANT.creditTier
-    ? `, ${PARTICIPANT.creditTier} credit (est. ${Profile.apr()}% APR)`
-    : '';
-  sub.innerHTML = `Based on what you told me — <strong>${summary}${tier}</strong> — here's what's in stock at your dealer (plus a few within a short drive). I've folded in expert reviews and verified owner sentiment.`;
+// ─── Homepage AI recommendations (reads PARTICIPANT.homepage) ───
+function initHomepageRec() {
+  const grid = document.getElementById('ai-rec-grid');
+  if (!grid || typeof PARTICIPANT === 'undefined') return;
+
+  const hp = PARTICIPANT.homepage;
+  if (!hp || !hp.picks || !hp.picks.length) return;
+
+  const titleEl = document.getElementById('ai-rec-title');
+  if (titleEl) {
+    const accent = hp.titleAccent || 'your dealer';
+    titleEl.innerHTML = `Matches for your visit to <span class="accent">${escapeHtml(accent)}</span>`;
+  }
+
+  const sub = document.getElementById('ai-rec-sub');
+  if (sub && typeof Profile !== 'undefined' && Profile.homepageSubtitle) {
+    sub.innerHTML = Profile.homepageSubtitle();
+  }
+
+  const foot = document.getElementById('ai-rec-foot');
+  if (foot) {
+    const footText = hp.footText || 'Ranked by fit to your criteria, expert reviews, and verified owner sentiment.';
+    const linkText = (typeof Profile !== 'undefined' && Profile.homepageFootLinkText)
+      ? Profile.homepageFootLinkText()
+      : (hp.footLinkText || 'See all matches →');
+    const linkHref = (typeof Profile !== 'undefined' && Profile.srpHref) ? Profile.srpHref() : (hp.footLinkHref || 'srp.html');
+    foot.innerHTML = `<i class="fa-solid fa-circle-info"></i> ${footText} <a href="${escapeHtml(linkHref)}">${escapeHtml(linkText)}</a>`;
+  }
+
+  const sketch = 'https://plus.unsplash.com/premium_vector-1733984597729-fad43b660da0?fm=jpg&q=60&w=900&auto=format&fit=crop';
+  const drawerCars = {};
+
+  grid.innerHTML = hp.picks.map(pick => {
+    const v = typeof findVehicleForPick === 'function' ? findVehicleForPick(pick) : null;
+    const img = pick.imageUrl || v?.images?.[0] || sketch;
+    const name = pick.name || (v ? `${v.year} ${v.make} ${v.model}` : 'Vehicle');
+    const trim = pick.trimLabel || '';
+    const price = pick.price || (v ? formatPrice(v.price) : '—');
+    const vdpId = v?.id;
+    const locIcon = pick.locationIcon || 'location-dot';
+    const pickLoc = (typeof Profile !== 'undefined' && Profile.pickLocation)
+      ? Profile.pickLocation(pick) : (pick.location || 'In stock');
+    const specsHtml = (pick.specs || []).map(s =>
+      `<span><i class="fa-solid fa-${escapeHtml(s.icon)}"></i> ${escapeHtml(s.text)}</span>`
+    ).join('');
+
+    const d = pick.drawer || {};
+    drawerCars[pick.key] = {
+      name,
+      trim,
+      dealer: d.dealer || 'DriveClear',
+      distance: d.distance || pickLoc || 'In stock',
+      price,
+      value: d.value || 'At market',
+      valueClass: d.valueClass || 'at',
+      intro: d.intro || `Here's the full picture on the <strong>${escapeHtml(name)}</strong>.`,
+      specs: d.specs || [],
+      fit: d.fit || pick.expert || '',
+      expert: pick.expert || '',
+      owners: { rating: pick.ownersRating || '—', text: pick.ownersText || '' },
+      watch: d.watch || '',
+      chips: d.chips || ['Is the price fair?', 'How reliable is it?'],
+      vdpId: vdpId || null,
+    };
+
+    return `<article class="ai-rec-card${vdpId ? '' : ' ai-rec-card-static'}"${vdpId ? ` data-vdp-id="${vdpId}"` : ''}>
+      <div class="ai-rec-img" style="background-image:url('${img}')">
+        <span class="ai-rec-match">${escapeHtml(pick.match || 'Match')}</span>
+        <span class="ai-rec-loc"><i class="fa-solid fa-${escapeHtml(locIcon)}"></i> ${escapeHtml(pickLoc)}</span>
+      </div>
+      <div class="ai-rec-body">
+        <div class="ai-rec-name">${escapeHtml(name)}</div>
+        <div class="ai-rec-trim">${escapeHtml(trim)}</div>
+        <div class="ai-rec-price-row">
+          <span class="ai-rec-price">${escapeHtml(price)}</span>
+          ${pick.warrantyBadge ? `<span class="ai-rec-warranty"><i class="fa-solid fa-shield-halved"></i> ${escapeHtml(pick.warrantyBadge)}</span>` : ''}
+        </div>
+        ${specsHtml ? `<div class="ai-rec-specs">${specsHtml}</div>` : ''}
+        ${pick.expert ? `<div class="ai-rec-insight ai-rec-expert">
+          <div class="ai-rec-insight-label"><i class="fa-solid fa-user-tie"></i> Expert take</div>
+          <p>${pick.expert}</p>
+        </div>` : ''}
+        ${pick.ownersText ? `<div class="ai-rec-insight ai-rec-owners">
+          <div class="ai-rec-insight-label"><i class="fa-solid fa-users"></i> Owner sentiment · ${escapeHtml(pick.ownersRating || '—')}</div>
+          <p>${pick.ownersText}</p>
+        </div>` : ''}
+        <button type="button" class="btn btn-primary btn-block btn-sm ai-detail-open" data-car="${escapeHtml(pick.key)}"><i class="fa-solid fa-wand-magic-sparkles"></i> View details with AI</button>
+      </div>
+    </article>`;
+  }).join('');
+
+  initHomeDetailModal(drawerCars);
+
+  grid.querySelectorAll('.ai-rec-card[data-vdp-id]').forEach(card => {
+    card.addEventListener('click', e => {
+      if (e.target.closest('.ai-detail-open')) return;
+      window.location.href = `vdp.html?id=${card.dataset.vdpId}`;
+    });
+  });
+}
+
+function initHomeDetailModal(CARS) {
+  const modal = document.getElementById('ai-detail');
+  const body = document.getElementById('aidx-body');
+  const chipsEl = document.getElementById('aidx-chips');
+  const nameEl = document.getElementById('aidx-name');
+  if (!modal || !body || !CARS) return;
+
+  let active = null;
+
+  const render = key => {
+    const c = CARS[key];
+    if (!c) return;
+    active = c;
+    nameEl.textContent = c.name;
+    const specRows = c.specs.map(s => `<div class="aidx-spec"><span class="aidx-spec-l">${s[0]}</span><span class="aidx-spec-v">${s[1]}</span></div>`).join('');
+    body.innerHTML = `
+      <div class="aidx-msg">
+        <div class="aidx-msg-avatar"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+        <div class="aidx-msg-bubble">
+          <div class="aidx-trim">${c.trim} · ${c.dealer} · ${c.distance}</div>
+          <div class="aidx-priceline"><span class="aidx-price">${c.price}</span><span class="aidx-val aidx-val-${c.valueClass}">${c.value}</span></div>
+          <p>${c.intro}</p>
+        </div>
+      </div>
+      <div class="aidx-section-title"><i class="fa-solid fa-list-check"></i> Specs that matter</div>
+      <div class="aidx-specs">${specRows}</div>
+      <div class="aidx-block aidx-fit">
+        <div class="aidx-block-label"><i class="fa-solid fa-bullseye"></i> Why this fits you</div>
+        <p>${c.fit}</p>
+      </div>
+      <div class="aidx-block aidx-expert">
+        <div class="aidx-block-label"><i class="fa-solid fa-user-tie"></i> Expert take</div>
+        <p>${c.expert}</p>
+      </div>
+      <div class="aidx-block aidx-owners">
+        <div class="aidx-block-label"><i class="fa-solid fa-users"></i> Owner sentiment · ${c.owners.rating}</div>
+        <p>${c.owners.text}</p>
+      </div>
+      <div class="aidx-block aidx-watch">
+        <div class="aidx-block-label"><i class="fa-solid fa-triangle-exclamation"></i> Watch-outs</div>
+        <p>${c.watch}</p>
+      </div>
+      ${c.vdpId ? `<a href="vdp.html?id=${c.vdpId}" class="btn btn-outline btn-block btn-sm" style="margin-top:12px"><i class="fa-solid fa-car"></i> View full listing</a>` : ''}`;
+    chipsEl.innerHTML = c.chips.map(q => `<button type="button" class="aidx-chip">${escapeHtml(q)}</button>`).join('');
+    chipsEl.querySelectorAll('.aidx-chip').forEach(b => b.addEventListener('click', () => answer(b.textContent)));
+    body.scrollTop = 0;
+  };
+
+  const replyFor = q => {
+    if (!active) return 'Let me pull that up for you.';
+    const t = q.toLowerCase();
+    if (t.includes('price') || t.includes('fair') || t.includes('below market')) {
+      return `At <strong>${active.price}</strong> this one is <strong>${active.value.toLowerCase()}</strong> versus comparable listings I checked across nearby dealers — a reasonable spot for the year, mileage, and equipment.`;
+    }
+    if (t.includes('reliab') || t.includes('safe')) {
+      return `Owners rate it <strong>${active.owners.rating}</strong>. ${active.owners.text}`;
+    }
+    if (t.includes('service') || t.includes('cost') || t.includes('maintenance')) {
+      return `${active.watch} I'd set aside a maintenance budget and ask the dealer for the service schedule before you commit.`;
+    }
+    if (t.includes('mileage')) {
+      const m = active.specs.find(s => s[0] === 'Mileage');
+      return `It shows <strong>${m ? m[1] : 'low miles'}</strong> — well within a healthy range for the year, and the factory warranty is still active for added peace of mind.`;
+    }
+    if (t.includes('compare') || t.includes('audi') || t.includes('bmw') || t.includes('volvo')) {
+      return `Versus your other shortlisted cars: this one leads on ${active.valueClass === 'great' ? 'overall value and driving feel' : active.valueClass === 'good' ? 'price and efficiency' : 'performance and proximity'}. <a href="compare.html">Open the side-by-side compare</a> to re-rank on what matters to you.`;
+    }
+    if (t.includes('drive') || t.includes('worth') || t.includes('closer')) {
+      return `It's <strong>${active.distance}</strong>. ${active.watch} If you'd rather stay local, I can check whether a closer dealer can locate the same trim.`;
+    }
+    return `Good question on the ${active.name}. ${active.fit}`;
+  };
+
+  const answer = q => {
+    const wrap = document.createElement('div');
+    wrap.className = 'aidx-msg aidx-msg-user';
+    wrap.innerHTML = `<div class="aidx-msg-bubble">${escapeHtml(q)}</div>`;
+    body.appendChild(wrap);
+    const a = document.createElement('div');
+    a.className = 'aidx-msg';
+    a.innerHTML = `<div class="aidx-msg-avatar"><i class="fa-solid fa-wand-magic-sparkles"></i></div><div class="aidx-msg-bubble"><p>${replyFor(q)}</p></div>`;
+    body.appendChild(a);
+    body.scrollTop = body.scrollHeight;
+  };
+
+  const open = key => { render(key); modal.hidden = false; document.body.style.overflow = 'hidden'; };
+  const close = () => { modal.hidden = true; document.body.style.overflow = ''; };
+
+  document.querySelectorAll('.ai-detail-open').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      open(btn.dataset.car);
+    });
+  });
+
+  const closeBtn = document.getElementById('ai-detail-close');
+  const backdrop = document.getElementById('ai-detail-backdrop');
+  closeBtn?.addEventListener('click', close);
+  backdrop?.addEventListener('click', close);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.hidden) close(); });
+
+  const form = document.getElementById('aidx-form');
+  const input = document.getElementById('aidx-input');
+  form?.addEventListener('submit', e => {
+    e.preventDefault();
+    const v = input?.value.trim();
+    if (!v) return;
+    answer(v);
+    if (input) input.value = '';
+  });
+}
+
+// ─── Homepage featured grid (profile picks + intent) ───
+function initFeaturedGrid() {
+  const featGrid = document.getElementById('featured-grid');
+  if (!featGrid || typeof VEHICLES === 'undefined') return;
+
+  const seen = new Set();
+  const vehicles = [];
+
+  const hp = typeof PARTICIPANT !== 'undefined' ? PARTICIPANT.homepage : null;
+  if (hp?.picks?.length && typeof findVehicleForPick === 'function') {
+    hp.picks.forEach(pick => {
+      const v = findVehicleForPick(pick);
+      if (v && !seen.has(v.id)) { seen.add(v.id); vehicles.push(v); }
+    });
+  }
+
+  if (vehicles.length < 6 && typeof Profile !== 'undefined' && Profile.toParams && typeof paramMatches === 'function') {
+    const P = Profile.toParams();
+    VEHICLES.filter(v => paramMatches(v, P))
+      .sort((a, b) => (b.marketSavings || 0) - (a.marketSavings || 0) || a.mileage - b.mileage)
+      .forEach(v => {
+        if (vehicles.length >= 6 || seen.has(v.id)) return;
+        seen.add(v.id);
+        vehicles.push(v);
+      });
+  }
+
+  renderCards(vehicles.length ? vehicles : VEHICLES.slice(0, 6), featGrid);
+}
+
+// ─── Compare page (reads Profile.compareCars) ───
+function initComparePage() {
+  const table = document.querySelector('.xdc-table');
+  if (!table || typeof Profile === 'undefined' || !Profile.compareCars) return;
+
+  let cars = Profile.compareCars();
+  if (!cars.length) return;
+
+  if (typeof findVehicleForPick === 'function' && PARTICIPANT?.homepage?.picks) {
+    cars = cars.map(c => {
+      if (c.vdpId) return c;
+      const pick = PARTICIPANT.homepage.picks.find(p => p.key === c.key);
+      const v = pick ? findVehicleForPick(pick) : null;
+      return v ? Object.assign({}, c, { vdpId: v.id }) : c;
+    });
+  }
+
+  window.COMPARE_CARS = cars;
+
+  const meta = Profile.compareMeta();
+  const titleEl = document.getElementById('xdc-title');
+  const subEl = document.getElementById('xdc-sub');
+  const footEl = document.getElementById('xdc-foot');
+  if (titleEl) titleEl.textContent = meta.title;
+  if (subEl) subEl.innerHTML = meta.subtitle;
+  if (footEl && meta.footDefault) {
+    footEl.innerHTML = `<i class="fa-solid fa-circle-info"></i> ${meta.footDefault}`;
+  }
+
+  const fmtMiles = m => {
+    if (!m) return '—';
+    return m >= 1000 ? `${Math.round(m / 100) / 10}k mi` : `${m} mi`;
+  };
+  const fmtDist = c => c.distMin === 0 ? 'At your dealer' : (c.distance || `${c.distMin} min away`);
+
+  const rows = [
+    { label: 'Dealer', icon: 'store', cells: c => escapeHtml(c.dealer) },
+    { metric: 'distMin', label: 'Distance', icon: 'route', cells: c => escapeHtml(fmtDist(c)) },
+    { label: 'Year', icon: 'calendar', cells: c => c.year || '—' },
+    { metric: 'miles', label: 'Mileage', icon: 'gauge', cells: c => fmtMiles(c.miles) },
+    { label: 'Engine', icon: 'engine', cells: c => escapeHtml(c.engine) },
+    { metric: 'hp', label: 'Horsepower', icon: 'gauge-high', cells: c => `${c.hp} hp` },
+    { metric: 'zero', label: '0–60 mph', icon: 'stopwatch', cells: c => `${c.zero} s` },
+    { label: 'Drivetrain', icon: 'snowflake', cells: c => escapeHtml(c.drivetrain) },
+    { metric: 'mpg', label: 'MPG (comb.)', icon: 'gas-pump', cells: c => c.mpg },
+    { metric: 'price', label: 'Price', icon: 'tag', cells: c => `<span class="xdc-price">${formatPrice(c.price)}</span>` },
+    { metric: 'value', label: 'Value', icon: 'arrow-trend-down', cells: c => `<span class="xdc-val xdc-val-${c.valueClass}">${escapeHtml(c.valueLabel)}</span>` },
+  ];
+
+  const metricDir = { price: 'min', mpg: 'max', hp: 'max', zero: 'min', miles: 'min', distMin: 'min', value: 'max' };
+
+  const headCells = cars.map(c => `
+    <th data-veh="${escapeHtml(c.key)}">
+      <div class="xdc-veh">${escapeHtml(c.displayName)}</div>
+      <div class="xdc-veh-trim">${escapeHtml(c.trimLabel)}</div>
+    </th>`).join('');
+
+  const bodyRows = rows.map(row => {
+    let bestIdx = -1;
+    if (row.metric) {
+      const dir = metricDir[row.metric];
+      const nums = cars.map(c => c[row.metric]);
+      const best = nums.slice().sort((a, b) => dir === 'min' ? a - b : b - a)[0];
+      bestIdx = nums.indexOf(best);
+    }
+    const tds = cars.map((c, i) => {
+      const cls = i === bestIdx && row.metric ? ' class="xdc-best"' : '';
+      return `<td${cls}>${row.cells(c)}</td>`;
+    }).join('');
+    const metricKey = row.metric === 'distMin' ? 'dist' : row.metric;
+    return `<tr${metricKey ? ` data-metric="${metricKey}"` : ''}>
+      <td class="xdc-rowlabel"><i class="fa-solid fa-${row.icon}"></i> ${row.label}</td>${tds}</tr>`;
+  }).join('');
+
+  const ctaRow = cars.map(c => {
+    const href = c.vdpId ? `vdp.html?id=${c.vdpId}` : '#';
+    return `<td><a href="${href}" class="btn btn-outline btn-sm btn-block">View</a></td>`;
+  }).join('');
+
+  table.innerHTML = `
+    <thead><tr><th class="xdc-rowlabel">Spec</th>${headCells}</tr></thead>
+    <tbody>${bodyRows}<tr class="xdc-cta-row"><td class="xdc-rowlabel"></td>${ctaRow}</tr></tbody>`;
+}
+
+function getVisitContext() {
+  if (typeof Profile !== 'undefined' && Profile.visitWhen) {
+    return {
+      when: Profile.visitWhen(),
+      where: Profile.visitWhere(),
+      place: Profile.visitPlaceShort ? Profile.visitPlaceShort() : 'your dealer',
+    };
+  }
+  return { when: 'your scheduled time', where: 'your DriveClear dealer', place: 'your dealer' };
 }
 
 // ─── Make/Model Dropdown ──────────────────────────────────
@@ -166,6 +494,7 @@ function cardHTML(v) {
         <span class="v-meta-item"><i class="fa-solid fa-gauge"></i> ${formatMileage(v.mileage)}</span>
         <span class="v-meta-item"><i class="fa-solid fa-car-side"></i> ${v.body}</span>
         <span class="v-meta-item"><i class="fa-solid fa-gear"></i> ${v.drivetrain}</span>
+        <span class="v-meta-item"><i class="fa-solid fa-location-dot"></i> ${v.location}</span>
       </div>
       <div class="v-flags">
         ${v.owners === 1 ? '<span class="v-flag flag-owner"><i class="fa-solid fa-circle-check"></i> 1 Owner</span>' : ''}
@@ -642,7 +971,10 @@ function initVDP() {
   const fcPrice = document.getElementById('fc-price');
   const fcMo = document.getElementById('fc-mo');
   if (fcPrice) fcPrice.textContent = formatPrice(v.price);
-  if (fcMo) fcMo.textContent = `Est. ${formatPrice(calcMonthly(v.price))}/mo`;
+  if (fcMo) {
+    const fcApr = (typeof Profile !== 'undefined' && Profile.apr) ? Profile.apr() : 6.9;
+    fcMo.textContent = `Est. ${formatPrice(calcMonthly(v.price, 0, fcApr))}/mo`;
+  }
 }
 
 function populateVDP(v) {
@@ -731,6 +1063,15 @@ function initPaymentAssistant() {
 
   if (!trigger || !popover || trigger.dataset.bound === '1') return;
   trigger.dataset.bound = '1';
+
+  const profileApr = (typeof Profile !== 'undefined' && Profile.apr) ? Profile.apr() : 6.9;
+  const introBubble = body?.querySelector('.pa-msg-bot .pa-msg-bubble');
+  if (introBubble) {
+    const introP = introBubble.querySelector('p');
+    if (introP) {
+      introP.innerHTML = `Your estimated monthly payment is a quick preview based on a <strong>60-month loan</strong> at <strong>${profileApr}% APR</strong> with <strong>$0 down</strong>.`;
+    }
+  }
 
   const open = () => {
     popover.hidden = false;
@@ -1162,6 +1503,9 @@ function initPayCalc(vehiclePrice) {
   const downLabel = document.getElementById('calc-down-label');
 
   if (!downIn || !resultEl) return;
+
+  const profileApr = (typeof Profile !== 'undefined' && Profile.apr) ? Profile.apr() : 6.9;
+  if (rateIn) rateIn.value = profileApr;
 
   function update() {
     const down = parseInt(downIn.value) || 0;
@@ -2158,6 +2502,12 @@ function initTestDriveConfirmation() {
   const id = new URLSearchParams(window.location.search).get('id') || '1';
   const v = typeof getVehicleById === 'function' ? getVehicleById(id) : null;
   tdPrepVehicle = v;
+  const visit = getVisitContext();
+
+  const prepSub = document.getElementById('td-prep-sub');
+  if (prepSub) {
+    prepSub.textContent = `Personalized for the car you're driving ${visit.when}, so you can focus on the drive — not the surprises.`;
+  }
 
   const root = document.getElementById('td-confirm-root');
   if (root) {
@@ -2176,8 +2526,8 @@ function initTestDriveConfirmation() {
           <div class="td-detail-row"><span>Stock #</span><strong>${v.stockNum}</strong></div>
           <div class="td-detail-row"><span>Price</span><strong>${formatPrice(v.price)}</strong></div>
           <div class="td-detail-row"><span>Location</span><strong>${v.location}</strong></div>
-          <div class="td-detail-row"><span>When</span><strong>Saturday, 10:30 AM</strong></div>
-          <div class="td-detail-row"><span>Where</span><strong>DriveClear Boulder · 2800 Pearl St</strong></div>`;
+          <div class="td-detail-row"><span>When</span><strong>${escapeHtml(visit.when)}</strong></div>
+          <div class="td-detail-row"><span>Where</span><strong>${escapeHtml(visit.where)}</strong></div>`;
       }
       if (vdpLink) vdpLink.href = `vdp.html?id=${v.id}`;
     }
@@ -2195,6 +2545,7 @@ function tdWarrantyLikely(v) { return tdVehicleAge(v) <= 3 && v.mileage < 50000;
 function initTestDrivePrep(v) {
   if (!v) return;
 
+  const visit = getVisitContext();
   const title = `${v.year} ${v.make} ${v.model}`;
   const byline = `<i class="fa-solid fa-wand-magic-sparkles"></i> Personalized for · <span>${title} · ${formatMileage(v.mileage)} · ${v.drivetrain}</span>`;
   ['td-visit-byline', 'td-tips-byline', 'td-plans-byline'].forEach(id => {
@@ -2230,7 +2581,7 @@ function initTestDrivePrep(v) {
 
   tdGen(document.getElementById('td-visit-body'), 450, () => `
     <p style="font-size:14px;color:var(--text-mid);line-height:1.65;margin:0 0 14px">
-      You're driving the <strong style="color:var(--text-dark)">${v.year} ${v.make} ${v.model} ${v.trim}</strong> Saturday at 10:30 AM in Boulder.
+      You're driving the <strong style="color:var(--text-dark)">${v.year} ${v.make} ${v.model} ${v.trim}</strong> ${visit.when} at ${visit.place}.
       Here's what makes this visit smooth — nothing fancy, just the stuff people wish they'd known.
     </p>
     <div class="td-checklist">
@@ -2363,7 +2714,7 @@ function initTestDrivePrep(v) {
   setTimeout(() => {
     if (!plansTakeaway) return;
     const take = warrantyActive
-      ? `Factory warranty still looks active — focus on the drive Saturday. If you love the car, we can revisit a VSC when you're closer to signing.`
+      ? `Factory warranty still looks active — focus on the drive ${visit.when.split(',')[0] || 'that day'}. If you love the car, we can revisit a VSC when you're closer to signing.`
       : luxury
         ? `On a ${v.year} ${v.make}, I'd at least get standalone quotes for a VSC and GAP before finance — then compare, don't bundle blindly.`
         : `Get the out-the-door price first, then decide on add-ons one at a time. Everything here is optional.`;
@@ -2412,7 +2763,8 @@ function initTestDrivePrep(v) {
     if (btn) ask(btn.dataset.q || btn.textContent);
   });
 
-  addMsg('pa-msg-bot', `<div class="pa-msg-label">Before Saturday</div><p>Your <strong>${title}</strong> is reserved for 10:30 AM. Ask me what to bring, what to listen for on the drive, or whether any protection plan actually makes sense for this car.</p>`);
+  const apptShort = visit.when.replace(/^(\w+day),?\s*/i, '').trim() || visit.when;
+  addMsg('pa-msg-bot', `<div class="pa-msg-label">Before your visit</div><p>Your <strong>${title}</strong> is reserved for ${apptShort}. Ask me what to bring, what to listen for on the drive, or whether any protection plan actually makes sense for this car.</p>`);
 }
 
 function generateTestDrivePrepAnswer(q, v) {

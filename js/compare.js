@@ -1,7 +1,7 @@
 // Conversational compare — re-ranks the cross-dealer analysis from chat input.
 // Client-side only (no backend): parses the shopper's priorities, re-highlights
 // the recommended vehicle column, and rewrites the AI pick summary.
-(function () {
+document.addEventListener('DOMContentLoaded', () => {
   const table = document.querySelector('.xdc-table');
   const foot = document.getElementById('xdc-foot');
   const form = document.getElementById('cmp-chat-form');
@@ -9,13 +9,12 @@
   const log = document.getElementById('cmp-chat-log');
   if (!table || !foot || !form || !input || !log) return;
 
-  // col = the table column index (1-based; 0 is the spec label)
-  const CARS = [
-    { key: 'audi',  col: 1, name: 'Audi A4 quattro',     price: 44200, mpg: 27, hp: 261, zero: 5.2, miles: 12, dist: 0,  value: 0 },
-    { key: 'bmw',   col: 2, name: 'BMW 330i xDrive',      price: 43750, mpg: 30, hp: 255, zero: 5.3, miles: 6,  dist: 35, value: 1800 },
-    { key: 'merc',  col: 3, name: 'Mercedes C300 4MATIC', price: 47900, mpg: 27, hp: 255, zero: 5.9, miles: 9,  dist: 50, value: 0 },
-    { key: 'volvo', col: 4, name: 'Volvo S60 B5',         price: 42900, mpg: 31, hp: 247, zero: 5.9, miles: 15, dist: 65, value: 900 },
-  ];
+  const rawCars = window.COMPARE_CARS
+    || (typeof Profile !== 'undefined' && Profile.compareCars ? Profile.compareCars() : []);
+  const CARS = rawCars.map(c => Object.assign({}, c, {
+    dist: c.distMin != null ? c.distMin : (c.dist || 0),
+  }));
+  if (!CARS.length) return;
 
   // dir: 'min' = lower is better, 'max' = higher is better
   const METRICS = {
@@ -23,7 +22,7 @@
     mpg:   { dir: 'max', label: 'best fuel economy',  phrase: c => c.mpg + ' mpg' },
     hp:    { dir: 'max', label: 'most horsepower',    phrase: c => c.hp + ' hp' },
     zero:  { dir: 'min', label: 'quickest 0–60',      phrase: c => c.zero + 's 0–60' },
-    miles: { dir: 'min', label: 'lowest mileage',     phrase: c => c.miles + ' mi' },
+    miles: { dir: 'min', label: 'lowest mileage',     phrase: c => c.miles.toLocaleString() + ' mi' },
     dist:  { dir: 'min', label: 'closest dealer',     phrase: c => (c.dist === 0 ? 'at your dealer' : c.dist + ' min away') },
     value: { dir: 'max', label: 'best value vs market', phrase: c => (c.value ? '$' + c.value.toLocaleString() + ' below market' : 'at market') },
   };
@@ -61,7 +60,6 @@
     return CARS.slice().sort((a, b) => dir === 'min' ? a[metricKey] - b[metricKey] : b[metricKey] - a[metricKey])[0];
   }
 
-  // Weighted rank across the chosen metrics: best in a metric earns the most points.
   function scoreCars(metricKeys) {
     const points = {};
     CARS.forEach(c => points[c.key] = 0);
@@ -135,7 +133,6 @@
     chip.addEventListener('click', () => handle(chip.textContent));
   });
 
-  // Open already weighted to what the participant has told us (profile priorities).
   const profilePriors = (typeof Profile !== 'undefined' && Profile.priorities)
     ? Profile.priorities().filter(m => METRICS[m])
     : [];
@@ -147,6 +144,6 @@
     foot.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles"></i> Based on <strong>${priorityLabels}</strong>, the AI pick is <strong>${winner.name}</strong>.`;
     push('ai', `Based on what you've shared (<strong>${priorityLabels}</strong>), I'd start with the <strong>${winner.name}</strong> — highlighted in the table. Tell me to weigh anything differently.`);
   } else {
-    push('ai', `Want a recommendation? Tell me what matters most and I'll re-rank these four — e.g. <em>“I want the cheapest with good gas mileage.”</em>`);
+    push('ai', `Want a recommendation? Tell me what matters most and I'll re-rank these — e.g. <em>“I want the cheapest with good gas mileage.”</em>`);
   }
-})();
+});

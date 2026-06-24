@@ -629,9 +629,6 @@ const BASE_VEHICLES = [
   }
 ];
 
-// First expanded copy of each homepage recommendation template (see BASE_VEHICLES indices 36–38).
-const HOMEPAGE_REC_VDP = { audi: 361, bmw: 371, volvo: 381 };
-
 // Expand the seed catalog into a full lot for the SRP — duplicates templates
 // with unique ids, stock numbers, and light price/mileage variation.
 const LOT_LOCATIONS = [
@@ -670,6 +667,44 @@ const VEHICLES = expandInventory(BASE_VEHICLES, COPIES_PER_VEHICLE);
 
 function getVehicleById(id) {
   return VEHICLES.find(v => v.id === parseInt(id));
+}
+
+// Resolve a homepage pick to an inventory row for VDP linking only.
+// Display copy comes from profile.js — this is optional glue.
+function findVehicleForPick(pick) {
+  if (!pick) return null;
+  if (pick.vdpId != null) {
+    const byId = getVehicleById(pick.vdpId);
+    if (byId) return byId;
+  }
+  let year = pick.year;
+  let make = pick.make;
+  let model = pick.model;
+  if ((!make || !model) && pick.name) {
+    const m = String(pick.name).match(/^(\d{4})\s+([A-Za-z][A-Za-z-]*)\s+(\S+)/);
+    if (m) {
+      year = year || parseInt(m[1], 10);
+      make = make || m[2];
+      model = model || m[3];
+    }
+  }
+  if (!make && !model) return null;
+  let pool = VEHICLES.filter(v => {
+    if (year && v.year !== year) return false;
+    if (make && v.make.toLowerCase() !== String(make).toLowerCase()) return false;
+    if (model && !v.model.toLowerCase().startsWith(String(model).toLowerCase())) return false;
+    if (pick.trim && !v.trim.toLowerCase().includes(String(pick.trim).toLowerCase())) return false;
+    return true;
+  });
+  if (!pool.length) return null;
+  if (typeof Profile !== 'undefined' && Profile.primaryLotCity) {
+    const primary = Profile.primaryLotCity();
+    if (primary) {
+      const local = pool.filter(v => v.location === primary);
+      if (local.length) pool = local;
+    }
+  }
+  return pool.slice().sort((a, b) => a.mileage - b.mileage)[0];
 }
 
 function formatPrice(n) {
