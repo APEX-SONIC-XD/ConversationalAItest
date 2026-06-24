@@ -578,8 +578,59 @@ const BASE_VEHICLES = [
     images: [SKETCH_IMG, SKETCH_IMG, SKETCH_IMG],
     description: 'Hybrid efficiency meets minivan practicality — the Sienna XLE AWD is the modern family road-trip machine.',
     location: 'Westminster, CO'
+  },
+  {
+    id: 37, stockNum: 'DC10037', vin: 'WAUENAF40MN001234',
+    year: 2023, make: 'Audi', model: 'A4', trim: 'Premium Plus quattro',
+    body: 'Sedan', extColor: 'Manhattan Gray Metallic', intColor: 'Black',
+    price: 42990, mileage: 18400, mpgCity: 24, mpgHwy: 31,
+    engine: '2.0L Turbocharged 4-Cyl', hp: 261,
+    transmission: '7-Speed Dual-Clutch Auto', drivetrain: 'AWD',
+    owners: 1, accidentFree: true,
+    dealBadge: null, dealLabel: null, marketSavings: 0,
+    features: ['Audi Virtual Cockpit','Apple CarPlay / Android Auto','quattro AWD',
+      'Heated Front Seats','Lane Departure Warning','Audi Pre Sense Front',
+      'Bang & Olufsen Audio','Adaptive Cruise Control','LED Headlights','Sunroof'],
+    images: [SKETCH_IMG, SKETCH_IMG, SKETCH_IMG],
+    description: 'This 2023 Audi A4 Premium Plus quattro pairs a refined cabin with composed all-weather grip. Factory warranty still active — a strong fit for European AWD sedan shoppers.',
+    location: 'Boulder, CO'
+  },
+  {
+    id: 38, stockNum: 'DC10038', vin: '3MW5R1J08N8B567890',
+    year: 2022, make: 'BMW', model: '330i', trim: 'xDrive Sport Line',
+    body: 'Sedan', extColor: 'Alpine White', intColor: 'Black',
+    price: 39850, mileage: 24100, mpgCity: 26, mpgHwy: 36,
+    engine: '2.0L Turbocharged 4-Cyl', hp: 255,
+    transmission: '8-Speed Automatic', drivetrain: 'AWD',
+    owners: 1, accidentFree: true,
+    dealBadge: 'great-deal', dealLabel: 'Great Deal', marketSavings: 1800,
+    features: ['BMW Live Cockpit Pro','Apple CarPlay / Android Auto','xDrive AWD',
+      'Sport Front Seats','Heated Front Seats','Parking Assistant Plus',
+      'Active Driving Assistant','Harman/Kardon Audio','Adaptive Cruise Control','Sunroof'],
+    images: [SKETCH_IMG, SKETCH_IMG, SKETCH_IMG],
+    description: 'The driver\'s pick in the class — sharp handling, xDrive traction, and priced below comparable listings. Factory warranty active.',
+    location: 'Denver, CO'
+  },
+  {
+    id: 39, stockNum: 'DC10039', vin: 'YV4H60DZ5P2123456',
+    year: 2023, make: 'Volvo', model: 'S60', trim: 'B5 Plus',
+    body: 'Sedan', extColor: 'Crystal White Pearl', intColor: 'Charcoal',
+    price: 38500, mileage: 15900, mpgCity: 26, mpgHwy: 35,
+    engine: '2.0L Turbo + Mild Hybrid', hp: 247,
+    transmission: '8-Speed Automatic', drivetrain: 'AWD',
+    owners: 1, accidentFree: true,
+    dealBadge: 'great-deal', dealLabel: 'Great Deal', marketSavings: 900,
+    features: ['Google built-in','Apple CarPlay / Android Auto','Pilot Assist',
+      'Heated Front Seats','City Safety Collision Avoidance','BLIS Blind Spot',
+      'Harman/Kardon Audio','Adaptive Cruise Control','AWD','Panoramic Sunroof'],
+    images: [SKETCH_IMG, SKETCH_IMG, SKETCH_IMG],
+    description: 'Standout safety scores and a calm, upscale cabin. The mild-hybrid B5 AWD is smooth, efficient, and quietly quick — lowest price on many shortlists.',
+    location: 'Fort Collins, CO'
   }
 ];
+
+// First expanded copy of each homepage recommendation template (see BASE_VEHICLES indices 36–38).
+const HOMEPAGE_REC_VDP = { audi: 361, bmw: 371, volvo: 381 };
 
 // Expand the seed catalog into a full lot for the SRP — duplicates templates
 // with unique ids, stock numbers, and light price/mileage variation.

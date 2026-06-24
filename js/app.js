@@ -69,6 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (document.getElementById('fin-calc-root')) initFinancingPage();
   if (document.getElementById('fin-prep')) initFinancePrep();
   if (document.getElementById('trade-prep')) initTradePrep();
+  if (document.getElementById('td-confirm-root') || document.getElementById('td-prep')) initTestDriveConfirmation();
 });
 
 // ─── Homepage AI recommendation banner (reads participant profile) ───
@@ -628,6 +629,10 @@ function initVDP() {
   renderSimilar(v);
   updateVDPSaveBtn(v.id);
   initVDPAiMode(v);
+
+  const tdUrl = `test-drive-confirmation.html?id=${v.id}`;
+  document.getElementById('vdp-test-drive-btn')?.setAttribute('href', tdUrl);
+  document.getElementById('vdp-test-drive-mobile')?.setAttribute('href', tdUrl);
 
   // Breadcrumb
   const bc = document.getElementById('bc-vehicle');
@@ -2144,6 +2149,308 @@ function initFinancePrep() {
     ? '<div class="pa-msg-label">Before you shop</div><p>You\'re pre-qualified — that\'s real leverage. Ask me to translate any finance term so nothing in the dealership catches you off guard.</p>'
     : '<div class="pa-msg-label">Before you sign</div><p>Your application is in. Let\'s make sure no finance-office jargon trips you up — tap a term below or ask me anything.</p>';
   addMsg('pa-msg-bot', greeting);
+}
+
+// ─── Test Drive Confirmation ─────────────────────────────
+let tdPrepVehicle = null;
+
+function initTestDriveConfirmation() {
+  const id = new URLSearchParams(window.location.search).get('id') || '1';
+  const v = typeof getVehicleById === 'function' ? getVehicleById(id) : null;
+  tdPrepVehicle = v;
+
+  const root = document.getElementById('td-confirm-root');
+  if (root) {
+    const vehicleEl = document.getElementById('td-vehicle');
+    const detailsEl = document.getElementById('td-details');
+    const vdpLink = document.getElementById('td-vdp-link');
+
+    if (!v) {
+      if (vehicleEl) vehicleEl.textContent = 'your selected vehicle';
+    } else {
+      const title = `${v.year} ${v.make} ${v.model} ${v.trim}`;
+      if (vehicleEl) vehicleEl.textContent = title;
+      if (detailsEl) {
+        detailsEl.innerHTML = `
+          <div class="td-detail-row"><span>Vehicle</span><strong>${title}</strong></div>
+          <div class="td-detail-row"><span>Stock #</span><strong>${v.stockNum}</strong></div>
+          <div class="td-detail-row"><span>Price</span><strong>${formatPrice(v.price)}</strong></div>
+          <div class="td-detail-row"><span>Location</span><strong>${v.location}</strong></div>
+          <div class="td-detail-row"><span>When</span><strong>Saturday, 10:30 AM</strong></div>
+          <div class="td-detail-row"><span>Where</span><strong>DriveClear Boulder · 2800 Pearl St</strong></div>`;
+      }
+      if (vdpLink) vdpLink.href = `vdp.html?id=${v.id}`;
+    }
+  }
+
+  if (document.getElementById('td-prep')) initTestDrivePrep(v || getVehicleById?.('1'));
+}
+
+function tdVehicleAge(v) { return new Date().getFullYear() - v.year; }
+function tdIsLuxury(v) { return ['Audi', 'BMW', 'Mercedes-Benz', 'Volvo', 'Lexus', 'Genesis', 'Acura', 'Cadillac', 'Lincoln'].includes(v.make); }
+function tdHasAWD(v) { return /AWD|4WD|quattro|xDrive|4MATIC/i.test(v.drivetrain); }
+function tdHasTurbo(v) { return /turbo/i.test(v.engine); }
+function tdWarrantyLikely(v) { return tdVehicleAge(v) <= 3 && v.mileage < 50000; }
+
+function initTestDrivePrep(v) {
+  if (!v) return;
+
+  const title = `${v.year} ${v.make} ${v.model}`;
+  const byline = `<i class="fa-solid fa-wand-magic-sparkles"></i> Personalized for · <span>${title} · ${formatMileage(v.mileage)} · ${v.drivetrain}</span>`;
+  ['td-visit-byline', 'td-tips-byline', 'td-plans-byline'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = byline;
+  });
+
+  const tdGen = (el, delay, buildHtml) => {
+    if (!el) return;
+    el.innerHTML = '<div class="fp-generating"><span class="pa-typing-dots"><span></span><span></span><span></span></span><span>Personalizing for your test drive…</span></div>';
+    setTimeout(() => { el.innerHTML = buildHtml(); el.classList.add('fp-reveal-item'); }, delay);
+  };
+
+  const luxury = tdIsLuxury(v);
+  const awd = tdHasAWD(v);
+  const turbo = tdHasTurbo(v);
+  const warrantyActive = tdWarrantyLikely(v);
+  const highMiles = v.mileage > 40000;
+
+  // ── 1. What to bring & expect ──
+  const visitItems = [
+    { icon: 'id-card', html: '<strong>Driver\'s license</strong> — we\'ll verify it at check-in. No sales pressure, just keys and a route suggestion.' },
+    { icon: 'clock', html: '<strong>Plan 30–40 minutes</strong> — quick walk-around, your questions, then a relaxed drive on streets you actually use.' },
+    { icon: 'file-shield', html: '<strong>Carfax is ready</strong> — we\'ll walk through history, owners, and service records before you leave the lot.' },
+    { icon: 'tag', html: '<strong>Out-the-door pricing</strong> — ask for the full total (tax, title, fees). DriveClear has zero dealer fees, but it\'s still smart to confirm the number.' },
+  ];
+  if (luxury)
+    visitItems.push({ icon: 'wrench', html: `<strong>Service history matters</strong> on a ${v.make} — we'll show what's on file and what the next major service interval looks like.` });
+  if (awd)
+    visitItems.push({ icon: 'snowflake', html: '<strong>AWD check</strong> — if you can, include a tight parking-lot turn or a rough surface; worth feeling how the system behaves at low speed.' });
+  if (highMiles)
+    visitItems.push({ icon: 'gauge-high', html: `<strong>Higher mileage (${formatMileage(v.mileage)})</strong> — totally normal on a used car; we'll explain what's been replaced and what's due next.` });
+
+  tdGen(document.getElementById('td-visit-body'), 450, () => `
+    <p style="font-size:14px;color:var(--text-mid);line-height:1.65;margin:0 0 14px">
+      You're driving the <strong style="color:var(--text-dark)">${v.year} ${v.make} ${v.model} ${v.trim}</strong> Saturday at 10:30 AM in Boulder.
+      Here's what makes this visit smooth — nothing fancy, just the stuff people wish they'd known.
+    </p>
+    <div class="td-checklist">
+      ${visitItems.map(it => `<div class="td-check-item"><i class="fa-solid fa-${it.icon}"></i><span>${it.html}</span></div>`).join('')}
+    </div>
+    <div class="td-visit-note">
+      <strong>Pro tip:</strong> Bring whoever helps you decide — spouse, friend, whoever.
+      ${v.body === 'SUV' || v.body === 'Minivan' ? ' With a ' + v.body.toLowerCase() + ', have them sit in the second row and try the cargo area.' : ' Have them sit in back and listen for road noise on your route.'}
+      Need to reschedule? Reply to your confirmation email anytime.
+    </div>`);
+
+  // ── 2. What to look for on the drive ──
+  const faqItem = o => `<div class="faq-item"><button type="button" class="faq-q">${o.q} <i class="fa-solid fa-chevron-down"></i></button><div class="faq-a">${o.a}</div></div>`;
+  const coreTips = [
+    { q: 'Brakes & steering — first 5 minutes', a: 'From a stop, the pedal should feel firm, not spongy. Steering should track straight on a flat road with hands lightly on the wheel — no constant correction.' },
+    { q: 'Cold start & idle', a: `Listen for 10 seconds after start — smooth idle, no rattles or warning lights. ${turbo ? 'This ' + v.engine + ' uses a turbo; a brief moment of quiet whine under acceleration is normal, but loud knocking is not.' : 'No rough shaking or blue/white smoke from the exhaust.'}` },
+  ];
+  if (awd)
+    coreTips.push({ q: 'AWD / traction feel', a: `In a ${v.drivetrain} ${v.make}, you shouldn't feel vibration at highway speed. On a tight turn at parking-lot speed, listen for clunking from the front — that can hint at CV joint wear.` });
+  if (v.body === 'SUV' || v.body === 'Minivan')
+    coreTips.push({ q: 'Space & visibility', a: `Sit where you normally would, then check rear visibility and ${v.body === 'Minivan' ? 'third-row access' : 'cargo height'}. Open the liftgate — does it clear your garage height?` });
+  else
+    coreTips.push({ q: 'Rear seat & trunk', a: 'Adjust the driver seat to your setting, then sit behind it — legroom for your household? Trunk should swallow a stroller or golf bag if that\'s your benchmark.' });
+  if (highMiles)
+    coreTips.push({ q: `Highway feel at ${formatMileage(v.mileage)}`, a: 'Get up to 55–65 mph. Transmission should shift smoothly without hunting between gears. Any wind roar or tire hum you can live with daily?' });
+  const safetyFeats = v.features.filter(f => /sensing|safety|assist|blind|lane|collision|camera|carplay/i.test(f));
+  if (safetyFeats.length)
+    coreTips.push({ q: 'Tech & safety features', a: `This one has ${safetyFeats.slice(0, 3).join(', ')}${safetyFeats.length > 3 ? ', and more' : ''}. On your drive, try adaptive cruise or lane assist on a quiet stretch — you want to know if you\'ll actually use them.` });
+
+  const moreTipsPool = [
+    { q: 'Suspension & ride quality', a: `${luxury ? 'Luxury ' + v.body.toLowerCase() + 's like this often ride softer — notice whether it feels composed over bumps or floaty on the highway.' : 'Drive over a rough patch on purpose. Rattles from the dash or doors on a ' + v.year + ' car can mean prior damage or worn bushings.'}` },
+    { q: 'Infotainment & phone pairing', a: 'Pair your phone before you leave — Apple CarPlay/Android Auto should connect in under a minute. Fuzzy backup camera or slow screen? Note it; both are fixable but good to know upfront.' },
+    { q: 'Alignment & tire wear', a: 'Glance at the front tires during the walk-around — uneven wear can mean alignment issues. On the drive, a slight pull under braking only is worth mentioning to your specialist.' },
+    { q: 'Climate & seats', a: 'Run the A/C and heat for 30 seconds each. If this trim has heated seats or a sunroof, test them — they\'re easy to overlook until the first cold morning.' },
+  ];
+
+  const tipsEl = document.getElementById('td-tips-body');
+  tdGen(tipsEl, 700, () => coreTips.map(faqItem).join(''));
+
+  tipsEl?.addEventListener('click', e => {
+    const btn = e.target.closest('.faq-q');
+    if (!btn) return;
+    const item = btn.closest('.faq-item');
+    const wasOpen = item?.classList.contains('open');
+    tipsEl.querySelectorAll('.faq-item').forEach(i => i.classList.remove('open'));
+    if (!wasOpen) item?.classList.add('open');
+  });
+
+  const moreTipsBtn = document.getElementById('td-more-tips');
+  if (moreTipsBtn) moreTipsBtn.disabled = true;
+  setTimeout(() => { if (moreTipsBtn && moreTipsPool.length) moreTipsBtn.disabled = false; }, 1100);
+  moreTipsBtn?.addEventListener('click', () => {
+    if (!moreTipsPool.length || !tipsEl) return;
+    moreTipsBtn.disabled = true;
+    const loading = document.createElement('div');
+    loading.className = 'fp-generating';
+    loading.innerHTML = '<span class="pa-typing-dots"><span></span><span></span><span></span></span><span>Generating more tips for this ' + v.make + '…</span>';
+    tipsEl.appendChild(loading);
+    setTimeout(() => {
+      loading.remove();
+      moreTipsPool.splice(0, 2).forEach(o => {
+        const wrap = document.createElement('div');
+        wrap.innerHTML = faqItem(o);
+        const item = wrap.firstElementChild;
+        item.classList.add('fp-reveal-item');
+        tipsEl.appendChild(item);
+      });
+      if (!moreTipsPool.length) {
+        moreTipsBtn.innerHTML = '<i class="fa-solid fa-check"></i> That\'s the full checklist';
+        moreTipsBtn.classList.add('done');
+      } else {
+        moreTipsBtn.disabled = false;
+      }
+    }, 650);
+  });
+
+  // ── 3. Protection plans ──
+  const planBadge = kind => ({ rec: 'td-plan-badge-rec', opt: 'td-plan-badge-opt', if: 'td-plan-badge-if' }[kind] || 'td-plan-badge-opt');
+  const planLabel = kind => ({ rec: 'Worth discussing', opt: 'Optional for now', if: 'If you finance' }[kind] || 'Optional');
+  const plans = [
+    {
+      name: 'Vehicle Service Contract (VSC)',
+      kind: warrantyActive ? 'opt' : 'rec',
+      body: warrantyActive
+        ? `Factory coverage is likely still active on this ${v.year} ${v.make} at ${formatMileage(v.mileage)} — a VSC can wait until you're closer to expiration. Ask us when the factory warranty ends so you can decide later.`
+        : `At ${formatMileage(v.mileage)}, major repairs aren't theoretical anymore${luxury ? ' — especially on a ' + v.make + ' where parts cost more' : ''}. A VSC is optional, but get the standalone price before it gets folded into a monthly payment.`,
+      ask: 'What would a VSC cover on this car?',
+    },
+    {
+      name: 'GAP Coverage',
+      kind: 'if',
+      body: `If you finance with less than ~20% down, GAP covers the difference between what you owe and the car's value if it's totaled early. Optional — often cheaper through your own insurer than at the dealership.`,
+      ask: 'Is GAP worth it on this car?',
+    },
+    {
+      name: 'Tire & Wheel Protection',
+      kind: awd ? 'rec' : 'opt',
+      body: awd
+        ? `${v.drivetrain} vehicles can eat tires faster if alignment is off — this plan is optional but popular on AWD ${v.body.toLowerCase()}s with low-profile rubber.`
+        : 'Optional cosmetic coverage for curb rash and road hazards. Only worth it if the out-the-door price is reasonable on its own — not buried in the payment.',
+      ask: 'Do I need tire and wheel protection?',
+    },
+  ];
+  if (luxury)
+    plans.push({
+      name: 'Prepaid Maintenance',
+      kind: 'opt',
+      body: `${v.make} routine service runs higher than mainstream brands. Prepaid plans lock in oil changes and inspections at today's rate — compare the plan total against what your local independent shop charges.`,
+      ask: 'How much does maintenance cost on this model?',
+    });
+
+  tdGen(document.getElementById('td-plans-body'), 950, () => `
+    <p style="font-size:14px;color:var(--text-mid);line-height:1.65;margin:0 0 14px">
+      Nobody has to decide any of this on test-drive day — but dealers sometimes bundle these into the payment.
+      Know what's optional <em>before</em> you sit down to buy.
+    </p>
+    <div class="td-plans">
+      ${plans.map(p => `
+        <div class="td-plan">
+          <div class="td-plan-head">
+            <span class="td-plan-name">${p.name}</span>
+            <span class="td-plan-badge ${planBadge(p.kind)}">${planLabel(p.kind)}</span>
+          </div>
+          <p>${p.body}</p>
+          <button type="button" class="td-plan-ask" data-q="${escapeHtml(p.ask)}"><i class="fa-solid fa-comment-dots"></i> ${p.ask}</button>
+        </div>`).join('')}
+    </div>`);
+
+  const plansTakeaway = document.getElementById('td-plans-takeaway');
+  setTimeout(() => {
+    if (!plansTakeaway) return;
+    const take = warrantyActive
+      ? `Factory warranty still looks active — focus on the drive Saturday. If you love the car, we can revisit a VSC when you're closer to signing.`
+      : luxury
+        ? `On a ${v.year} ${v.make}, I'd at least get standalone quotes for a VSC and GAP before finance — then compare, don't bundle blindly.`
+        : `Get the out-the-door price first, then decide on add-ons one at a time. Everything here is optional.`;
+    plansTakeaway.innerHTML = `<i class="fa-solid fa-lightbulb"></i><div><strong>My take:</strong> ${take}</div>`;
+    plansTakeaway.hidden = false;
+    plansTakeaway.classList.add('fp-reveal-item');
+  }, 1200);
+
+  // ── 4. Conversational chat ──
+  const chatBody = document.getElementById('td-chat-body');
+  const chatForm = document.getElementById('td-chat-form');
+  const chatInput = document.getElementById('td-chat-input');
+  const chatChips = document.getElementById('td-chat-chips');
+  if (!chatBody || !chatForm) return;
+
+  const addMsg = (cls, html) => {
+    const el = document.createElement('div');
+    el.className = `pa-msg ${cls}`;
+    el.innerHTML = cls.includes('pa-msg-bot')
+      ? `<div class="pa-msg-avatar"><i class="fa-solid fa-wand-magic-sparkles"></i></div><div class="pa-msg-bubble">${html}</div>`
+      : `<div class="pa-msg-bubble">${html}</div>`;
+    chatBody.appendChild(el);
+    chatBody.scrollTop = chatBody.scrollHeight;
+    return el;
+  };
+
+  const ask = q => {
+    const text = (q || '').trim();
+    if (!text) return;
+    addMsg('pa-msg-user', escapeHtml(text));
+    if (chatInput) chatInput.value = '';
+    const typing = addMsg('pa-msg-bot pa-typing', '<span class="pa-typing-dots"><span></span><span></span><span></span></span>');
+    setTimeout(() => {
+      typing.remove();
+      addMsg('pa-msg-bot', generateTestDrivePrepAnswer(text, v));
+    }, 550);
+  };
+
+  chatForm.addEventListener('submit', e => { e.preventDefault(); ask(chatInput?.value); });
+  chatChips?.addEventListener('click', e => {
+    const chip = e.target.closest('.pa-chip');
+    if (chip) ask(chip.dataset.q || chip.textContent);
+  });
+  document.getElementById('td-plans-body')?.addEventListener('click', e => {
+    const btn = e.target.closest('.td-plan-ask');
+    if (btn) ask(btn.dataset.q || btn.textContent);
+  });
+
+  addMsg('pa-msg-bot', `<div class="pa-msg-label">Before Saturday</div><p>Your <strong>${title}</strong> is reserved for 10:30 AM. Ask me what to bring, what to listen for on the drive, or whether any protection plan actually makes sense for this car.</p>`);
+}
+
+function generateTestDrivePrepAnswer(q, v) {
+  const car = v || tdPrepVehicle;
+  const t = (q || '').toLowerCase();
+  const title = car ? `${car.year} ${car.make} ${car.model}` : 'this vehicle';
+  const luxury = car && tdIsLuxury(car);
+  const awd = car && tdHasAWD(car);
+  const warrantyActive = car && tdWarrantyLikely(car);
+
+  if (t.includes('bring') || t.includes('someone') || t.includes('spouse') || t.includes('passenger'))
+    return `<p>Absolutely — bring whoever helps you decide. ${car?.body === 'SUV' || car?.body === 'Minivan' ? 'Have them try the second row and cargo area.' : 'Have them sit in back for legroom and road noise.'} Only the driver needs a license.</p>`;
+  if (t.includes('how long') || t.includes('duration') || t.includes('time'))
+    return `<p>Plan about <strong>30–40 minutes</strong> total — 10 for the walk-around and Carfax, 20+ on the road on streets you actually drive. There's no timer; take the time you need.</p>`;
+  if (t.includes('same day') || t.includes('buy today') || t.includes('purchase'))
+    return `<p>If you love the ${title}, you can move forward same day — but you're not committing by test driving. Ask for the <strong>out-the-door price</strong> in writing before any paperwork, and keep add-ons separate.</p>`;
+  if (t.includes('gap'))
+    return `<p><strong>GAP</strong> covers the loan balance if the car is totaled while you're upside-down. It matters most with a small down payment. Optional — compare dealer GAP vs. your auto insurer; one is usually cheaper.</p>`;
+  if (t.includes('vsc') || t.includes('warranty') || t.includes('service contract'))
+    return warrantyActive
+      ? `<p>On this ${title}, factory warranty is likely still active at ${car ? formatMileage(car.mileage) : 'current mileage'} — you probably don't need a VSC yet. Ask us when factory coverage ends; you can add a contract later.</p>`
+      : `<p>An extended <strong>VSC</strong> is optional coverage for repairs after factory warranty expires. Get a standalone price${luxury ? ' — ' + car.make + ' parts are not cheap' : ''} and do not let it get packed into the monthly payment without you seeing the number.</p>`;
+  if (t.includes('tire') || t.includes('wheel'))
+    return `<p><strong>Tire & wheel protection</strong> covers road hazards and curb rash. ${awd ? 'AWD cars can wear tires unevenly if alignment is off — worth a quote if you keep low-profile tires.' : 'Only worth it if the standalone price is reasonable — skip it if they will not break it out separately.'}</p>`;
+  if (t.includes('highway') || t.includes('listen') || t.includes('70') || t.includes('65'))
+    return `<p>On the highway in the ${title}: listen for wind noise, feel for vibration in the steering wheel, and watch the transmission — it should hold a gear without hunting. ${car && car.mileage > 40000 ? 'At ' + formatMileage(car.mileage) + ', a smooth 60 mph cruise is a good sign.' : ''}</p>`;
+  if (t.includes('reschedule') || t.includes('cancel'))
+    return `<p>Reply to your confirmation email or call <strong>(800) 555-1234</strong> — we'll find a new slot. No penalty, no awkwardness.</p>`;
+  if (t.includes('pressure') || t.includes('sales') || t.includes('haggle'))
+    return `<p>Test drives here are <strong>no pressure</strong>. Your specialist will answer questions and let you drive — you won't be cornered into a desk. DriveClear pricing is no-haggle and all-in.</p>`;
+  if (t.includes('carfax') || t.includes('history') || t.includes('accident'))
+    return `<p>We'll walk through the <strong>Carfax</strong> before you drive — owners, accidents, service records. ${car?.accidentFree ? 'This one is listed accident-free.' : 'Ask about anything that stands out.'}</p>`;
+  if (t.includes('maintenance') || t.includes('service cost'))
+    return `<p>${luxury ? car.make + ' routine service runs higher than Honda/Toyota — budget for premium oil and dealer intervals, or compare an independent shop.' : 'Check what is due soon based on mileage — oil, brakes, and fluid changes. We will show service history on the Carfax.'}</p>`;
+  if (t.includes('insurance') || t.includes('proof'))
+    return `<p>Your <strong>driver's license</strong> is required. Proof of insurance is helpful but not always required for a test drive — bring it if you have it handy.</p>`;
+
+  return `<p>Good question about the ${title}. Focus on how it feels on <em>your</em> roads, get the out-the-door price in writing if you're interested, and treat every protection plan as optional. Want tips on what to listen for, or whether GAP/VSC makes sense?</p>`;
 }
 
 // ─── Trade-in Insights (trade confirmation page) ─────────

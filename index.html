@@ -132,7 +132,7 @@
 
     <div class="ai-rec-grid">
       <!-- Card 1 -->
-      <article class="ai-rec-card">
+      <article class="ai-rec-card" data-vdp-id="361">
         <div class="ai-rec-img" style="background-image:url('https://plus.unsplash.com/premium_vector-1733984597729-fad43b660da0?fm=jpg&q=60&w=900&auto=format&fit=crop')">
           <span class="ai-rec-match">98% match</span>
           <span class="ai-rec-loc"><i class="fa-solid fa-location-dot"></i> At your dealer</span>
@@ -162,7 +162,7 @@
       </article>
 
       <!-- Card 2 -->
-      <article class="ai-rec-card">
+      <article class="ai-rec-card" data-vdp-id="371">
         <div class="ai-rec-img" style="background-image:url('https://plus.unsplash.com/premium_vector-1733984597729-fad43b660da0?fm=jpg&q=60&w=900&auto=format&fit=crop')">
           <span class="ai-rec-match">95% match</span>
           <span class="ai-rec-loc"><i class="fa-solid fa-location-dot"></i> At your dealer</span>
@@ -192,7 +192,7 @@
       </article>
 
       <!-- Card 3 -->
-      <article class="ai-rec-card">
+      <article class="ai-rec-card" data-vdp-id="381">
         <div class="ai-rec-img" style="background-image:url('https://plus.unsplash.com/premium_vector-1733984597729-fad43b660da0?fm=jpg&q=60&w=900&auto=format&fit=crop')">
           <span class="ai-rec-match">93% match</span>
           <span class="ai-rec-loc"><i class="fa-solid fa-route"></i> 1h 40m away</span>
@@ -595,7 +595,17 @@
   function close() { modal.hidden = true; document.body.style.overflow = ''; }
 
   document.querySelectorAll('.ai-detail-open').forEach(btn => {
-    btn.addEventListener('click', () => open(btn.dataset.car));
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      open(btn.dataset.car);
+    });
+  });
+
+  document.querySelectorAll('.ai-rec-card[data-vdp-id]').forEach(card => {
+    card.addEventListener('click', e => {
+      if (e.target.closest('.ai-detail-open')) return;
+      window.location.href = `vdp.html?id=${card.dataset.vdpId}`;
+    });
   });
   document.getElementById('ai-detail-close').addEventListener('click', close);
   document.getElementById('ai-detail-backdrop').addEventListener('click', close);
