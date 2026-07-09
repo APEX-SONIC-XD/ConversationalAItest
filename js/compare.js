@@ -25,6 +25,13 @@ document.addEventListener('DOMContentLoaded', () => {
     miles: { dir: 'min', label: 'lowest mileage',     phrase: c => c.miles.toLocaleString() + ' mi' },
     dist:  { dir: 'min', label: 'closest dealer',     phrase: c => (c.dist === 0 ? 'at your dealer' : c.dist + ' min away') },
     value: { dir: 'max', label: 'best value vs market', phrase: c => (c.value ? '$' + c.value.toLocaleString() + ' below market' : 'at market') },
+    crReliability: { dir: 'max', label: 'best Consumer Reports reliability', phrase: c => (c.crReliability ? c.crReliability + '/5 CR reliability' : '—') },
+    crOwnerSat: { dir: 'max', label: 'highest owner satisfaction', phrase: c => (c.crOwnerSat ? c.crOwnerSat + '/5 owner satisfaction' : '—') },
+    estValue3yr: { dir: 'max', label: 'best projected value in 3 years', phrase: c => (c.estValue3yr ? '$' + c.estValue3yr.toLocaleString() : '—') },
+    estValue5yr: { dir: 'max', label: 'best projected value in 5 years', phrase: c => (c.estValue5yr ? '$' + c.estValue5yr.toLocaleString() : '—') },
+    insAnnual: { dir: 'min', label: 'lowest insurance cost', phrase: c => (c.insAnnual ? '~$' + c.insAnnual.toLocaleString() + '/yr insurance' : '—') },
+    monthlyEst: { dir: 'min', label: 'lowest monthly payment', phrase: c => (c.monthlyEst ? '~$' + c.monthlyEst + '/mo payment' : '—') },
+    expertScore: { dir: 'max', label: 'best expert reviews', phrase: c => (c.expertScore ? c.expertScore + '/5 expert score' : '—') },
   };
 
   const originalFoot = foot.innerHTML;
@@ -45,6 +52,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const add = m => { if (!found.includes(m)) found.push(m); };
 
     if (/cheap|cheapest|price|budget|afford|inexpensive|low cost|save money|lowest/.test(t)) add('price');
+    if (/insur|premium/.test(t)) add('insAnnual');
+    if (/payment|monthly|financ|loan|apr/.test(t)) add('monthlyEst');
+    if (/expert|editor|review|car and driver|edmunds|kbb/.test(t)) add('expertScore');
+    if (/owner|satisf/.test(t)) add('crOwnerSat');
+    if (/\bawd\b|xdrive|quattro|all.?wheel|sh-awd/.test(t)) { add('hp'); add('zero'); }
+    if (/consumer report|\bcr\b|reliab|dependab/.test(t)) { add('crReliability'); add('crOwnerSat'); }
+    if (/source|where.*data|where.*from|who provides/.test(t)) { add('crReliability'); add('price'); }
+    if (/depreciat|resale|hold value|retain|worth later/.test(t)) { add('estValue3yr'); add('estValue5yr'); add('monthlyEst'); }
     if (/mpg|fuel|economy|efficien|gas mileage|eco|green/.test(t)) add('mpg');
     if (/horsepower|\bhp\b|power|powerful|strong engine/.test(t)) add('hp');
     if (/0-60|0–60|accelerat|quick|fastest|\bfast\b|sporty|fun to drive|performance/.test(t)) add('zero');
@@ -104,9 +119,20 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    if (/source|where does|where is this|where.*data|who provides|consumer report/i.test(text)) {
+      const sources = (typeof PARTICIPANT !== 'undefined' && PARTICIPANT.homepage?.research?.sources) || [];
+      if (sources.length) {
+        const list = sources.map(s => `<strong>${esc(s.metric)}</strong> — ${esc(s.provider)} (${esc(s.updated)})`).join('<br>');
+        push('ai', `Here is where each data point comes from:<br><br>${list}<br><br>See the full source panel below the table for details on each provider.`);
+      } else {
+        push('ai', `Sources include <strong>Consumer Reports</strong> (reliability), <strong>ALG</strong> (depreciation), <strong>RepairPal</strong> (maintenance), and <strong>DriveClear inventory</strong> (listing prices).`);
+      }
+      return;
+    }
+
     const metrics = parseMetrics(text);
     if (!metrics.length) {
-      push('ai', `I can re-rank these on price, fuel economy, horsepower, 0–60, mileage, dealer distance, or overall value. Try <em>“cheapest with good mpg”</em> or <em>“most fun to drive.”</em>`);
+      push('ai', `I can re-rank these on insurance, mpg, monthly payment, expert reviews, Consumer Reports scores, resale value, price, horsepower, 0–60, mileage, or dealer distance. Try <em>"lowest insurance with good mpg"</em> or <em>"best expert reviews."</em>`);
       return;
     }
 

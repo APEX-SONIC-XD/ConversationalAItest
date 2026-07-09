@@ -66,6 +66,7 @@
 
 <!-- ═══════════════════════ SRP BODY ═══════════════════════ -->
 <div class="container">
+  <div class="srp-profile-criteria" id="srp-profile-criteria" hidden></div>
   <div class="srp-body" id="srp-root">
 
     <!-- ─── Filter Panel ─── -->
@@ -204,7 +205,9 @@
 
     <!-- ─── Results ─── -->
     <div class="srp-results">
+      <div id="srp-test-drives" class="srp-test-drives" aria-label="Test drive lineup"></div>
       <div class="active-tags" id="active-tags"></div>
+      <div class="srp-fallback-note" id="srp-fallback-note" hidden></div>
       <div class="v-grid" id="srp-grid" style="grid-template-columns:repeat(3,1fr)">
         <!-- Rendered by app.js -->
       </div>

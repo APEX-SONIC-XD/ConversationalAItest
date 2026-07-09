@@ -612,6 +612,38 @@ const BASE_VEHICLES = [
     location: 'Denver, CO'
   },
   {
+    id: 40, stockNum: 'DC10040', vin: 'JTHC1D32X50234567',
+    year: 2022, make: 'Lexus', model: 'IS', trim: '300 AWD F Sport',
+    body: 'Sedan', extColor: 'Ultrasonic Blue Mica', intColor: 'Rioja Red',
+    price: 34950, mileage: 22100, mpgCity: 22, mpgHwy: 32,
+    engine: '2.0L Turbocharged 4-Cyl', hp: 241,
+    transmission: '8-Speed Automatic', drivetrain: 'AWD',
+    owners: 1, accidentFree: true,
+    dealBadge: 'great-deal', dealLabel: 'Great Deal', marketSavings: 1400,
+    features: ['Lexus Safety System+ 2.5','Apple CarPlay / Android Auto','AWD',
+      'F Sport Suspension','Heated & Ventilated Front Seats','Mark Levinson Audio',
+      'Blind Spot Monitor','Adaptive Cruise Control','Sunroof','Wireless Charging'],
+    images: [SKETCH_IMG, SKETCH_IMG, SKETCH_IMG],
+    description: 'Lexus refinement with AWD confidence — the IS 300 F Sport balances comfort and grip without the European upkeep bill. Apple CarPlay and factory warranty still active.',
+    location: 'Denver, CO'
+  },
+  {
+    id: 41, stockNum: 'DC10041', vin: '19UUB6F55NA012345',
+    year: 2022, make: 'Acura', model: 'TLX', trim: 'SH-AWD Advance',
+    body: 'Sedan', extColor: 'Platinum White Pearl', intColor: 'Espresso',
+    price: 32980, mileage: 19600, mpgCity: 22, mpgHwy: 31,
+    engine: '2.0L Turbocharged 4-Cyl', hp: 272,
+    transmission: '10-Speed Automatic', drivetrain: 'AWD',
+    owners: 1, accidentFree: true,
+    dealBadge: 'great-deal', dealLabel: 'Great Deal', marketSavings: 1100,
+    features: ['AcuraWatch','Apple CarPlay / Android Auto','SH-AWD Super Handling',
+      'ELS Studio 3D Audio','Heated Front Seats','Head-Up Display',
+      'Adaptive Damper System','Adaptive Cruise Control','Wireless CarPlay','Panoramic Roof'],
+    images: [SKETCH_IMG, SKETCH_IMG, SKETCH_IMG],
+    description: 'SH-AWD grip and a strong turbo four — the TLX Advance is the most A4-like swap on paper, with lower miles and Acura reliability scores vs. German rivals.',
+    location: 'Denver, CO'
+  },
+  {
     id: 39, stockNum: 'DC10039', vin: 'YV4H60DZ5P2123456',
     year: 2023, make: 'Volvo', model: 'S60', trim: 'B5 Plus',
     body: 'Sedan', extColor: 'Crystal White Pearl', intColor: 'Charcoal',

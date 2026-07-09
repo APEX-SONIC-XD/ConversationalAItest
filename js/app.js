@@ -41,6 +41,15 @@ document.addEventListener('DOMContentLoaded', () => {
     heroForm.addEventListener('submit', e => {
       e.preventDefault();
       const params = new URLSearchParams();
+      const base = (typeof Profile !== 'undefined' && Profile.srpParams) ? Profile.srpParams() : {};
+      if (base.body) params.set('body', base.body);
+      if (base.drive) params.set('drive', Array.isArray(base.drive) ? base.drive[0] : base.drive);
+      if (base.minYear) params.set('minYear', base.minYear);
+      if (base.maxPrice) params.set('maxPrice', base.maxPrice);
+      if (base.targetBudget) params.set('budget', base.targetBudget);
+      if (base.maxApproved) params.set('approved', base.maxApproved);
+      if (base.maxMiles) params.set('maxMiles', base.maxMiles);
+      if (base.maxDist) params.set('maxDist', base.maxDist);
       const make = document.getElementById('hero-make')?.value;
       const body = document.getElementById('hero-body')?.value;
       const maxPrice = document.getElementById('hero-price')?.value;
@@ -53,6 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Conversational nav search suggestions (all pages)
   initNavSearchSuggest();
+  initPersonalizedSrpLinks();
 
   // SRP init
   if (document.getElementById('srp-grid')) initSRP();
@@ -71,9 +81,214 @@ document.addEventListener('DOMContentLoaded', () => {
   if (document.getElementById('fin-prep')) initFinancePrep();
   if (document.getElementById('trade-prep')) initTradePrep();
   if (document.getElementById('td-confirm-root') || document.getElementById('td-prep')) initTestDriveConfirmation();
+  if (document.getElementById('td-notes-root')) initTestDriveNotesPage();
 });
 
 // ─── Homepage AI recommendations (reads PARTICIPANT.homepage) ───
+function renderResearchSources(sources, opts) {
+  if (!sources || !sources.length) return '';
+  const title = (opts && opts.title) || 'Where this information comes from';
+  const rows = sources.map(s => `
+    <li class="ai-src-item">
+      <div class="ai-src-metric">${escapeHtml(s.metric)}</div>
+      <div class="ai-src-provider"><i class="fa-solid fa-link"></i> ${escapeHtml(s.provider)}</div>
+      <div class="ai-src-detail">${escapeHtml(s.detail)}</div>
+      <div class="ai-src-updated">Updated ${escapeHtml(s.updated)}</div>
+    </li>`).join('');
+  return `<div class="ai-src-panel">
+    <div class="ai-src-head"><i class="fa-solid fa-database"></i> ${escapeHtml(title)}</div>
+    <ul class="ai-src-list">${rows}</ul>
+  </div>`;
+}
+
+function renderHomepageResearch(hp) {
+  const el = document.getElementById('ai-rec-research');
+  if (!el || !hp.research || !hp.picks || !hp.picks.length) return;
+
+  const r = hp.research;
+  const stars = n => {
+    const s = Math.max(0, Math.min(5, parseInt(n, 10) || 0));
+    return `<span class="ai-res-stars" aria-label="${s} out of 5">${'★'.repeat(s)}${'☆'.repeat(5 - s)}</span>`;
+  };
+
+  const tableRows = hp.picks.map(pick => {
+    const cm = pick.compareMetrics || {};
+    const expertStars = n => {
+      const s = Math.max(0, Math.min(5, parseInt(n, 10) || 0));
+      return `${'★'.repeat(s)}${'☆'.repeat(5 - s)}`;
+    };
+    return `<tr>
+      <td class="ai-res-model"><strong>${escapeHtml(pick.make + ' ' + pick.model)}</strong><div class="ai-res-price">${escapeHtml(pick.price)}</div></td>
+      <td><strong>${cm.mpg || '—'}</strong><span class="ai-res-sub">EPA combined mpg</span></td>
+      <td><strong>${cm.insAnnual ? '~$' + cm.insAnnual.toLocaleString() + '/yr' : '—'}</strong><span class="ai-res-sub">insurance est.</span></td>
+      <td><strong>${cm.monthlyEst ? '~$' + cm.monthlyEst + '/mo' : '—'}</strong><span class="ai-res-sub">60 mo @ ${(typeof Profile !== 'undefined' && Profile.apr) ? Profile.apr() : 4.9}%</span></td>
+      <td>${stars(cm.crReliability)}<span class="ai-res-sub">CR reliability</span></td>
+      <td>${stars(cm.crOwnerSat)}<span class="ai-res-sub">Owner satisfaction</span></td>
+      <td>${expertStars(cm.expertScore)}<span class="ai-res-sub">Expert reviews</span></td>
+      <td><strong>${cm.estValue5yr ? formatPrice(cm.estValue5yr) : '—'}</strong><span class="ai-res-sub">est. value in 5 yrs</span></td>
+    </tr>`;
+  }).join('');
+
+  const bench = r.audiBenchmark;
+  const benchRow = bench ? `<div class="ai-res-benchmark">
+    <div class="ai-res-benchmark-label"><i class="fa-solid fa-car"></i> Your benchmark</div>
+    <div class="ai-res-benchmark-body">
+      <strong>${escapeHtml(bench.label)}</strong>
+      <span>${stars(bench.reliability)} CR reliability</span>
+      <span>${stars(bench.ownerSat)} owner satisfaction</span>
+      ${bench.insAnnual ? `<span>~$${bench.insAnnual.toLocaleString()}/yr insurance (est.)</span>` : ''}
+      <span>~${bench.retain5yr}% value left after 5 yrs (typical)</span>
+      ${bench.source ? `<span class="ai-res-src-tag"><i class="fa-solid fa-link"></i> ${escapeHtml(bench.source)}</span>` : ''}
+    </div>
+  </div>` : '';
+
+  const chips = (r.chips || []).map(c =>
+    `<button type="button" class="ai-res-chip" data-q="${escapeHtml(c)}">${escapeHtml(c)}</button>`
+  ).join('');
+
+  el.innerHTML = `
+    <div class="ai-res-card info-card">
+      <div class="ai-res-head">
+        <div class="ai-res-icon"><i class="fa-solid fa-book-open"></i></div>
+        <div>
+          <div class="ai-res-eyebrow">${escapeHtml(r.eyebrow || 'AI research')}</div>
+          <h3 class="ai-res-title">${escapeHtml(r.title || 'Research summary')}</h3>
+          <p class="ai-res-summary">${r.summary || ''}</p>
+        </div>
+      </div>
+      ${benchRow}
+      <div class="ai-res-table-wrap">
+        <table class="ai-res-table">
+          <thead><tr>
+            <th>Model & price <span class="ai-th-src">DriveClear</span></th>
+            <th>MPG <span class="ai-th-src">EPA</span></th>
+            <th>Insurance <span class="ai-th-src">Charlotte avg.</span></th>
+            <th>Payment <span class="ai-th-src">Finance calc.</span></th>
+            <th>Reliability <span class="ai-th-src">Consumer Reports</span></th>
+            <th>Owners <span class="ai-th-src">Consumer Reports</span></th>
+            <th>Experts <span class="ai-th-src">Edmunds · C&D</span></th>
+            <th>5-yr resale <span class="ai-th-src">ALG</span></th>
+          </tr></thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </div>
+      ${renderResearchSources(r.sources)}
+      <p class="ai-res-note"><i class="fa-solid fa-circle-info"></i> ${escapeHtml(r.sourceNote || 'Illustrative research for demo purposes.')}</p>
+      <div class="ai-res-take"><i class="fa-solid fa-lightbulb"></i> <div><strong>TCO take:</strong> ${r.aiTake || 'Compare insurance, mpg, payments, CR scores, expert reviews, and resale across your shortlist.'}</div></div>
+      <div class="ai-res-chips">${chips}<a href="compare.html" class="ai-res-chip ai-res-chip-link">Full compare →</a></div>
+    </div>`;
+
+  el.querySelectorAll('.ai-res-chip:not(.ai-res-chip-link)').forEach(btn => {
+    btn.addEventListener('click', () => {
+      window.location.href = 'compare.html?q=' + encodeURIComponent(btn.dataset.q || btn.textContent);
+    });
+  });
+}
+
+function getActiveTestDriveLineup() {
+  if (typeof Profile === 'undefined' || !Profile.testDriveLineup) return [];
+  const removed = tdLineupRemoved();
+  return Profile.testDriveLineup().filter(c => !removed.includes(c.key));
+}
+
+const TD_LINEUP_REMOVED_KEY = 'dc_td_lineup_removed';
+
+function tdLineupRemoved() {
+  try { return JSON.parse(localStorage.getItem(TD_LINEUP_REMOVED_KEY) || '[]'); }
+  catch (e) { return []; }
+}
+
+function tdLineupRemove(key) {
+  if (!key) return;
+  const removed = tdLineupRemoved();
+  if (!removed.includes(key)) {
+    removed.push(key);
+    try { localStorage.setItem(TD_LINEUP_REMOVED_KEY, JSON.stringify(removed)); } catch (e) { /* noop */ }
+  }
+}
+
+function renderTestDriveLineup(hp, targetId) {
+  const el = document.getElementById(targetId || 'ai-rec-test-drives');
+  if (!el || !hp || typeof Profile === 'undefined' || !Profile.testDriveLineup) return;
+
+  const td = hp.testDrive || {};
+  const lineup = getActiveTestDriveLineup();
+  if (!lineup.length || td.multi === false) {
+    el.innerHTML = '';
+    return;
+  }
+
+  const hub = Profile.testDriveHub ? Profile.testDriveHub() : null;
+  const isSrp = targetId === 'srp-test-drives';
+  const hubLine = hub && hub.address
+    ? `<div class="ai-td-hub"><i class="fa-solid fa-location-dot"></i> <strong>${escapeHtml(hub.name)}</strong> · ${escapeHtml(hub.address)}</div>`
+    : '';
+  const transferLine = isSrp && (td.transferNote || td.planNote)
+    ? `<div class="ai-td-transfer-note"><i class="fa-solid fa-truck-fast"></i><p>${td.transferNote || td.planNote}</p></div>`
+    : '';
+
+  const primary = lineup.find(c => c.vdpId) || lineup[0];
+  const primaryHref = primary && primary.vdpId
+    ? `test-drive-confirmation.html?id=${primary.vdpId}&lineup=1`
+    : 'test-drive-confirmation.html?lineup=1';
+
+  const items = lineup.map(car => {
+    const tdHref = car.vdpId ? `test-drive-confirmation.html?id=${car.vdpId}&lineup=1` : '#';
+    const vdpHref = car.vdpId ? `vdp.html?id=${car.vdpId}` : '#';
+    let staged;
+    if (isSrp) {
+      const stock = car.stockLot || '';
+      const onCharlotteLot = /charlotte/i.test(stock);
+      staged = onCharlotteLot
+        ? `On lot at ${escapeHtml(hub ? hub.short : 'Charlotte')}`
+        : `Listed in ${escapeHtml(stock || 'metro')} · <span class="ai-td-transfer">transfers to ${escapeHtml(hub ? hub.short : 'Charlotte')}</span>`;
+    } else {
+      staged = car.testDriveAt ? `Staged at ${hub ? hub.short : 'Charlotte'}` : escapeHtml(car.location);
+    }
+    const removeBtn = isSrp && lineup.length > 1
+      ? `<button type="button" class="btn btn-ghost btn-sm ai-td-remove" data-key="${escapeHtml(car.key)}"><i class="fa-solid fa-xmark"></i> Remove</button>`
+      : '';
+    return `<div class="ai-td-item">
+      <div class="ai-td-item-name">${escapeHtml(car.name)}</div>
+      <div class="ai-td-item-meta">${escapeHtml(car.trimLabel)} · ${staged}</div>
+      <div class="ai-td-item-actions">
+        <a href="${tdHref}" class="btn btn-outline btn-sm"><i class="fa-solid fa-calendar-check"></i> Test drive</a>
+        ${!isSrp && car.vdpId ? `<a href="${vdpHref}" class="btn btn-ghost btn-sm">Listing</a>` : ''}
+        ${removeBtn}
+      </div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="ai-td-card">
+      <div class="ai-td-head">
+        <div class="ai-td-icon"><i class="fa-solid fa-calendar-check"></i></div>
+        <div>
+          <div class="ai-td-title">${escapeHtml(td.headline || 'Test drive multiple cars in one visit')}</div>
+          <p class="ai-td-note">${td.note || 'Schedule back-to-back test drives — no separate appointments needed.'}</p>
+          ${hubLine}
+          ${transferLine}
+        </div>
+      </div>
+      <div class="ai-td-list">${items}</div>
+      <div class="ai-td-cta">
+        <a href="${primaryHref}" class="btn btn-primary"><i class="fa-solid fa-calendar-check"></i> Confirm Charlotte test drive lineup (${lineup.length})</a>
+        <span class="ai-td-note" style="margin:0"><i class="fa-solid fa-circle-info"></i> ${lineup.length} vehicles staged at ${escapeHtml(hub ? hub.name : 'Charlotte')}</span>
+      </div>
+    </div>`;
+
+  if (isSrp && !el.dataset.tdRemoveBound) {
+    el.dataset.tdRemoveBound = '1';
+    el.addEventListener('click', e => {
+      const btn = e.target.closest('.ai-td-remove');
+      if (!btn) return;
+      e.preventDefault();
+      tdLineupRemove(btn.dataset.key);
+      renderTestDriveLineup(hp, 'srp-test-drives');
+    });
+  }
+}
+
 function initHomepageRec() {
   const grid = document.getElementById('ai-rec-grid');
   if (!grid || typeof PARTICIPANT === 'undefined') return;
@@ -95,12 +310,15 @@ function initHomepageRec() {
   const foot = document.getElementById('ai-rec-foot');
   if (foot) {
     const footText = hp.footText || 'Ranked by fit to your criteria, expert reviews, and verified owner sentiment.';
-    const linkText = (typeof Profile !== 'undefined' && Profile.homepageFootLinkText)
+    const linkText = hp.footLinkText || ((typeof Profile !== 'undefined' && Profile.homepageFootLinkText)
       ? Profile.homepageFootLinkText()
-      : (hp.footLinkText || 'See all matches →');
-    const linkHref = (typeof Profile !== 'undefined' && Profile.srpHref) ? Profile.srpHref() : (hp.footLinkHref || 'srp.html');
+      : 'See all matches →');
+    const linkHref = hp.footLinkHref || ((typeof Profile !== 'undefined' && Profile.srpHref) ? Profile.srpHref() : 'srp.html');
     foot.innerHTML = `<i class="fa-solid fa-circle-info"></i> ${footText} <a href="${escapeHtml(linkHref)}">${escapeHtml(linkText)}</a>`;
   }
+
+  renderHomepageResearch(hp);
+  renderTestDriveLineup(hp);
 
   const sketch = 'https://plus.unsplash.com/premium_vector-1733984597729-fad43b660da0?fm=jpg&q=60&w=900&auto=format&fit=crop';
   const drawerCars = {};
@@ -159,7 +377,10 @@ function initHomepageRec() {
           <div class="ai-rec-insight-label"><i class="fa-solid fa-users"></i> Owner sentiment · ${escapeHtml(pick.ownersRating || '—')}</div>
           <p>${pick.ownersText}</p>
         </div>` : ''}
-        <button type="button" class="btn btn-primary btn-block btn-sm ai-detail-open" data-car="${escapeHtml(pick.key)}"><i class="fa-solid fa-wand-magic-sparkles"></i> View details with AI</button>
+        <div class="ai-rec-card-actions">
+          <button type="button" class="btn btn-primary btn-block btn-sm ai-detail-open" data-car="${escapeHtml(pick.key)}"><i class="fa-solid fa-wand-magic-sparkles"></i> View details with AI</button>
+          ${(pick.testDrive !== false && vdpId) ? `<a href="test-drive-confirmation.html?id=${vdpId}&lineup=1" class="btn btn-outline btn-block btn-sm ai-rec-td-btn" onclick="event.stopPropagation()"><i class="fa-solid fa-calendar-check"></i> Schedule test drive</a>` : ''}
+        </div>
       </div>
     </article>`;
   }).join('');
@@ -216,7 +437,10 @@ function initHomeDetailModal(CARS) {
         <div class="aidx-block-label"><i class="fa-solid fa-triangle-exclamation"></i> Watch-outs</div>
         <p>${c.watch}</p>
       </div>
-      ${c.vdpId ? `<a href="vdp.html?id=${c.vdpId}" class="btn btn-outline btn-block btn-sm" style="margin-top:12px"><i class="fa-solid fa-car"></i> View full listing</a>` : ''}`;
+      ${c.vdpId ? `<div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">
+        <a href="vdp.html?id=${c.vdpId}" class="btn btn-outline btn-block btn-sm"><i class="fa-solid fa-car"></i> View full listing</a>
+        <a href="test-drive-confirmation.html?id=${c.vdpId}&lineup=1" class="btn btn-primary btn-block btn-sm"><i class="fa-solid fa-calendar-check"></i> Schedule test drive</a>
+      </div>` : ''}`;
     chipsEl.innerHTML = c.chips.map(q => `<button type="button" class="aidx-chip">${escapeHtml(q)}</button>`).join('');
     chipsEl.querySelectorAll('.aidx-chip').forEach(b => b.addEventListener('click', () => answer(b.textContent)));
     body.scrollTop = 0;
@@ -225,7 +449,16 @@ function initHomeDetailModal(CARS) {
   const replyFor = q => {
     if (!active) return 'Let me pull that up for you.';
     const t = q.toLowerCase();
-    if (t.includes('price') || t.includes('fair') || t.includes('below market')) {
+    if (t.includes('source') || t.includes('where does') || t.includes('where is this') || t.includes('from consumer')) {
+      return 'Every insight is labeled by source: <strong>Consumer Reports</strong> for reliability scores, <strong>ALG</strong> for depreciation projections, <strong>RepairPal + CR</strong> for maintenance estimates, and <strong>DriveClear inventory</strong> for listing prices. See the full source list on the research card above your matches.';
+    }
+    if (t.includes('depreciat') || t.includes('hold value') || t.includes('resale') || t.includes('worth in')) {
+      return 'Depreciation matters when price is your priority. <strong>Camry</strong> typically retains value best, <strong>Accord</strong> is mid-pack, and <strong>Sonata</strong> loses value faster but costs least today. <a href="compare.html">See the 3- and 5-year estimates on compare</a>.';
+    }
+    if (t.includes('consumer report') || t.includes('cr ') || /\breliab/.test(t)) {
+      return 'Consumer Reports puts <strong>Camry</strong> at the top for predicted reliability, <strong>Accord</strong> close behind, and <strong>Sonata</strong> average — all well above where a 2017 A4 often scores once out of warranty.';
+    }
+    if (t.includes('price') || t.includes('fair') || t.includes('below market') || t.includes('cheapest')) {
       return `At <strong>${active.price}</strong> this one is <strong>${active.value.toLowerCase()}</strong> versus comparable listings I checked across nearby dealers — a reasonable spot for the year, mileage, and equipment.`;
     }
     if (t.includes('reliab') || t.includes('safe')) {
@@ -345,6 +578,14 @@ function initComparePage() {
     footEl.innerHTML = `<i class="fa-solid fa-circle-info"></i> ${meta.footDefault}`;
   }
 
+  const sourcesEl = document.getElementById('xdc-sources');
+  const research = PARTICIPANT?.homepage?.research;
+  if (sourcesEl && research && research.sources) {
+    sourcesEl.innerHTML = renderResearchSources(research.sources, {
+      title: 'Sources for this comparison',
+    });
+  }
+
   const fmtMiles = m => {
     if (!m) return '—';
     return m >= 1000 ? `${Math.round(m / 100) / 10}k mi` : `${m} mi`;
@@ -360,12 +601,19 @@ function initComparePage() {
     { metric: 'hp', label: 'Horsepower', icon: 'gauge-high', cells: c => `${c.hp} hp` },
     { metric: 'zero', label: '0–60 mph', icon: 'stopwatch', cells: c => `${c.zero} s` },
     { label: 'Drivetrain', icon: 'snowflake', cells: c => escapeHtml(c.drivetrain) },
-    { metric: 'mpg', label: 'MPG (comb.)', icon: 'gas-pump', cells: c => c.mpg },
-    { metric: 'price', label: 'Price', icon: 'tag', cells: c => `<span class="xdc-price">${formatPrice(c.price)}</span>` },
-    { metric: 'value', label: 'Value', icon: 'arrow-trend-down', cells: c => `<span class="xdc-val xdc-val-${c.valueClass}">${escapeHtml(c.valueLabel)}</span>` },
+    { metric: 'mpg', label: 'MPG (comb.)', icon: 'gas-pump', src: 'EPA', cells: c => c.mpg },
+    { metric: 'insAnnual', label: 'Insurance (est.)', icon: 'shield', src: 'Charlotte avg.', cells: c => c.insAnnual ? `~${formatPrice(c.insAnnual)}/yr` : '—' },
+    { metric: 'monthlyEst', label: 'Monthly payment', icon: 'credit-card', src: 'Finance calc.', cells: c => c.monthlyEst ? `~${formatPrice(c.monthlyEst)}/mo` : '—' },
+    { metric: 'price', label: 'Price', icon: 'tag', src: 'DriveClear', cells: c => `<span class="xdc-price">${formatPrice(c.price)}</span>` },
+    { metric: 'crReliability', label: 'CR reliability', icon: 'shield-halved', src: 'Consumer Reports', cells: c => c.crReliability ? `${'★'.repeat(c.crReliability)}${'☆'.repeat(5 - c.crReliability)}` : '—' },
+    { metric: 'crOwnerSat', label: 'CR owner sat.', icon: 'users', src: 'Consumer Reports', cells: c => c.crOwnerSat ? `${'★'.repeat(c.crOwnerSat)}${'☆'.repeat(5 - c.crOwnerSat)}` : '—' },
+    { metric: 'expertScore', label: 'Expert reviews', icon: 'star', src: 'Edmunds · C&D', cells: c => c.expertScore ? `${'★'.repeat(c.expertScore)}${'☆'.repeat(5 - c.expertScore)}` : '—' },
+    { metric: 'estValue3yr', label: 'Est. value · 3 yr', icon: 'chart-line', src: 'ALG', cells: c => c.estValue3yr ? formatPrice(c.estValue3yr) : '—' },
+    { metric: 'estValue5yr', label: 'Est. value · 5 yr', icon: 'chart-line', src: 'ALG', cells: c => c.estValue5yr ? formatPrice(c.estValue5yr) : '—' },
+    { metric: 'value', label: 'Value vs market', icon: 'arrow-trend-down', src: 'DriveClear', cells: c => `<span class="xdc-val xdc-val-${c.valueClass}">${escapeHtml(c.valueLabel)}</span>` },
   ];
 
-  const metricDir = { price: 'min', mpg: 'max', hp: 'max', zero: 'min', miles: 'min', distMin: 'min', value: 'max' };
+  const metricDir = { price: 'min', mpg: 'max', hp: 'max', zero: 'min', miles: 'min', distMin: 'min', value: 'max', crReliability: 'max', crOwnerSat: 'max', expertScore: 'max', insAnnual: 'min', monthlyEst: 'min', estValue3yr: 'max', estValue5yr: 'max' };
 
   const headCells = cars.map(c => `
     <th data-veh="${escapeHtml(c.key)}">
@@ -387,7 +635,7 @@ function initComparePage() {
     }).join('');
     const metricKey = row.metric === 'distMin' ? 'dist' : row.metric;
     return `<tr${metricKey ? ` data-metric="${metricKey}"` : ''}>
-      <td class="xdc-rowlabel"><i class="fa-solid fa-${row.icon}"></i> ${row.label}</td>${tds}</tr>`;
+      <td class="xdc-rowlabel"><i class="fa-solid fa-${row.icon}"></i> ${row.label}${row.src ? `<span class="xdc-row-src">${escapeHtml(row.src)}</span>` : ''}</td>${tds}</tr>`;
   }).join('');
 
   const ctaRow = cars.map(c => {
@@ -431,7 +679,7 @@ function updateHeroModels(make, modelSel) {
 }
 
 // ─── Card Rendering ───────────────────────────────────────
-function renderCards(vehicles, container) {
+function renderCards(vehicles, container, opts) {
   if (!vehicles.length) {
     container.innerHTML = `<div class="no-results">
       <i class="fa-regular fa-face-frown"></i>
@@ -440,7 +688,7 @@ function renderCards(vehicles, container) {
     </div>`;
     return;
   }
-  container.innerHTML = vehicles.map(v => cardHTML(v)).join('');
+  container.innerHTML = vehicles.map(v => cardHTML(v, opts)).join('');
   container.querySelectorAll('.v-save').forEach(btn => {
     const id = parseInt(btn.dataset.id);
     if (isSaved(id)) btn.classList.add('saved');
@@ -462,10 +710,18 @@ function renderCards(vehicles, container) {
       toggleCompare(id);
     });
   });
+  container.querySelectorAll('.v-test-drive').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.preventDefault(); e.stopPropagation();
+      const id = btn.dataset.id;
+      if (id) window.location.href = `test-drive-confirmation.html?id=${id}&lineup=1`;
+    });
+  });
   refreshCompareButtons();
 }
 
-function cardHTML(v) {
+function cardHTML(v, opts) {
+  const showTestDrive = opts && opts.testDrive;
   const apr = (typeof Profile !== 'undefined' && Profile.apr) ? Profile.apr() : 6.9;
   const monthly = calcMonthly(v.price, 0, apr);
   const badgeClass = v.dealBadge ? `badge-${v.dealBadge}` : '';
@@ -501,10 +757,16 @@ function cardHTML(v) {
         ${v.accidentFree ? '<span class="v-flag flag-clean"><i class="fa-solid fa-shield-halved"></i> Accident Free</span>' : ''}
         <span class="v-flag flag-carfax"><i class="fa-solid fa-file-shield"></i> Carfax</span>
       </div>
-      <button class="v-compare" data-id="${v.id}" aria-pressed="false" type="button">
-        <i class="fa-solid fa-scale-balanced"></i>
-        <span class="v-compare-label">Add to Compare</span>
-      </button>
+      <div class="v-actions${showTestDrive ? ' v-actions-dual' : ''}">
+        ${showTestDrive ? `<button class="v-test-drive" data-id="${v.id}" type="button" aria-label="Schedule test drive for ${v.year} ${v.make} ${v.model}">
+          <i class="fa-solid fa-calendar-check"></i>
+          <span>Test drive</span>
+        </button>` : ''}
+        <button class="v-compare" data-id="${v.id}" aria-pressed="false" type="button">
+          <i class="fa-solid fa-scale-balanced"></i>
+          <span class="v-compare-label">Add to Compare</span>
+        </button>
+      </div>
     </div>
   </a>`;
 }
@@ -576,6 +838,83 @@ function updateFilterCounts() {
   });
 }
 
+function initPersonalizedSrpLinks() {
+  if (typeof Profile === 'undefined' || !Profile.srpHref) return;
+  const href = Profile.srpHref();
+  document.querySelectorAll('a[href="srp.html"]').forEach(a => { a.href = href; });
+}
+
+function buildSrpSearchParams(state) {
+  const u = new URLSearchParams();
+  (state.make || []).forEach(m => u.append('make', m));
+  (state.body || []).forEach(b => u.append('body', b));
+  (state.drive || []).forEach(d => u.append('drive', d));
+  if (state.minYear && state.minYear > 2010) u.set('minYear', state.minYear);
+  if (state.maxYear && state.maxYear < 2024) u.set('maxYear', state.maxYear);
+  if (state.minPrice) u.set('minPrice', state.minPrice);
+  if (state.maxPrice && state.maxPrice < 50000) u.set('maxPrice', state.maxPrice);
+  if (state.targetBudget) u.set('budget', state.targetBudget);
+  if (state.maxApproved) u.set('approved', state.maxApproved);
+  if (state.maxMiles && state.maxMiles < 100000) u.set('maxMiles', state.maxMiles);
+  if (state.minMpg) u.set('minMpg', state.minMpg);
+  if (state.maxDist) u.set('maxDist', state.maxDist);
+  if (state.query) u.set('q', state.query);
+  if (state.sort && state.sort !== 'recommended') u.set('sort', state.sort);
+  return u;
+}
+
+function applyProfileToSrpFilters(urlP, inputs) {
+  if (typeof Profile === 'undefined' || !Profile.srpParams) return false;
+  const pp = Profile.srpParams();
+  let applied = false;
+
+  const setCheckboxes = (selector, values) => {
+    if (!values || !values.length) return;
+    values.forEach(val => {
+      const cb = document.querySelector(`${selector}[value="${val}"]`);
+      if (cb) { cb.checked = true; applied = true; }
+    });
+  };
+
+  if (!urlP.has('make') && pp.make) {
+    setCheckboxes('.fp-make', [].concat(pp.make));
+  }
+  if (!urlP.has('body') && pp.body) {
+    setCheckboxes('.fp-body', [pp.body]);
+  }
+  if (!urlP.has('drive') && pp.drive) {
+    setCheckboxes('.fp-drive', [].concat(pp.drive));
+  }
+  if (!urlP.has('maxPrice') && pp.maxPrice && inputs.maxPriceIn) {
+    inputs.maxPriceIn.value = pp.maxPrice;
+    applied = true;
+  }
+  if (!urlP.has('maxMiles') && pp.maxMiles && inputs.maxMilesIn) {
+    inputs.maxMilesIn.value = pp.maxMiles;
+    applied = true;
+  }
+  if (!urlP.has('minYear') && pp.minYear && inputs.minYearIn) {
+    inputs.minYearIn.value = pp.minYear;
+    applied = true;
+  }
+  return applied;
+}
+
+function renderSrpProfileCriteria() {
+  const el = document.getElementById('srp-profile-criteria');
+  if (!el || typeof Profile === 'undefined') return;
+  const hp = typeof PARTICIPANT !== 'undefined' ? PARTICIPANT.homepage : null;
+  const budget = Profile.budgetSummary ? Profile.budgetSummary() : '';
+  const text = [budget, hp && hp.criteriaText].filter(Boolean).join(' · ') || (Profile.summary ? Profile.summary() : '');
+  if (!text) { el.hidden = true; return; }
+  const ceiling = Profile.srpSearchCeiling ? Profile.srpSearchCeiling() : null;
+  const stretch = ceiling && PARTICIPANT.maxApproved && ceiling > PARTICIPANT.maxApproved
+    ? ` <span class="srp-budget-note">(search includes your shortlist up to ${formatPrice(ceiling)})</span>`
+    : '';
+  el.hidden = false;
+  el.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles"></i> <span>Your criteria: <strong>${escapeHtml(text)}</strong>${stretch} — filters applied below.</span>`;
+}
+
 function initSRP() {
   const grid = document.getElementById('srp-grid');
   const countEl = document.getElementById('srp-count');
@@ -595,6 +934,8 @@ function initSRP() {
     maxYear: parseInt(urlP.get('maxYear')) || 2024,
     minPrice: parseInt(urlP.get('minPrice')) || 0,
     maxPrice: parseInt(urlP.get('maxPrice')) || 50000,
+    targetBudget: parseInt(urlP.get('budget')) || 0,
+    maxApproved: parseInt(urlP.get('approved')) || 0,
     maxMiles: parseInt(urlP.get('maxMiles')) || 100000,
     minMpg: parseInt(urlP.get('minMpg')) || 0,
     maxDist: parseInt(urlP.get('maxDist')) || 0,
@@ -641,18 +982,18 @@ function initSRP() {
   if (minYearIn && urlP.get('minYear')) minYearIn.value = state.minYear;
   if (maxYearIn && urlP.get('maxYear')) maxYearIn.value = state.maxYear;
 
-  // Seed from the participant profile when the page wasn't opened with explicit filters.
-  const URL_FILTER_KEYS = ['make', 'body', 'drive', 'minYear', 'maxYear', 'minPrice', 'maxPrice', 'maxMiles', 'minMpg', 'maxDist', 'q'];
-  if (typeof Profile !== 'undefined' && Profile.toParams && !URL_FILTER_KEYS.some(k => urlP.has(k))) {
-    const pp = Profile.toParams();
-    [].concat(pp.make || []).forEach(m => { const cb = document.querySelector(`.fp-make[value="${m}"]`); if (cb) cb.checked = true; });
-    if (pp.body) { const cb = document.querySelector(`.fp-body[value="${pp.body}"]`); if (cb) cb.checked = true; }
-    if (pp.drive) { (Array.isArray(pp.drive) ? pp.drive : [pp.drive]).forEach(d => { const cb = document.querySelector(`.fp-drive[value="${d}"]`); if (cb) cb.checked = true; }); }
-    if (pp.maxPrice && maxPriceIn) maxPriceIn.value = pp.maxPrice;
-    if (pp.maxMiles && maxMilesIn) maxMilesIn.value = pp.maxMiles;
-    if (pp.minYear && minYearIn) minYearIn.value = pp.minYear;
-    state.minMpg = pp.minMpg || 0;
-    state.maxDist = pp.maxDist || 0;
+  // Merge participant profile for any criteria missing from the URL (partial links still inherit profile).
+  const profileApplied = applyProfileToSrpFilters(urlP, { maxPriceIn, maxMilesIn, minYearIn });
+  if (typeof Profile !== 'undefined' && Profile.srpParams) {
+    const pp = Profile.srpParams();
+    if (!urlP.has('minMpg') && pp.minMpg) state.minMpg = pp.minMpg;
+    if (!urlP.has('maxDist') && pp.maxDist) state.maxDist = pp.maxDist;
+    if (!urlP.has('budget') && pp.targetBudget) state.targetBudget = pp.targetBudget;
+    if (!urlP.has('approved') && pp.maxApproved) state.maxApproved = pp.maxApproved;
+  }
+  renderSrpProfileCriteria();
+  if (typeof PARTICIPANT !== 'undefined' && PARTICIPANT.homepage) {
+    renderTestDriveLineup(PARTICIPANT.homepage, 'srp-test-drives');
   }
 
   function readFilters() {
@@ -666,6 +1007,18 @@ function initSRP() {
     state.maxYear = parseInt(maxYearIn?.value) || 2024;
     state.query = searchInput?.value.trim().toLowerCase() || '';
     state.sort = sortSel?.value || 'recommended';
+  }
+
+  function getProfilePickVehicles() {
+    const out = [];
+    const seen = new Set();
+    const picks = typeof PARTICIPANT !== 'undefined' && PARTICIPANT.homepage?.picks;
+    if (!picks?.length || typeof findVehicleForPick !== 'function') return out;
+    picks.forEach(pick => {
+      const v = findVehicleForPick(pick);
+      if (v && !seen.has(v.id)) { seen.add(v.id); out.push(v); }
+    });
+    return out;
   }
 
   function applyAndRender() {
@@ -687,6 +1040,42 @@ function initSRP() {
       return true;
     });
 
+    const fallbackNote = document.getElementById('srp-fallback-note');
+    let fallbackMsg = '';
+
+    if (!results.length) {
+      const pickVehicles = getProfilePickVehicles();
+      if (pickVehicles.length) {
+        results = pickVehicles.slice();
+        fallbackMsg = '<i class="fa-solid fa-wand-magic-sparkles"></i> No exact filter matches — showing your <strong>AI shortlist</strong> instead. Adjust filters above to broaden the search.';
+      } else {
+        const relaxed = VEHICLES.filter(v => {
+          if (state.body.length && !state.body.includes(v.body)) return false;
+          if (state.drive.length && !state.drive.includes(v.drivetrain)) return false;
+          if (v.mileage > state.maxMiles * 1.25) return false;
+          if (v.year < state.minYear || v.year > state.maxYear) return false;
+          return true;
+        });
+        if (relaxed.length) {
+          results = relaxed;
+          fallbackMsg = '<i class="fa-solid fa-circle-info"></i> Filters were tight — showing <strong>closest matches</strong> (price ceiling relaxed).';
+        } else {
+          results = VEHICLES.slice().sort((a, b) => (b.marketSavings || 0) - (a.marketSavings || 0)).slice(0, 12);
+          fallbackMsg = '<i class="fa-solid fa-circle-info"></i> Showing <strong>top inventory</strong> while we widen your search criteria.';
+        }
+      }
+    }
+
+    if (fallbackNote) {
+      if (fallbackMsg) {
+        fallbackNote.hidden = false;
+        fallbackNote.innerHTML = fallbackMsg;
+      } else {
+        fallbackNote.hidden = true;
+        fallbackNote.innerHTML = '';
+      }
+    }
+
     // Sort
     switch (state.sort) {
       case 'price-asc': results.sort((a,b) => a.price - b.price); break;
@@ -697,9 +1086,16 @@ function initSRP() {
     }
 
     if (countEl) countEl.innerHTML = `Showing <strong>${results.length}</strong> vehicles`;
-    renderCards(results, grid);
+    renderCards(results, grid, { testDrive: true });
     renderActiveTags(activeTagsEl, state);
     renderPagination(results.length);
+
+    // Keep the address bar in sync so criteria are visible and shareable.
+    const qs = buildSrpSearchParams(state).toString();
+    const next = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
+    if (`${window.location.pathname}${window.location.search}` !== next) {
+      window.history.replaceState(null, '', next);
+    }
     return results.length;
   }
 
@@ -898,17 +1294,27 @@ function renderActiveTags(container, state) {
   const tags = [];
   state.make.forEach(m => tags.push({ label: m, remove: () => { const cb = document.querySelector(`.fp-make[value="${m}"]`); if(cb) cb.checked=false; } }));
   state.body.forEach(b => tags.push({ label: b, remove: () => { const cb = document.querySelector(`.fp-body[value="${b}"]`); if(cb) cb.checked=false; } }));
-  if (state.maxPrice < 50000) tags.push({ label: `Under ${formatPrice(state.maxPrice)}`, remove: () => { document.getElementById('fp-max-price').value=''; } });
+  state.drive.forEach(d => tags.push({ label: d, remove: () => { const cb = document.querySelector(`.fp-drive[value="${d}"]`); if(cb) cb.checked=false; } }));
+  if (typeof PARTICIPANT !== 'undefined' && PARTICIPANT.maxPrice) {
+    tags.push({ label: `Budget ~${formatPrice(PARTICIPANT.maxPrice)}`, remove: null });
+  }
+  if (typeof PARTICIPANT !== 'undefined' && PARTICIPANT.maxApproved && PARTICIPANT.maxApproved > (PARTICIPANT.maxPrice || 0)) {
+    tags.push({ label: `${formatPrice(PARTICIPANT.maxApproved)} approved`, remove: null });
+  }
+  if (state.minYear > 2010) tags.push({ label: `${state.minYear}+`, remove: () => { const el = document.getElementById('fp-min-year'); if (el) el.value = ''; } });
+  if (state.maxPrice < 50000) tags.push({ label: `Showing up to ${formatPrice(state.maxPrice)}`, remove: () => { document.getElementById('fp-max-price').value=''; } });
   if (state.maxMiles < 100000) tags.push({ label: `Under ${state.maxMiles.toLocaleString()} mi`, remove: () => { document.getElementById('fp-max-miles').value=''; } });
+  if (state.minMpg) tags.push({ label: `${state.minMpg}+ MPG`, remove: () => { state.minMpg = 0; } });
+  if (state.maxDist) tags.push({ label: `Within ${state.maxDist} mi`, remove: () => { state.maxDist = 0; } });
 
   container.innerHTML = tags.map((t,i) =>
-    `<span class="a-tag">${t.label}<button data-idx="${i}" aria-label="Remove filter">&times;</button></span>`
+    `<span class="a-tag${t.remove ? '' : ' a-tag-info'}">${t.label}${t.remove ? `<button data-idx="${i}" aria-label="Remove filter">&times;</button>` : ''}</span>`
   ).join('');
 
   container.querySelectorAll('button').forEach(btn => {
     btn.addEventListener('click', () => {
-      tags[parseInt(btn.dataset.idx)].remove();
-      // Trigger re-render via the sort selector change (cheapest path)
+      const tag = tags[parseInt(btn.dataset.idx)];
+      if (tag && tag.remove) tag.remove();
       document.getElementById('srp-sort')?.dispatchEvent(new Event('change'));
     });
   });
@@ -2497,6 +2903,56 @@ function initFinancePrep() {
 
 // ─── Test Drive Confirmation ─────────────────────────────
 let tdPrepVehicle = null;
+let tdMultiDrive = false;
+
+function tdNotesPageUrl(id, lineup) {
+  const params = new URLSearchParams();
+  if (id) params.set('id', id);
+  if (lineup) params.set('lineup', '1');
+  const q = params.toString();
+  return `test-drive-notes.html${q ? '?' + q : ''}`;
+}
+
+function renderTestDriveLineupAI(showLineup, lineup, notesUrl) {
+  const el = document.getElementById('td-lineup-ai');
+  if (!el) return;
+  if (!showLineup || !lineup.length) {
+    el.hidden = true;
+    el.innerHTML = '';
+    return;
+  }
+
+  const hp = typeof PARTICIPANT !== 'undefined' ? PARTICIPANT.homepage : null;
+  const prep = (hp && hp.testDrive && hp.testDrive.lineupPrep) || {};
+  const picks = (hp && hp.picks) || [];
+  const orderKeys = prep.driveOrder || lineup.map(c => c.key);
+  const orderNames = orderKeys.map(key => {
+    const pick = picks.find(p => p.key === key);
+    return pick ? pick.make + ' ' + pick.model : key;
+  });
+  const focus = prep.compareFocus || [];
+  const chips = (prep.chips || []).map(c =>
+    `<button type="button" class="pa-chip td-lineup-ai-chip" data-q="${escapeHtml(c)}">${escapeHtml(c)}</button>`
+  ).join('');
+
+  el.hidden = false;
+  el.innerHTML = `
+    <div class="td-lineup-ai-head">
+      <div class="td-lineup-ai-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+      <div>
+        <div class="td-lineup-ai-eyebrow">${escapeHtml(prep.eyebrow || 'DriveClear Assistant · Back-to-back plan')}</div>
+        <div class="td-lineup-ai-title">Suggested drive order</div>
+      </div>
+    </div>
+    <div class="td-lineup-ai-order">${orderNames.map((n, i) =>
+      `<span class="td-lineup-ai-step"><span class="td-lineup-ai-num">${i + 1}</span>${escapeHtml(n)}</span>`
+    ).join('<i class="fa-solid fa-arrow-right td-lineup-ai-arrow"></i>')}</div>
+    ${prep.orderWhy ? `<p class="td-lineup-ai-why">${escapeHtml(prep.orderWhy)}</p>` : ''}
+    ${focus.length ? `<ul class="td-lineup-ai-focus">${focus.map(f => `<li>${escapeHtml(f)}</li>`).join('')}</ul>` : ''}
+    ${prep.aiTake ? `<div class="td-lineup-ai-take"><i class="fa-solid fa-lightbulb"></i><div>${prep.aiTake}</div></div>` : ''}
+    ${chips ? `<div class="td-lineup-ai-chips">${chips}</div>` : ''}
+    ${notesUrl ? `<a href="${notesUrl}" class="td-lineup-ai-notes-link"><i class="fa-solid fa-clipboard-list"></i> Open in-store notes sheet</a>` : ''}`;
+}
 
 function initTestDriveConfirmation() {
   const id = new URLSearchParams(window.location.search).get('id') || '1';
@@ -2505,35 +2961,707 @@ function initTestDriveConfirmation() {
   const visit = getVisitContext();
 
   const prepSub = document.getElementById('td-prep-sub');
+  const lineup = getActiveTestDriveLineup();
+  const showLineup = new URLSearchParams(window.location.search).get('lineup') === '1' && lineup.length > 1;
+  const hub = (typeof Profile !== 'undefined' && Profile.testDriveHub) ? Profile.testDriveHub() : null;
+  tdMultiDrive = showLineup;
+
   if (prepSub) {
-    prepSub.textContent = `Personalized for the car you're driving ${visit.when}, so you can focus on the drive — not the surprises.`;
+    prepSub.textContent = showLineup && hub
+      ? `All ${lineup.length} vehicles staged at ${hub.name} ${visit.when} — one Charlotte stop, back-to-back drives.`
+      : `Personalized for the car you're driving ${visit.when}, so you can focus on the drive — not the surprises.`;
   }
 
   const root = document.getElementById('td-confirm-root');
   if (root) {
     const vehicleEl = document.getElementById('td-vehicle');
     const detailsEl = document.getElementById('td-details');
-    const vdpLink = document.getElementById('td-vdp-link');
+    const lineupEl = document.getElementById('td-lineup');
+    const introEl = document.getElementById('td-intro');
 
     if (!v) {
       if (vehicleEl) vehicleEl.textContent = 'your selected vehicle';
     } else {
       const title = `${v.year} ${v.make} ${v.model} ${v.trim}`;
-      if (vehicleEl) vehicleEl.textContent = title;
+      if (vehicleEl) {
+        vehicleEl.textContent = showLineup
+          ? `your Charlotte test drive — ${lineup.length} vehicles`
+          : title;
+      }
+      if (introEl && showLineup && hub) {
+        introEl.innerHTML = `You're all set for a <strong>back-to-back test drive</strong> at <strong>${escapeHtml(hub.name)}</strong> (${escapeHtml(hub.address)}). All <strong>${lineup.length} AWD sedans</strong> will be staged at one location — no driving between lots.`;
+      }
       if (detailsEl) {
+        const visitLoc = showLineup && hub ? `${hub.name} · ${hub.address}` : v.location;
         detailsEl.innerHTML = `
-          <div class="td-detail-row"><span>Vehicle</span><strong>${title}</strong></div>
-          <div class="td-detail-row"><span>Stock #</span><strong>${v.stockNum}</strong></div>
-          <div class="td-detail-row"><span>Price</span><strong>${formatPrice(v.price)}</strong></div>
-          <div class="td-detail-row"><span>Location</span><strong>${v.location}</strong></div>
+          <div class="td-detail-row"><span>Vehicle${showLineup ? 's' : ''}</span><strong>${showLineup ? `${lineup.length} AWD sedans` : title}</strong></div>
+          ${showLineup ? '' : `<div class="td-detail-row"><span>Stock #</span><strong>${v.stockNum}</strong></div>`}
+          ${showLineup ? '' : `<div class="td-detail-row"><span>Price</span><strong>${formatPrice(v.price)}</strong></div>`}
+          <div class="td-detail-row"><span>Location</span><strong>${escapeHtml(visitLoc)}</strong></div>
           <div class="td-detail-row"><span>When</span><strong>${escapeHtml(visit.when)}</strong></div>
           <div class="td-detail-row"><span>Where</span><strong>${escapeHtml(visit.where)}</strong></div>`;
       }
-      if (vdpLink) vdpLink.href = `vdp.html?id=${v.id}`;
+    }
+
+    if (lineupEl && showLineup) {
+      lineupEl.hidden = false;
+      const hubNote = hub
+        ? `All vehicles pulled to <strong>${escapeHtml(hub.name)}</strong> at ${escapeHtml(hub.address)} — drive them in any order, one check-in.`
+        : 'We will have these vehicles ready back-to-back at your Charlotte visit — drive them in any order.';
+      lineupEl.innerHTML = `
+        <div class="td-lineup-title"><i class="fa-solid fa-list-check"></i> Your Charlotte test drive lineup</div>
+        <p class="td-lineup-note">${hubNote}</p>
+        <div class="td-lineup-grid">${lineup.map(car => `
+          <div class="td-lineup-item${car.vdpId === (v && v.id) ? ' td-lineup-item-primary' : ''}">
+            <strong>${escapeHtml(car.name)}</strong>
+            <span>${escapeHtml(car.trimLabel)}</span>
+            <span><i class="fa-solid fa-location-dot"></i> Staged at Charlotte</span>
+            ${car.vdpId ? `<a href="vdp.html?id=${car.vdpId}" class="td-lineup-link">View listing</a>` : ''}
+          </div>`).join('')}</div>`;
+    } else if (lineupEl) {
+      lineupEl.hidden = true;
+      lineupEl.innerHTML = '';
+    }
+
+    renderTestDriveLineupAI(showLineup, lineup, showLineup ? tdNotesPageUrl(id, true) : null);
+
+    const notesBtn = document.getElementById('td-notes-btn');
+    if (notesBtn) {
+      if (showLineup) {
+        notesBtn.hidden = false;
+        notesBtn.href = tdNotesPageUrl(id, true);
+      } else {
+        notesBtn.hidden = true;
+      }
     }
   }
 
   if (document.getElementById('td-prep')) initTestDrivePrep(v || getVehicleById?.('1'));
+}
+
+function initTestDriveNotesPage() {
+  const lineup = getActiveTestDriveLineup();
+  const params = new URLSearchParams(window.location.search);
+  const showLineup = params.get('lineup') === '1' && lineup.length > 1;
+  const id = params.get('id') || '1';
+
+  if (!showLineup) {
+    window.location.replace(`test-drive-confirmation.html?id=${id}`);
+    return;
+  }
+
+  const back = document.getElementById('td-notes-back');
+  if (back) back.href = `test-drive-confirmation.html?id=${id}&lineup=1`;
+
+  initTestDriveDriveNotes(lineup);
+}
+
+const TD_NOTES_KEY = 'dc_td_notes';
+
+function tdNotesLoad() {
+  try { return JSON.parse(localStorage.getItem(TD_NOTES_KEY) || '{}'); }
+  catch (e) { return {}; }
+}
+
+function tdNotesSave(data) {
+  try { localStorage.setItem(TD_NOTES_KEY, JSON.stringify(data)); } catch (e) { /* noop */ }
+}
+
+function tdNotesStars(n, max) {
+  const filled = Math.max(0, Math.min(max || 5, parseInt(n, 10) || 0));
+  return `${'★'.repeat(filled)}${'☆'.repeat((max || 5) - filled)}`;
+}
+
+function tdNotesAvgRating(entry, dims) {
+  if (!entry?.ratings || !dims?.length) return null;
+  const vals = dims.map(d => entry.ratings[d.key] || 0).filter(v => v > 0);
+  if (!vals.length) return null;
+  const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+  return { avg, count: vals.length, rounded: Math.round(avg * 10) / 10 };
+}
+
+function tdNotesAvgDisplay(entry, dims) {
+  const r = tdNotesAvgRating(entry, dims);
+  if (!r) return '<span class="td-notes-empty">—</span>';
+  return `<span class="td-notes-avg-stars">${tdNotesStars(Math.round(r.avg))}</span><span class="td-notes-avg-num">${r.rounded}/5</span>`;
+}
+
+function tdNotesCrStars(n) {
+  const s = Math.max(0, Math.min(5, parseInt(n, 10) || 0));
+  return `${'★'.repeat(s)}${'☆'.repeat(5 - s)}`;
+}
+
+function tdNotesRetainPct(cm) {
+  if (!cm || !cm.price || !cm.estValue5yr) return '';
+  return Math.round((cm.estValue5yr / cm.price) * 100) + '% retained';
+}
+
+function tdNotesApr() {
+  return (typeof Profile !== 'undefined' && Profile.apr) ? Profile.apr() : 4.9;
+}
+
+function tdNotesPayment72(monthly60) {
+  return monthly60 ? Math.round(monthly60 * 0.87) : null;
+}
+
+function tdNotesPriceHtml(pick) {
+  const cm = pick?.compareMetrics || {};
+  const price = cm.price || (pick?.price ? parseInt(String(pick.price).replace(/\D/g, ''), 10) : null);
+  if (!price) return pick?.price ? escapeHtml(pick.price) : '';
+  const p = typeof PARTICIPANT !== 'undefined' ? PARTICIPANT : {};
+  const target = p.maxPrice || 26000;
+  const approved = p.maxApproved || 30000;
+  let badge = '';
+  if (price <= target) badge = '<span class="td-notes-price-ok">on target</span>';
+  else if (price <= approved) badge = '<span class="td-notes-price-stretch">above target</span>';
+  else badge = '<span class="td-notes-pay-over">over approval</span>';
+  return `<div class="td-notes-price-line"><strong>${formatPrice(price)}</strong> ${badge}</div>`;
+}
+
+function tdNotesPaymentOptionsHtml(pick) {
+  const cm = pick?.compareMetrics || {};
+  const apr = tdNotesApr();
+  const p = typeof PARTICIPANT !== 'undefined' ? PARTICIPANT : {};
+  const approved = p.maxApproved || 30000;
+  const priceHtml = tdNotesPriceHtml(pick);
+  if (!cm.monthlyEst && !priceHtml) return '';
+  const m72 = cm.monthlyEst ? tdNotesPayment72(cm.monthlyEst) : null;
+  const over = cm.price > approved;
+  return `<div class="td-notes-payment-opts">
+    ${priceHtml || ''}
+    ${cm.monthlyEst ? `<div class="td-notes-pay-line"><span class="td-notes-pay-term">60 mo</span> <strong>~$${cm.monthlyEst}/mo</strong></div>` : ''}
+    ${m72 ? `<div class="td-notes-pay-line"><span class="td-notes-pay-term">72 mo</span> <strong>~$${m72}/mo</strong></div>` : ''}
+    ${cm.monthlyEst ? `<div class="td-notes-pay-meta">${apr}% APR · 10% down${over ? ' · <span class="td-notes-pay-over">over approval</span>' : ''}</div>` : ''}
+  </div>`;
+}
+
+function tdNotesPaymentCompareBlock(cars) {
+  const apr = tdNotesApr();
+  return `<div class="td-notes-payment-section-title"><i class="fa-solid fa-calculator"></i> Price & monthly payment</div>
+    <div class="td-notes-grid td-notes-grid-payment">
+      <div class="td-notes-grid-label">Listing price <span class="td-notes-src">DriveClear</span></div>
+      ${cars.map(c => {
+        const html = tdNotesPriceHtml(tdNotesGetPick(c.key));
+        return `<div class="td-notes-grid-payment-val">${html || '<span class="td-notes-empty">—</span>'}</div>`;
+      }).join('')}
+    </div>
+    <div class="td-notes-grid td-notes-grid-payment">
+      <div class="td-notes-grid-label">Est. payment <span class="td-notes-src">${apr}% APR · 10% down</span></div>
+      ${cars.map(c => {
+        const pick = tdNotesGetPick(c.key);
+        const cm = pick?.compareMetrics || {};
+        if (!cm.monthlyEst) return `<div class="td-notes-grid-payment-val"><span class="td-notes-empty">—</span></div>`;
+        const m72 = tdNotesPayment72(cm.monthlyEst);
+        return `<div class="td-notes-grid-payment-val"><div class="td-notes-payment-opts">
+          <div class="td-notes-pay-line"><span class="td-notes-pay-term">60 mo</span> <strong>~$${cm.monthlyEst}/mo</strong></div>
+          ${m72 ? `<div class="td-notes-pay-line"><span class="td-notes-pay-term">72 mo</span> <strong>~$${m72}/mo</strong></div>` : ''}
+        </div></div>`;
+      }).join('')}
+    </div>`;
+}
+
+function tdNotesTcoRows(cars) {
+  const specs = [
+    {
+      label: 'CR reliability',
+      src: 'Consumer Reports',
+      cell: pick => {
+        const n = pick?.compareMetrics?.crReliability;
+        return n ? tdNotesCrStars(n) : '—';
+      },
+    },
+    {
+      label: 'Est. maintenance',
+      src: 'RepairPal avg.',
+      cell: pick => {
+        const n = pick?.compareMetrics?.maintAnnual;
+        return n ? `~$${n.toLocaleString()}/yr` : '—';
+      },
+    },
+  ];
+  return specs.map(spec => `<div class="td-notes-grid td-notes-grid-tco">
+    <div class="td-notes-grid-label">${escapeHtml(spec.label)} <span class="td-notes-src">${escapeHtml(spec.src)}</span></div>
+    ${cars.map(c => {
+      const pick = tdNotesGetPick(c.key);
+      return `<div class="td-notes-grid-tco-val">${spec.cell(pick)}</div>`;
+    }).join('')}
+  </div>`).join('');
+}
+
+function tdNotesRatingRowHtml(d, entry) {
+  const val = entry.ratings[d.key] || 0;
+  return `<div class="td-notes-rating-row">
+    <span class="td-notes-rating-label">${escapeHtml(d.label)}</span>
+    <div class="td-notes-stars" data-dim="${d.key}">${[1, 2, 3, 4, 5].map(n =>
+      `<button type="button" class="td-notes-star${n <= val ? ' on' : ''}" data-val="${n}" aria-label="${n} out of 5">★</button>`
+    ).join('')}</div>
+  </div>`;
+}
+
+function tdNotesRenderRatingRows(dims, entry) {
+  const topGroups = [
+    { key: 'drive', label: 'Drive impressions' },
+    { key: 'ownership', label: 'Reliability & maintenance' },
+  ];
+  return topGroups.map(g => {
+    const items = dims.filter(d => (d.group || 'drive') === g.key);
+    if (!items.length) return '';
+    const catOrder = [];
+    const byCat = {};
+    items.forEach(d => {
+      const cat = d.category || d.label;
+      if (!byCat[cat]) { byCat[cat] = []; catOrder.push(cat); }
+      byCat[cat].push(d);
+    });
+    const inner = catOrder.map(cat => `<div class="td-notes-rating-category">
+      <div class="td-notes-rating-category-label">${escapeHtml(cat)}</div>
+      ${byCat[cat].map(d => tdNotesRatingRowHtml(d, entry)).join('')}
+    </div>`).join('');
+    return `<div class="td-notes-rating-group">
+      <div class="td-notes-rating-group-label">${escapeHtml(g.label)}</div>
+      ${inner}
+    </div>`;
+  }).join('');
+}
+
+function tdNotesGroupedCompareRows(dims, cars, data) {
+  let html = '';
+  let lastCat = '';
+  dims.forEach(d => {
+    const cat = d.category || d.label;
+    if (cat !== lastCat) {
+      lastCat = cat;
+      html += `<div class="td-notes-grid td-notes-grid-cat">
+        <div class="td-notes-grid-cat-label">${escapeHtml(cat)}</div>
+        ${cars.map(() => '<div class="td-notes-grid-cat-spacer"></div>').join('')}
+      </div>`;
+    }
+    html += `<div class="td-notes-grid">
+      <div class="td-notes-grid-label td-notes-grid-dim-label">${escapeHtml(d.label)}</div>
+      ${cars.map(c => {
+        const v = data[c.key]?.ratings?.[d.key] || 0;
+        return `<div class="td-notes-grid-val${v ? '' : ' empty'}">${v ? tdNotesStars(v) : '—'}</div>`;
+      }).join('')}
+    </div>`;
+  });
+  return html;
+}
+
+function tdNotesDepreciationLeader(cars) {
+  let best = null;
+  let bestRetain = -1;
+  cars.forEach(car => {
+    const pick = tdNotesGetPick(car.key);
+    const cm = pick?.compareMetrics || {};
+    if (!cm.estValue5yr || !cm.price) return;
+    const retain = cm.estValue5yr / cm.price;
+    if (retain > bestRetain) {
+      bestRetain = retain;
+      best = { car, estValue5yr: cm.estValue5yr, retain, cm };
+    }
+  });
+  return best;
+}
+
+function tdNotesSnapshotText(cars, dims, data) {
+  const rated = cars.filter(c => (data[c.key]?.ratings?.overall || 0) > 0);
+  if (!rated.length) return '';
+  const top = (dim) => {
+    let best = null, val = -1;
+    cars.forEach(c => {
+      const v = data[c.key]?.ratings?.[dim] || 0;
+      if (v > val) { val = v; best = c; }
+    });
+    return best && val > 0 ? { car: best, val } : null;
+  };
+  const overall = top('overall');
+  const awd = top('awdFeel');
+  const value = top('value');
+  const reliability = top('reliability');
+  const maintenance = top('maintenance');
+  const favorite = cars.find(c => data[c.key]?.favorite);
+  const parts = [];
+  if (favorite) parts.push(`You flagged <strong>${escapeHtml(favorite.shortName)}</strong> as your favorite so far.`);
+  if (overall) parts.push(`<strong>${escapeHtml(overall.car.shortName)}</strong> leads your overall gut check (${overall.val}/5).`);
+  if (reliability) parts.push(`<strong>${escapeHtml(reliability.car.shortName)}</strong> scores highest on reliability confidence (${reliability.val}/5).`);
+  if (maintenance && maintenance.car.key !== reliability?.car?.key) parts.push(`<strong>${escapeHtml(maintenance.car.shortName)}</strong> feels most comfortable on upkeep (${maintenance.val}/5).`);
+  const depLeader = tdNotesDepreciationLeader(cars);
+  if (depLeader) parts.push(`<strong>${escapeHtml(depLeader.car.shortName)}</strong> leads on 5-yr resale — est. <strong>${formatPrice(depLeader.estValue5yr)}</strong> (${tdNotesRetainPct(depLeader.cm)}).`);
+  if (awd && awd.car.key !== overall?.car?.key) parts.push(`<strong>${escapeHtml(awd.car.shortName)}</strong> felt closest to your Audi on steering/AWD (${awd.val}/5).`);
+  if (value && value.car.key !== overall?.car?.key) parts.push(`<strong>${escapeHtml(value.car.shortName)}</strong> scored highest on value-for-payment (${value.val}/5).`);
+  if (rated.length < cars.length) parts.push(`You've rated <strong>${rated.length} of ${cars.length}</strong> — finish the rest while impressions are fresh.`);
+  return parts.join(' ');
+}
+
+function tdNotesGetPick(key) {
+  const hp = typeof PARTICIPANT !== 'undefined' ? PARTICIPANT.homepage : null;
+  return (hp && hp.picks) ? hp.picks.find(p => p.key === key) : null;
+}
+
+function tdNotesProfileScore(pick) {
+  if (!pick) return 50;
+  const cm = pick.compareMetrics || {};
+  const p = typeof PARTICIPANT !== 'undefined' ? PARTICIPANT : {};
+  const needs = p.needs || [];
+  const maxPrice = p.maxPrice || 26000;
+  const maxApproved = p.maxApproved || 30000;
+  const price = cm.price || 0;
+  let score = 48;
+
+  if (price <= maxPrice) score += 14;
+  else if (price <= maxApproved) score += 6;
+  else score -= 18;
+
+  if (needs.includes('insurance')) {
+    if (cm.insAnnual <= 1600) score += 14;
+    else if (cm.insAnnual <= 1750) score += 8;
+    else score += 3;
+  }
+  if (needs.includes('financing') || needs.includes('value')) {
+    if (cm.monthlyEst <= 500) score += 10;
+    else if (cm.monthlyEst <= 540) score += 5;
+    else score -= 4;
+  }
+  if (needs.includes('reliable') || needs.includes('lowmaintenance')) {
+    score += (cm.crReliability || 0) * 4;
+    if (pick.make === 'Lexus') score += 4;
+  }
+  if (needs.includes('sporty') || needs.includes('handling') || needs.includes('performance')) {
+    score += (cm.expertScore || 0) * 2.5;
+    if (pick.make === 'BMW') score += 5;
+  }
+  if (needs.includes('expertreviews')) score += (cm.expertScore || 0) * 2;
+  if (needs.includes('fuel')) score += Math.min(8, (cm.mpg || 0) / 4);
+  if (needs.includes('lowmaintenance') && cm.maintAnnual) {
+    if (cm.maintAnnual <= 850) score += 10;
+    else if (cm.maintAnnual <= 1000) score += 4;
+    else score -= 6;
+  }
+  if (cm.estValue5yr && cm.price) {
+    const retain = cm.estValue5yr / cm.price;
+    if (retain >= 0.66) score += 6;
+    else if (retain >= 0.62) score += 2;
+  }
+
+  return Math.min(98, Math.max(20, Math.round(score)));
+}
+
+function tdNotesDriveScore(entry) {
+  if (!entry || !entry.ratings) return null;
+  const r = entry.ratings;
+  const weights = { overall: 3, awdFeel: 2.5, value: 2, reliability: 2.2, maintenance: 2.2, roadNoise: 1.2, rearSeat: 1 };
+  let sum = 0, w = 0;
+  Object.entries(weights).forEach(([k, wt]) => {
+    if (r[k]) { sum += r[k] * wt; w += wt; }
+  });
+  if (!w) return null;
+  return Math.round((sum / w) * 20);
+}
+
+function tdNotesFitAnalysis(cars, data) {
+  const p = typeof PARTICIPANT !== 'undefined' ? PARTICIPANT : {};
+  const trade = p.tradeIn || {};
+  const maxPrice = p.maxPrice || 26000;
+  const maxApproved = p.maxApproved || 30000;
+  const rated = cars.filter(c => tdNotesDriveScore(data[c.key]) != null);
+  const anyRated = cars.some(c => Object.keys(data[c.key]?.ratings || {}).length > 0);
+  const favorite = cars.find(c => data[c.key]?.favorite);
+
+  const scored = cars.map(car => {
+    const pick = tdNotesGetPick(car.key);
+    const profile = tdNotesProfileScore(pick);
+    const drive = tdNotesDriveScore(data[car.key]);
+    const favBoost = favorite?.key === car.key ? 12 : 0;
+    let combined = profile;
+    let driveWeight = 0;
+    if (drive != null) {
+      driveWeight = rated.length >= 2 ? 0.62 : 0.45;
+      combined = Math.round(profile * (1 - driveWeight) + drive * driveWeight + favBoost);
+    } else if (favorite?.key === car.key) {
+      combined = Math.min(98, profile + favBoost);
+    }
+    return { car, pick, profile, drive, combined, favBoost: !!favBoost };
+  }).sort((a, b) => b.combined - a.combined);
+
+  const winner = scored[0];
+  const runner = scored[1];
+  const confidence = !anyRated ? 'profile'
+    : rated.length < 2 ? 'early'
+    : rated.length < cars.length ? 'building'
+    : 'strong';
+
+  const reasons = [];
+  const watchouts = [];
+  const cm = winner.pick?.compareMetrics || {};
+
+  if (favorite && favorite.key === winner.car.key) {
+    reasons.push(`You marked the <strong>${escapeHtml(winner.car.shortName)}</strong> as your favorite in the lot.`);
+  }
+  if (winner.drive != null && winner.drive >= 70) {
+    reasons.push(`Your in-store ratings put it at <strong>${winner.drive}/100</strong> on how it actually felt to drive.`);
+  }
+  if (p.needs?.includes('insurance') && cm.insAnnual) {
+    reasons.push(`Insurance runs ~<strong>$${cm.insAnnual.toLocaleString()}/yr</strong> — about $${Math.max(0, 2180 - cm.insAnnual)} less than your Audi.`);
+  }
+  if (p.needs?.includes('reliable') && cm.crReliability >= 4) {
+    reasons.push(`CR reliability scores <strong>${cm.crReliability}/5</strong> — aligns with your low-maintenance priority after the Audi.`);
+  }
+  if (data[winner.car.key]?.ratings?.maintenance >= 4) {
+    reasons.push(`You rated upkeep comfort <strong>${data[winner.car.key].ratings.maintenance}/5</strong> — important after your Audi repair costs.`);
+  }
+  if (cm.maintAnnual && p.needs?.includes('lowmaintenance')) {
+    reasons.push(`Typical maintenance runs ~<strong>$${cm.maintAnnual.toLocaleString()}/yr</strong> vs higher German-brand averages.`);
+  }
+  const depLeader = tdNotesDepreciationLeader(cars);
+  if (cm.estValue5yr && cm.price) {
+    if (depLeader?.car.key === winner.car.key) {
+      reasons.push(`Leads on depreciation — est. <strong>${formatPrice(cm.estValue5yr)}</strong> in 5 yrs (${tdNotesRetainPct(cm)}).`);
+    } else {
+      reasons.push(`Est. <strong>${formatPrice(cm.estValue5yr)}</strong> in 5 yrs (${tdNotesRetainPct(cm)})${depLeader ? ` — <strong>${escapeHtml(depLeader.car.shortName)}</strong> retains the most in this group` : ''}.`);
+    }
+  }
+  if ((p.needs?.includes('sporty') || p.needs?.includes('handling')) && data[winner.car.key]?.ratings?.awdFeel >= 4) {
+    reasons.push(`You rated AWD/steering <strong>${data[winner.car.key].ratings.awdFeel}/5</strong> vs your quattro benchmark.`);
+  }
+  if (p.needs?.includes('value') && cm.monthlyEst) {
+    reasons.push(`Payment lands around <strong>~$${cm.monthlyEst}/mo</strong> at your 4.9% APR tier.`);
+  }
+  if (winner.pick?.drawer?.fit && confidence === 'profile') {
+    reasons.push(winner.pick.drawer.fit.replace(/<[^>]+>/g, '').slice(0, 120) + (winner.pick.drawer.fit.length > 120 ? '…' : ''));
+  }
+
+  if (winner.car.key === 'bmw330' && cm.price > maxApproved) {
+    watchouts.push(`Stretches your <strong>$${maxApproved.toLocaleString()} approval</strong> — only worth it if the drive feel clearly beats the others.`);
+  }
+  if (winner.car.key === 'acuraTLX' && cm.crReliability <= 3) {
+    watchouts.push(`CR reliability is mid-pack — weigh that against the lower payment and insurance.`);
+  }
+  if (winner.car.key === 'lexusIS' && data[winner.car.key]?.ratings?.awdFeel && data[winner.car.key].ratings.awdFeel < 4 && p.needs?.includes('sporty')) {
+    watchouts.push(`You scored steering/AWD lower than your Audi target — confirm sport feel is enough before deciding.`);
+  }
+  if (runner && winner.combined - runner.combined <= 6) {
+    watchouts.push(`<strong>${escapeHtml(runner.car.shortName)}</strong> is close behind — your remaining drive(s) could flip this.`);
+  }
+
+  const profileAnchor = `Replacing your <strong>${trade.year || 2017} ${trade.make || 'Audi'} ${trade.model || 'A4'}</strong> · ~$${maxPrice.toLocaleString()} target ($${maxApproved.toLocaleString()} approved) · AWD sedan · Charlotte`;
+
+  const headline = confidence === 'profile'
+    ? `Profile lean: <strong>${escapeHtml(winner.car.shortName)}</strong>`
+    : confidence === 'early'
+    ? `Early read: <strong>${escapeHtml(winner.car.shortName)}</strong>`
+    : `Best fit so far: <strong>${escapeHtml(winner.car.shortName)}</strong>`;
+
+  const sub = {
+    profile: 'Based on your stated priorities — rate each drive to sharpen this.',
+    early: 'Blending your profile with first drive impressions.',
+    building: `${rated.length} of ${cars.length} rated — analysis updating as you go.`,
+    strong: 'Profile + all three drive ratings combined.',
+  }[confidence];
+
+  return { winner, scored, confidence, headline, sub, reasons: reasons.slice(0, 5), watchouts: watchouts.slice(0, 2), profileAnchor, snapshot: tdNotesSnapshotText(cars, [], data) };
+}
+
+function tdNotesRenderFitAnalysis(cars, data) {
+  const fitEl = document.getElementById('td-notes-fit');
+  if (!fitEl) return;
+  const a = tdNotesFitAnalysis(cars, data);
+  const confLabel = { profile: 'Profile match', early: 'Early read', building: 'Updating', strong: 'Strong match' }[a.confidence];
+  const bars = a.scored.map(s => {
+    const pct = s.combined;
+    const isWin = s.car.key === a.winner.car.key;
+    return `<div class="td-fit-row${isWin ? ' td-fit-row-win' : ''}">
+      <div class="td-fit-row-name">${escapeHtml(s.car.shortName)}${s.favBoost ? ' <i class="fa-solid fa-heart"></i>' : ''}</div>
+      <div class="td-fit-bar-wrap"><div class="td-fit-bar" style="width:${pct}%"></div></div>
+      <div class="td-fit-pct">${pct}%</div>
+    </div>`;
+  }).join('');
+
+  fitEl.innerHTML = `
+    <div class="td-fit-head">
+      <div class="td-fit-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+      <div>
+        <div class="td-fit-eyebrow">DriveClear Assistant · Fit analysis</div>
+        <div class="td-fit-headline">${a.headline}</div>
+        <p class="td-fit-sub">${escapeHtml(a.sub)}</p>
+      </div>
+      <span class="td-fit-badge">${confLabel}</span>
+    </div>
+    <div class="td-fit-bars">${bars}</div>
+    ${a.reasons.length ? `<ul class="td-fit-reasons">${a.reasons.map(r => `<li>${r}</li>`).join('')}</ul>` : ''}
+    ${a.watchouts.length ? `<ul class="td-fit-watchouts">${a.watchouts.map(w => `<li><i class="fa-solid fa-circle-info"></i> ${w}</li>`).join('')}</ul>` : ''}
+    <div class="td-fit-profile"><i class="fa-solid fa-user"></i> ${a.profileAnchor}</div>
+    ${a.snapshot ? `<div class="td-fit-live">${a.snapshot}</div>` : ''}`;
+}
+
+function initTestDriveDriveNotes(lineup) {
+  const root = document.getElementById('td-notes-root');
+  if (!root || !lineup.length) return;
+
+  const hp = typeof PARTICIPANT !== 'undefined' ? PARTICIPANT.homepage : null;
+  const prep = (hp && hp.testDrive && hp.testDrive.lineupPrep) || {};
+  const notesCfg = prep.driveNotes || {};
+  const dims = notesCfg.noteDimensions || [
+    { key: 'awdFeel', label: 'AWD / steering vs Audi', group: 'drive', category: 'Performance & handling' },
+    { key: 'roadNoise', label: 'Road noise at 60 mph', group: 'drive', category: 'Refinement' },
+    { key: 'rearSeat', label: 'Rear seat & daily comfort', group: 'drive', category: 'Comfort' },
+    { key: 'value', label: 'Worth the payment', group: 'drive', category: 'Value' },
+    { key: 'overall', label: 'Gut check', group: 'drive', category: 'Overall' },
+    { key: 'reliability', label: 'Reliability confidence', group: 'ownership', category: 'Reliability' },
+    { key: 'maintenance', label: 'Upkeep comfort', group: 'ownership', category: 'Maintenance' },
+  ];
+  const orderKeys = prep.driveOrder || lineup.map(c => c.key);
+  const cars = orderKeys.map(key => {
+    const car = lineup.find(c => c.key === key);
+    if (!car) return null;
+    const shortName = car.name.replace(/^\d{4}\s+/, '');
+    return { ...car, shortName };
+  }).filter(Boolean);
+
+  const titleEl = document.getElementById('td-notes-title');
+  const subEl = document.getElementById('td-notes-sub');
+  if (titleEl) titleEl.textContent = notesCfg.title || 'In-store drive notes';
+  if (subEl) subEl.textContent = notesCfg.subtitle || 'Rate each car after you drive — your compare sheet updates live.';
+
+  let activeKey = cars[0]?.key;
+  let data = tdNotesLoad();
+  cars.forEach(c => {
+    if (!data[c.key]) data[c.key] = { ratings: {}, notes: '', favorite: false };
+  });
+
+  const tabsEl = document.getElementById('td-notes-tabs');
+  const formEl = document.getElementById('td-notes-form');
+  const compareEl = document.getElementById('td-notes-compare');
+  const fitEl = document.getElementById('td-notes-fit');
+  const progressEl = document.getElementById('td-notes-progress-bar');
+
+  const ratedCount = () => cars.filter(c => (data[c.key]?.ratings?.overall || 0) > 0).length;
+
+  const persist = () => {
+    tdNotesSave(data);
+    renderCompare();
+    tdNotesRenderFitAnalysis(cars, data);
+    if (progressEl) progressEl.textContent = `${ratedCount()} of ${cars.length} rated`;
+  };
+
+  const renderTabs = () => {
+    if (!tabsEl) return;
+    tabsEl.innerHTML = cars.map(c => {
+      const done = (data[c.key]?.ratings?.overall || 0) > 0;
+      const fav = data[c.key]?.favorite;
+      const avg = tdNotesAvgRating(data[c.key], dims);
+      const avgBadge = avg ? `<span class="td-notes-tab-avg">${avg.rounded}★</span>` : '';
+      return `<button type="button" class="td-notes-tab${c.key === activeKey ? ' active' : ''}${done ? ' done' : ''}" data-key="${c.key}" role="tab" aria-selected="${c.key === activeKey}">
+        ${fav ? '<i class="fa-solid fa-heart td-notes-tab-fav"></i>' : ''}${escapeHtml(c.shortName)}${avgBadge}${done ? '<i class="fa-solid fa-check td-notes-tab-check"></i>' : ''}
+      </button>`;
+    }).join('');
+  };
+
+  const renderForm = () => {
+    if (!formEl) return;
+    const car = cars.find(c => c.key === activeKey) || cars[0];
+    if (!car) return;
+    const entry = data[car.key] || { ratings: {}, notes: '', favorite: false };
+    const pick = tdNotesGetPick(car.key);
+    const cm = pick?.compareMetrics || {};
+    const payRef = (cm.price || pick?.price || cm.monthlyEst) ? `<div class="td-notes-pay-ref">
+      <div class="td-notes-pay-ref-label"><i class="fa-solid fa-calculator"></i> Price & monthly payment</div>
+      ${tdNotesPaymentOptionsHtml(pick)}
+    </div>` : '';
+    const tcoRef = (cm.crReliability || cm.maintAnnual) ? `<div class="td-notes-tco-ref">
+      <div class="td-notes-tco-ref-label"><i class="fa-solid fa-database"></i> Research reference for this car</div>
+      <div class="td-notes-tco-ref-grid">
+        ${cm.crReliability ? `<span><strong>CR reliability</strong> ${tdNotesCrStars(cm.crReliability)}</span>` : ''}
+        ${cm.maintAnnual ? `<span><strong>Est. maintenance</strong> ~$${cm.maintAnnual.toLocaleString()}/yr</span>` : ''}
+      </div>
+    </div>` : '';
+    const avg = tdNotesAvgRating(entry, dims);
+    const avgLine = avg
+      ? `<div class="td-notes-avg-line"><i class="fa-solid fa-star"></i> Average rating: ${tdNotesAvgDisplay(entry, dims)} <span class="td-notes-avg-count">(${avg.count} rated)</span></div>`
+      : '';
+    formEl.innerHTML = `
+      <div class="td-notes-car-label">Notes for <strong>${escapeHtml(car.name)}</strong></div>
+      ${tcoRef}
+      <div class="td-notes-ratings">${tdNotesRenderRatingRows(dims, entry)}</div>
+      ${avgLine}
+      ${payRef}
+      <label class="td-notes-text-label" for="td-notes-text">Quick notes after this drive</label>
+      <textarea class="td-notes-text" id="td-notes-text" rows="3" placeholder="Steering feel, road noise, anything you'd tell your spouse…">${escapeHtml(entry.notes || '')}</textarea>
+      <label class="td-notes-fav"><input type="checkbox" id="td-notes-fav" ${entry.favorite ? 'checked' : ''}> Favorite so far</label>`;
+  };
+
+  const renderCompare = () => {
+    if (!compareEl) return;
+    const head = `<div class="td-notes-grid td-notes-grid-head">
+      <div class="td-notes-grid-label"></div>
+      ${cars.map(c =>
+        `<div class="td-notes-grid-car${data[c.key]?.favorite ? ' fav' : ''}">${escapeHtml(c.shortName.split(' ').slice(-2).join(' ') || c.shortName)}</div>`
+      ).join('')}
+    </div>`;
+    const avgRow = `<div class="td-notes-grid td-notes-grid-avg-row">
+      <div class="td-notes-grid-label">Average rating</div>
+      ${cars.map(c => {
+        const html = tdNotesAvgDisplay(data[c.key], dims);
+        const empty = html.includes('td-notes-empty');
+        return `<div class="td-notes-grid-val td-notes-grid-avg-val${empty ? ' empty' : ''}">${html}</div>`;
+      }).join('')}
+    </div>`;
+    const rows = tdNotesGroupedCompareRows(dims, cars, data);
+    const paymentBlock = tdNotesPaymentCompareBlock(cars);
+    const tcoBlock = `<div class="td-notes-tco-section-title"><i class="fa-solid fa-database"></i> Research reference — reliability & maintenance</div>${tdNotesTcoRows(cars)}`;
+    const noteRow = `<div class="td-notes-grid td-notes-grid-notes">
+      <div class="td-notes-grid-label">Your notes</div>
+      ${cars.map(c => {
+        const n = (data[c.key]?.notes || '').trim();
+        return `<div class="td-notes-grid-note">${n ? escapeHtml(n.length > 60 ? n.slice(0, 60) + '…' : n) : '<span class="td-notes-empty">—</span>'}</div>`;
+      }).join('')}
+    </div>`;
+    compareEl.innerHTML = head + rows + avgRow + paymentBlock + tcoBlock + noteRow;
+  };
+
+  renderTabs();
+  renderForm();
+  renderCompare();
+  tdNotesRenderFitAnalysis(cars, data);
+  if (progressEl) progressEl.textContent = `${ratedCount()} of ${cars.length} rated`;
+
+  tabsEl?.addEventListener('click', e => {
+    const tab = e.target.closest('.td-notes-tab');
+    if (!tab || tab.dataset.key === activeKey) return;
+    const ta = document.getElementById('td-notes-text');
+    if (ta && activeKey) data[activeKey].notes = ta.value;
+    activeKey = tab.dataset.key;
+    renderTabs();
+    renderForm();
+    persist();
+  });
+
+  formEl?.addEventListener('click', e => {
+    const star = e.target.closest('.td-notes-star');
+    if (!star) return;
+    const row = star.closest('.td-notes-stars');
+    const dim = row?.dataset.dim;
+    const val = parseInt(star.dataset.val, 10);
+    if (!dim || !activeKey) return;
+    data[activeKey].ratings[dim] = val;
+    row.querySelectorAll('.td-notes-star').forEach((s, i) => s.classList.toggle('on', i < val));
+    persist();
+    renderTabs();
+  });
+
+  formEl?.addEventListener('input', e => {
+    if (!activeKey) return;
+    if (e.target.id === 'td-notes-text') {
+      data[activeKey].notes = e.target.value;
+      persist();
+    }
+    if (e.target.id === 'td-notes-fav') {
+      cars.forEach(c => { data[c.key].favorite = false; });
+      data[activeKey].favorite = e.target.checked;
+      persist();
+      renderTabs();
+      renderForm();
+    }
+  });
 }
 
 function tdVehicleAge(v) { return new Date().getFullYear() - v.year; }
@@ -2564,11 +3692,21 @@ function initTestDrivePrep(v) {
   const turbo = tdHasTurbo(v);
   const warrantyActive = tdWarrantyLikely(v);
   const highMiles = v.mileage > 40000;
+  const lineup = getActiveTestDriveLineup();
+  const multiDrive = new URLSearchParams(window.location.search).get('lineup') === '1' && lineup.length > 1;
+  tdMultiDrive = multiDrive;
+
+  const tipsCardTitle = document.querySelector('#td-prep > .info-card:nth-of-type(2) .fin-prep-card-title');
+  if (tipsCardTitle && multiDrive) {
+    tipsCardTitle.innerHTML = '<i class="fa-solid fa-magnifying-glass"></i> What to compare across all three drives';
+  }
 
   // ── 1. What to bring & expect ──
   const visitItems = [
     { icon: 'id-card', html: '<strong>Driver\'s license</strong> — we\'ll verify it at check-in. No sales pressure, just keys and a route suggestion.' },
-    { icon: 'clock', html: '<strong>Plan 30–40 minutes</strong> — quick walk-around, your questions, then a relaxed drive on streets you actually use.' },
+    { icon: 'clock', html: multiDrive
+      ? `<strong>Plan 2–2.5 hours</strong> — you have <strong>${lineup.length} vehicles</strong> staged back-to-back. About 30–40 minutes per car, plus short walks between keys.`
+      : '<strong>Plan 30–40 minutes</strong> — quick walk-around, your questions, then a relaxed drive on streets you actually use.' },
     { icon: 'file-shield', html: '<strong>Carfax is ready</strong> — we\'ll walk through history, owners, and service records before you leave the lot.' },
     { icon: 'tag', html: '<strong>Out-the-door pricing</strong> — ask for the full total (tax, title, fees). DriveClear has zero dealer fees, but it\'s still smart to confirm the number.' },
   ];
@@ -2576,6 +3714,15 @@ function initTestDrivePrep(v) {
     visitItems.push({ icon: 'wrench', html: `<strong>Service history matters</strong> on a ${v.make} — we'll show what's on file and what the next major service interval looks like.` });
   if (awd)
     visitItems.push({ icon: 'snowflake', html: '<strong>AWD check</strong> — if you can, include a tight parking-lot turn or a rough surface; worth feeling how the system behaves at low speed.' });
+  if (multiDrive) {
+    const hub = (typeof Profile !== 'undefined' && Profile.testDriveHub) ? Profile.testDriveHub() : null;
+    visitItems.push({ icon: 'location-dot', html: hub
+      ? `<strong>One Charlotte stop</strong> — check in at <strong>${hub.name}</strong> (${hub.address}). All ${lineup.length} vehicles are staged on-site; no driving to Huntersville or Matthews lots.`
+      : `<strong>Charlotte hub visit</strong> — all ${lineup.length} vehicles staged at one location for back-to-back drives.` });
+    visitItems.push({ icon: 'list-check', html: `<strong>Your lineup</strong> — ${lineup.map(c => c.name.replace(/^\d{4}\s+/, '')).join(', ')}. Tell your specialist which to drive first.` });
+  } else if (multiDrive) {
+    visitItems.push({ icon: 'list-check', html: `<strong>Back-to-back lineup</strong> — we'll have the ${lineup.map(c => c.name.replace(/^\d{4}\s+/, '')).join(', ')} ready. Drive in any order; tell your specialist which to start with.` });
+  }
   if (highMiles)
     visitItems.push({ icon: 'gauge-high', html: `<strong>Higher mileage (${formatMileage(v.mileage)})</strong> — totally normal on a used car; we'll explain what's been replaced and what's due next.` });
 
@@ -2730,6 +3877,14 @@ function initTestDrivePrep(v) {
   const chatChips = document.getElementById('td-chat-chips');
   if (!chatBody || !chatForm) return;
 
+  if (multiDrive && chatChips) {
+    const prep = (typeof PARTICIPANT !== 'undefined' && PARTICIPANT.homepage?.testDrive?.lineupPrep) || {};
+    const chips = prep.chips || ['What order should I drive?', 'Which is closest to my Audi?', 'How long for all three?', 'What transfers to Charlotte?'];
+    chatChips.innerHTML = chips.map(c =>
+      `<button type="button" class="pa-chip" data-q="${escapeHtml(c)}">${escapeHtml(c)}</button>`
+    ).join('');
+  }
+
   const addMsg = (cls, html) => {
     const el = document.createElement('div');
     el.className = `pa-msg ${cls}`;
@@ -2762,9 +3917,17 @@ function initTestDrivePrep(v) {
     const btn = e.target.closest('.td-plan-ask');
     if (btn) ask(btn.dataset.q || btn.textContent);
   });
+  document.getElementById('td-lineup-ai')?.addEventListener('click', e => {
+    const chip = e.target.closest('.td-lineup-ai-chip');
+    if (chip) ask(chip.dataset.q || chip.textContent);
+  });
 
   const apptShort = visit.when.replace(/^(\w+day),?\s*/i, '').trim() || visit.when;
-  addMsg('pa-msg-bot', `<div class="pa-msg-label">Before your visit</div><p>Your <strong>${title}</strong> is reserved for ${apptShort}. Ask me what to bring, what to listen for on the drive, or whether any protection plan actually makes sense for this car.</p>`);
+  if (multiDrive) {
+    addMsg('pa-msg-bot', `<div class="pa-msg-label">Before your Charlotte visit</div><p>All <strong>${lineup.length} AWD sedans</strong> are staged for ${apptShort}. Ask me about drive order, what to compare between cars, or how long to plan for the full lineup.</p>`);
+  } else {
+    addMsg('pa-msg-bot', `<div class="pa-msg-label">Before your visit</div><p>Your <strong>${title}</strong> is reserved for ${apptShort}. Ask me what to bring, what to listen for on the drive, or whether any protection plan actually makes sense for this car.</p>`);
+  }
 }
 
 function generateTestDrivePrepAnswer(q, v) {
@@ -2774,11 +3937,26 @@ function generateTestDrivePrepAnswer(q, v) {
   const luxury = car && tdIsLuxury(car);
   const awd = car && tdHasAWD(car);
   const warrantyActive = car && tdWarrantyLikely(car);
+  const lineup = getActiveTestDriveLineup();
+  const multi = tdMultiDrive && lineup.length > 1;
+
+  if (multi && (t.includes('order') || t.includes('first') || t.includes('which to drive')))
+    return `<p>I'd go <strong>Acura TLX → Lexus IS 300 → BMW 330i</strong>. Start with the lowest payment (~$482/mo) and insurance, then reliability, then the sportiest drive last so the BMW steering feel is fresh in your memory. Your specialist can reorder anytime.</p>`;
+  if (multi && (t.includes('audi') || t.includes('closest') || t.includes('quattro')))
+    return `<p><strong>BMW 330i xDrive</strong> is the closest to your Audi on steering and AWD feel. <strong>Acura TLX SH-AWD</strong> is the value play with torque vectoring like quattro. <strong>Lexus IS 300</strong> trades some sport for lower upkeep — drive the BMW last to compare directly.</p>`;
+  if (multi && (t.includes('between') || t.includes('compare') || t.includes('note')))
+    return `<p>Jot quick notes after each drive: <strong>steering weight</strong>, <strong>road noise at 60 mph</strong>, and <strong>rear-seat space</strong>. Then compare monthly payment and insurance — Acura leads on cost, Lexus on CR reliability, BMW on expert reviews.</p>`;
+  if (multi && (t.includes('how long') || t.includes('all three') || t.includes('duration')))
+    return `<p>Plan <strong>2–2.5 hours</strong> for all three — about 30–40 minutes per car plus short walks between keys at South Tryon. One check-in; no driving to Huntersville or Matthews lots.</p>`;
+  if (multi && (t.includes('transfer') || t.includes('huntersville') || t.includes('matthews')))
+    return `<p>Lexus and Acura listings are at <strong>Huntersville</strong> and <strong>Matthews</strong> lots — we transfer them to <strong>DriveClear Charlotte · 1234 South Tryon St</strong> before your visit. The BMW is already on the Charlotte lot.</p>`;
 
   if (t.includes('bring') || t.includes('someone') || t.includes('spouse') || t.includes('passenger'))
     return `<p>Absolutely — bring whoever helps you decide. ${car?.body === 'SUV' || car?.body === 'Minivan' ? 'Have them try the second row and cargo area.' : 'Have them sit in back for legroom and road noise.'} Only the driver needs a license.</p>`;
   if (t.includes('how long') || t.includes('duration') || t.includes('time'))
-    return `<p>Plan about <strong>30–40 minutes</strong> total — 10 for the walk-around and Carfax, 20+ on the road on streets you actually drive. There's no timer; take the time you need.</p>`;
+    return multi
+      ? `<p>Plan <strong>2–2.5 hours</strong> for all ${lineup.length} vehicles — about 30–40 minutes each, plus short breaks between keys.</p>`
+      : `<p>Plan about <strong>30–40 minutes</strong> total — 10 for the walk-around and Carfax, 20+ on the road on streets you actually drive. There's no timer; take the time you need.</p>`;
   if (t.includes('same day') || t.includes('buy today') || t.includes('purchase'))
     return `<p>If you love the ${title}, you can move forward same day — but you're not committing by test driving. Ask for the <strong>out-the-door price</strong> in writing before any paperwork, and keep add-ons separate.</p>`;
   if (t.includes('gap'))
@@ -3221,7 +4399,7 @@ function buildSearchSuggestions(rawQ) {
 
   // Start from the participant profile (budget/body always anchor the groups),
   // then let anything typed override or add to it.
-  const base = (typeof Profile !== 'undefined' && Profile.toParams) ? Profile.toParams() : {};
+  const base = (typeof Profile !== 'undefined' && Profile.srpParams) ? Profile.srpParams() : {};
   const typed = parseSearchParams(q);
   const P = Object.assign({}, base, typed);
   const facets = Object.keys(P);

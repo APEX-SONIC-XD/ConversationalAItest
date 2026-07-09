@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>In-Store Drive Notes — DriveClear</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<nav class="nav" role="navigation">
+  <div class="container nav-inner">
+    <a href="index.html" class="nav-logo">
+      <div class="logo-mark">DC</div>
+      Drive<span class="accent">Clear</span>
+    </a>
+    <form class="nav-search" role="search" action="srp.html">
+      <i class="fa-solid fa-magnifying-glass"></i>
+      <input type="text" name="q" placeholder="Search make, model, year…" aria-label="Search vehicles" autocomplete="off">
+    </form>
+    <ul class="nav-links">
+      <li><a href="srp.html">Used Cars</a></li>
+      <li><a href="sell-trade.html">Sell / Trade</a></li>
+      <li><a href="financing.html">Financing</a></li>
+    </ul>
+    <div class="nav-right">
+      <button class="nav-hamburger" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<nav class="mobile-nav">
+  <a href="index.html">Home</a>
+  <a href="srp.html">Used Cars</a>
+  <a href="sell-trade.html">Sell / Trade</a>
+  <a href="financing.html">Financing</a>
+</nav>
+
+<div class="container td-notes-page" id="td-notes-root">
+  <a href="test-drive-confirmation.html" class="td-notes-back" id="td-notes-back">
+    <i class="fa-solid fa-arrow-left"></i> Back to confirmation
+  </a>
+
+  <div class="info-card td-notes-card">
+    <div class="td-notes-head">
+      <div class="td-notes-head-icon"><i class="fa-solid fa-clipboard-list"></i></div>
+      <div>
+        <div class="td-notes-eyebrow">DriveClear Assistant · In-store compare</div>
+        <h1 class="td-notes-title" id="td-notes-title">In-store drive notes</h1>
+        <p class="td-notes-sub" id="td-notes-sub">Rate each car after you drive — your compare sheet updates live.</p>
+      </div>
+    </div>
+    <div class="td-notes-progress-bar" id="td-notes-progress-bar">0 of 3 rated</div>
+    <div class="td-notes-fit" id="td-notes-fit" aria-live="polite"></div>
+    <div class="td-notes-tabs" id="td-notes-tabs" role="tablist" aria-label="Select vehicle to note"></div>
+    <div class="td-notes-form" id="td-notes-form"></div>
+    <div class="td-notes-compare-wrap">
+      <div class="td-notes-compare-title"><i class="fa-solid fa-table-columns"></i> Live compare</div>
+      <div class="td-notes-compare-scroll" id="td-notes-compare"></div>
+    </div>
+  </div>
+</div>
+
+<footer class="footer" role="contentinfo">
+  <div class="container">
+    <div class="footer-bottom">
+      <p>© 2024 DriveClear Automotive, Inc. All rights reserved.</p>
+    </div>
+  </div>
+</footer>
+
+<script src="js/inventory.js"></script>
+<script src="js/profile.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
