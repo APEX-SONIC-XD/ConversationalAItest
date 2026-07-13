@@ -57,6 +57,17 @@
           <option value="miles-asc">Lowest Miles</option>
         </select>
       </div>
+      <div class="srp-price-wrap">
+        <label for="srp-max-price-quick" class="srp-price-label">Max price</label>
+        <select id="srp-max-price-quick" class="srp-price-select" aria-label="Maximum price">
+          <option value="">Any price</option>
+          <option value="30000">Under $30k</option>
+          <option value="40000">Under $40k</option>
+          <option value="46000">Under $46k</option>
+          <option value="55000">Under $55k</option>
+          <option value="60000">Under $60k</option>
+        </select>
+      </div>
       <button class="btn btn-ghost btn-sm filter-toggle-btn" id="filter-toggle">
         <i class="fa-solid fa-sliders"></i> Filters
       </button>
@@ -72,8 +83,8 @@
     <aside class="filter-panel mode-manual" id="filter-panel" aria-label="Vehicle filters">
       <!-- Mode switch: AI conversation vs manual filters -->
       <div class="fp-mode-switch" role="tablist" aria-label="Filter mode">
-        <button class="fp-mode-btn" type="button" data-mode="ai" role="tab" aria-selected="false">
-          <i class="fa-solid fa-wand-magic-sparkles"></i> Ask AI
+        <button class="fp-mode-btn fp-mode-btn-gpt" type="button" data-mode="ai" role="tab" aria-selected="false">
+          <i class="fa-solid fa-wand-magic-sparkles"></i> Ask ChatGPT
         </button>
         <button class="fp-mode-btn active" type="button" data-mode="manual" role="tab" aria-selected="true">
           <i class="fa-solid fa-sliders"></i> Filters
@@ -85,16 +96,12 @@
         <div class="fp-chat-head">
           <div class="fp-chat-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
           <div>
-            <div class="fp-chat-title">Shop with AI</div>
+            <div class="fp-chat-title">Shop with ChatGPT</div>
             <div class="fp-chat-sub">Describe your ideal car</div>
           </div>
         </div>
         <div class="fp-chat-log" id="fp-chat-log" aria-live="polite"></div>
-        <div class="fp-chat-chips" id="fp-chat-chips">
-          <button class="fp-chip" type="button">AWD SUV under $30k</button>
-          <button class="fp-chip" type="button">Low-mileage sedan</button>
-          <button class="fp-chip" type="button">Toyota or Honda, 2021 or newer</button>
-        </div>
+        <div class="fp-chat-chips" id="fp-chat-chips"></div>
         <form class="fp-chat-form" id="fp-chat-form">
           <input type="text" id="fp-chat-input" placeholder="e.g. AWD SUV, low miles, under $30k" autocomplete="off" aria-label="Describe the car you want">
           <button type="submit" aria-label="Send message"><i class="fa-solid fa-arrow-up"></i></button>
@@ -135,9 +142,10 @@
             <input class="fp-range-input" id="fp-max-price" type="number" placeholder="Max $" min="0" step="1000" aria-label="Maximum price">
           </div>
           <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
-            <button class="btn btn-ghost btn-sm price-preset" data-max="20000">Under $20k</button>
-            <button class="btn btn-ghost btn-sm price-preset" data-max="25000">Under $25k</button>
             <button class="btn btn-ghost btn-sm price-preset" data-max="30000">Under $30k</button>
+            <button class="btn btn-ghost btn-sm price-preset" data-max="40000">Under $40k</button>
+            <button class="btn btn-ghost btn-sm price-preset" data-max="46000">Under $46k</button>
+            <button class="btn btn-ghost btn-sm price-preset" data-max="55000">Under $55k</button>
           </div>
         </div>
       </div>
@@ -276,7 +284,10 @@
   // Price preset buttons
   document.querySelectorAll('.price-preset').forEach(btn => {
     btn.addEventListener('click', () => {
-      document.getElementById('fp-max-price').value = btn.dataset.max;
+      const v = btn.dataset.max;
+      document.getElementById('fp-max-price').value = v;
+      const q = document.getElementById('srp-max-price-quick');
+      if (q) q.value = v;
       document.getElementById('srp-sort').dispatchEvent(new Event('change'));
     });
   });

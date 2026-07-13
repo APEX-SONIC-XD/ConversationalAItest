@@ -86,6 +86,19 @@
           <p class="vdp-desc" id="vdp-desc">Loading vehicle description…</p>
         </div>
 
+        <!-- First-Time Buyer Checklist (profile + vehicle specific) -->
+        <div class="vdp-section vdp-ft-check" id="vdp-ft-check" hidden aria-label="First-time buyer checklist for this vehicle">
+          <div class="vdp-ft-check-head">
+            <div class="vdp-ft-check-icon"><i class="fa-solid fa-list-check"></i></div>
+            <div>
+              <h2 class="vdp-sec-title" style="margin-bottom:4px">First-Time Buyer Checklist</h2>
+              <p class="vdp-ft-check-sub">For this <strong id="vdp-ft-veh-short">vehicle</strong> — work through each item before you schedule a test drive.</p>
+            </div>
+          </div>
+          <ul class="vdp-ft-checklist" id="vdp-ft-checklist"></ul>
+          <p class="vdp-ft-check-foot"><i class="fa-solid fa-wand-magic-sparkles"></i> Tailored by DriveClear Assistant from your profile and this listing.</p>
+        </div>
+
         <!-- Specs -->
         <div class="vdp-section">
           <h2 class="vdp-sec-title">Vehicle Specifications</h2>
@@ -245,7 +258,7 @@
             </button>
           </form>
           <div class="pa-footer">
-            <i class="fa-solid fa-shield-halved"></i> AI-assisted answers · Not a financing offer
+            <i class="fa-solid fa-shield-halved"></i> ChatGPT-assisted answers · Not a financing offer
           </div>
         </div>
 
@@ -290,15 +303,16 @@
         </div>
       </div>
 
-      <!-- Contact Card -->
-      <div class="vdp-card">
-        <h3 style="font-size:15px;font-weight:700;margin-bottom:14px">Questions? We're Here.</h3>
+      <!-- Contact -->
+      <div class="vdp-card" id="vdp-message-card">
+        <h3 style="font-size:15px;font-weight:700;margin-bottom:8px">Questions? We're Here.</h3>
+        <p style="font-size:13px;color:var(--text-mid);line-height:1.5;margin:0 0 14px">Ask about this vehicle, schedule a visit, or get help with financing.</p>
         <div style="display:flex;flex-direction:column;gap:10px">
+          <button type="button" class="btn btn-primary btn-block" id="vdp-open-msg">
+            <i class="fa-regular fa-message"></i> Send Us a Message
+          </button>
           <a href="tel:+18005551234" class="btn btn-ghost btn-block">
             <i class="fa-solid fa-phone" style="color:var(--teal)"></i> (800) 555-1234
-          </a>
-          <a href="#" class="btn btn-ghost btn-block">
-            <i class="fa-regular fa-message" style="color:var(--teal)"></i> Send Us a Message
           </a>
           <a href="#" class="btn btn-ghost btn-block">
             <i class="fa-solid fa-map-location-dot" style="color:var(--teal)"></i> Find Nearest Location
@@ -422,35 +436,35 @@
   </div>
 </footer>
 
-<!-- ═══════════════════════ AI ASSIST MODE ═══════════════════════ -->
+<!-- ═══════════════════════ CHATGPT ASSIST MODE ═══════════════════════ -->
 <!-- Toggle: turns the page into an "ask anything" surface. VDP-only. -->
-<button class="ai-toggle" id="ai-toggle" type="button" role="switch" aria-checked="false" aria-label="Toggle AI Assist mode">
+<button class="ai-toggle" id="ai-toggle" type="button" role="switch" aria-checked="false" aria-label="Toggle ChatGPT Assist mode">
   <span class="ai-toggle-ic"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
   <span class="ai-toggle-text">
-    <span class="ai-toggle-name">AI Assist</span>
+    <span class="ai-toggle-name">ChatGPT Assist</span>
     <span class="ai-toggle-state" id="ai-toggle-state">Off</span>
   </span>
   <span class="ai-switch"><span class="ai-switch-knob"></span></span>
 </button>
 
-<!-- Hover snippet that explains whatever element is under the AI cursor -->
+<!-- Hover snippet that explains whatever element is under the ChatGPT cursor -->
 <div class="ai-tip" id="ai-tip" role="tooltip" hidden>
   <button type="button" class="ai-tip-close" id="ai-tip-close" aria-label="Dismiss"><i class="fa-solid fa-xmark"></i></button>
   <div class="ai-tip-title" id="ai-tip-title"></div>
   <div class="ai-tip-text" id="ai-tip-text"></div>
   <button type="button" class="ai-tip-more" id="ai-tip-more">
-    Ask AI about this <i class="fa-solid fa-arrow-right"></i>
+    Ask ChatGPT about this <i class="fa-solid fa-arrow-right"></i>
   </button>
 </div>
 
 <!-- Slide-in chat sidebar for a deeper conversation about an element -->
 <div class="ai-drawer-scrim" id="ai-drawer-scrim" hidden></div>
-<aside class="ai-drawer" id="ai-drawer" aria-label="DriveClear AI assistant" aria-hidden="true">
+<aside class="ai-drawer" id="ai-drawer" aria-label="ChatGPT Assist" aria-hidden="true">
   <div class="ai-drawer-head">
     <div class="ai-drawer-id">
       <span class="ai-drawer-avatar"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
       <div>
-        <div class="ai-drawer-name">DriveClear Assistant</div>
+        <div class="ai-drawer-name">ChatGPT Assist</div>
         <div class="ai-drawer-sub" id="ai-drawer-topic"><span class="pa-dot"></span> Ask about this vehicle</div>
       </div>
     </div>
@@ -464,8 +478,59 @@
     <input type="text" class="ai-drawer-input" id="ai-drawer-input" placeholder="Ask a follow-up question…" autocomplete="off" aria-label="Ask a follow-up question">
     <button type="submit" class="ai-drawer-send" aria-label="Send message"><i class="fa-solid fa-arrow-up"></i></button>
   </form>
-  <div class="ai-drawer-footer"><i class="fa-solid fa-shield-halved"></i> AI-assisted answers · Demo content</div>
+  <div class="ai-drawer-footer"><i class="fa-solid fa-shield-halved"></i> ChatGPT-assisted answers · Demo content</div>
 </aside>
+
+<!-- ═══════════════════════ SEND MESSAGE MODAL ═══════════════════════ -->
+<div class="vmodal" id="vdp-msg-modal" hidden role="dialog" aria-modal="true" aria-label="Send us a message">
+  <div class="vmodal-backdrop" id="vdp-msg-backdrop"></div>
+  <div class="vmodal-panel">
+    <div class="vmodal-head">
+      <div>
+        <div class="vmodal-eyebrow">Contact DriveClear</div>
+        <h2 class="vmodal-title">Send Us a Message</h2>
+      </div>
+      <button type="button" class="vmodal-close" id="vdp-msg-close" aria-label="Close">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+
+    <div class="vmodal-compose" id="vdp-msg-compose">
+      <div class="vmodal-veh" id="vdp-msg-veh"></div>
+      <p class="vmodal-sub">Draft a note about this listing — or let us generate one from your profile and this vehicle.</p>
+      <div class="vmodal-fields">
+        <div class="vmodal-field">
+          <label class="vmodal-label" for="vdp-msg-name">Name</label>
+          <input type="text" id="vdp-msg-name" class="vmodal-input" placeholder="Your full name" autocomplete="name">
+        </div>
+        <div class="vmodal-field">
+          <label class="vmodal-label" for="vdp-msg-email">Email</label>
+          <input type="email" id="vdp-msg-email" class="vmodal-input" placeholder="you@email.com" autocomplete="email">
+        </div>
+        <div class="vmodal-field">
+          <label class="vmodal-label" for="vdp-msg-phone">Phone</label>
+          <input type="tel" id="vdp-msg-phone" class="vmodal-input" placeholder="(555) 555-5555" autocomplete="tel">
+        </div>
+      </div>
+      <button type="button" class="btn btn-outline btn-block btn-sm vmodal-generate" id="vdp-generate-msg">
+        <i class="fa-solid fa-wand-magic-sparkles"></i> Generate Message
+      </button>
+      <label class="vmodal-label" for="vdp-message">Your message</label>
+      <textarea id="vdp-message" class="vmodal-textarea" rows="7" placeholder="Hi — I'm interested in this vehicle and would like to know…"></textarea>
+      <button type="button" class="btn btn-primary btn-block vmodal-send" id="vdp-send-msg">
+        <i class="fa-solid fa-paper-plane"></i> Send Message
+      </button>
+      <p class="vmodal-note"><i class="fa-solid fa-shield-halved"></i> Demo only — no message is actually sent.</p>
+    </div>
+
+    <div class="vmodal-success" id="vdp-msg-sent" hidden>
+      <div class="vmodal-success-icon"><i class="fa-solid fa-circle-check"></i></div>
+      <h3 class="vmodal-success-title">Message sent!</h3>
+      <p class="vmodal-success-text">Thanks for reaching out about the <strong id="vdp-msg-sent-veh"></strong>. A DriveClear specialist will reply within one business day.</p>
+      <button type="button" class="btn btn-primary btn-block" id="vdp-msg-done">Done</button>
+    </div>
+  </div>
+</div>
 
 <script src="js/inventory.js"></script>
 <script src="js/profile.js"></script>

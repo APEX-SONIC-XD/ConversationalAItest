@@ -29,167 +29,277 @@
    ============================================================ */
 
 const PARTICIPANT = {
-  // ── Core shopping intent (SRP, VDP payments, finance, compare, nav search) ──
-  // TEST SESSION — Honda/Toyota SUVs, $28k budget, fair credit
-  maxPrice: 28000,
+  // ── LIVE SESSION — first-time buyer; Dallas metro; used sporty SUV; HUD; X5 anchor ──
+  maxPrice: 55000,
   maxApproved: null,
   maxMonthly: null,
   body: 'SUV',
-  makes: ['Honda', 'Toyota'],
-  minYear: 2020,
-  maxMiles: null,
-  drivetrain: null,
+  makes: ['BMW', 'Audi', 'Genesis'],
+  minYear: 2022,
+  maxYear: 2023,
+  maxMiles: 45000,
+  drivetrain: 'AWD',
   minMpg: null,
-  maxDist: null,
+  maxDist: 45,
 
-  needs: ['family'],
+  needs: ['firstcar', 'hud', 'sporty', 'performance', 'value', 'color'],
 
   tradeIn: null,
 
-  creditTier: 'fair',
+  creditTier: 'good',
   journeyStage: 'Prepared',
 
-  // ── Market / region (inventory lot cities, distance context) ──
-  // Facilitator: set label + lotCities when participant is shopping in a new area.
   market: {
-    label: 'Charlotte, NC',
+    label: 'Dallas, TX',
     lotCities: [
-      'Charlotte, NC', 'Huntersville, NC', 'Matthews, NC', 'Fort Mill, SC',
-      'Rock Hill, SC', 'Gastonia, NC', 'Mooresville, NC', 'Concord, NC',
-      'Indian Trail, NC', 'Pineville, NC',
+      'Dallas, TX', 'Plano, TX', 'Frisco, TX', 'Irving, TX', 'Arlington, TX',
+      'Fort Worth, TX', 'Garland, TX', 'McKinney, TX', 'Richardson, TX', 'Carrollton, TX',
     ],
   },
 
-  // ── Homepage AI recommendations (index.html) ──
-  // Facilitator: edit display copy here — name, price, expert blurbs, drawer text.
-  // VDP link (optional): set year + make + model, or vdpId as fallback.
   homepage: {
-    titleAccent: 'DriveClear Charlotte',
-    appointment: 'Saturday, 10:30 AM',
-    dealerAddress: '1234 South Tryon St, Charlotte, NC',
-    criteriaText: null,
-    footText: 'Ranked by fit to your criteria, expert reviews, and verified owner sentiment.',
-    footLinkText: null,
-    footLinkHref: null,
+    titleAccent: 'DriveClear Dallas',
+    appointment: null,
+    dealerAddress: '2400 Commerce St, Dallas, TX 75226',
+    criteriaText: 'first-time buyer — 2022–2023 used sporty SUV with HUD, blue/grey/black, under $55k · Dallas',
+    footText: 'Dallas-area used matches ranked by sporty styling, horsepower, HUD, mileage, and value.',
+    footLinkText: 'See all sporty AWD SUVs →',
+    footLinkHref: 'srp.html?body=SUV&drive=AWD&maxPrice=55000&minYear=2022&maxYear=2023',
+    buyingProgress: {
+      eyebrow: 'DriveClear Assistant',
+      title: 'First-Time Buyer Guide',
+      summary: 'Most first-time buyers follow the same basic order. You\'re on <strong>step 3</strong> — compare your matches below.',
+      currentStep: 2,
+      steps: [
+        {
+          key: 'want',
+          label: 'What car I want',
+          status: 'done',
+          aiTip: 'Start with the <strong>body style, features, and feel</strong> you\'re after — not the monthly payment yet. Yours: <strong>sporty used midsize SUV</strong> with <strong>HUD</strong>, <strong>2022–2023</strong>, <strong>AWD</strong>, in <strong>blue, grey, or black</strong> around <strong>Dallas</strong>. The BMW X5 is your anchor; Audi Q5 and Genesis GV70 are strong alternates.',
+          action: { label: 'Browse SUVs', href: 'srp.html?body=SUV&drive=AWD&maxPrice=55000&minYear=2022&maxYear=2023' },
+          chips: ['How do I narrow body style?', 'Why does HUD matter?'],
+        },
+        {
+          key: 'afford',
+          label: 'What can I afford',
+          status: 'done',
+          aiTip: 'Now layer in <strong>budget</strong> — sticker price, monthly payment, insurance, and gas. You\'re shopping <strong>under $55k</strong> with <strong>good credit (6.9% APR)</strong>. Decide whether <strong>financing</strong> or <strong>paying cash</strong> fits, and get pre-approved so the number is real before you fall for a car.',
+          action: { label: 'Estimate payment', href: 'financing.html' },
+          chips: ['Finance vs. pay cash?', 'What monthly can I afford?'],
+        },
+        {
+          key: 'compare',
+          label: 'Compare',
+          status: 'current',
+          aiTip: 'Work from a <strong>small shortlist (2–4 cars)</strong> — the three matches below fit your criteria. Check <strong>price, miles, and HUD</strong> on each, then put them <strong>side-by-side</strong> on year, performance, and value to spot trade-offs before you test drive.',
+          action: { label: 'Compare your 3 matches', href: 'compare.html' },
+          chips: ['Why only a few cars?', 'What do I look at first?', 'What should I compare first?'],
+        },
+        {
+          key: 'drive',
+          label: 'Test drive & purchase',
+          status: 'upcoming',
+          aiTip: 'Drive your <strong>top one or two</strong> picks. Confirm features like <strong>HUD</strong>, get comfortable with how it drives, then finalize <strong>payment</strong> and paperwork. Listed price here is <strong>all-in — no haggling</strong>.',
+          action: { label: 'Schedule test drive', href: 'vdp.html?id=41' },
+          chips: ['What to check on a test drive?'],
+        },
+      ],
+    },
     compare: {
-      title: 'European AWD sedans — compared on what matters',
-      subtitle: "Skipping the frills. Here's <strong>engine performance, drivetrain, year, mileage, price, and value</strong> for your shortlisted sedans across nearby dealers. Best in each row is highlighted.",
-      footDefault: 'AI pick: <strong>BMW 330i xDrive</strong> balances strongest value with near-best performance; <strong>Volvo S60</strong> is the lowest price and most efficient.',
+      title: 'Used BMW X5 and similar sporty midsize SUVs',
+      subtitle: "You're shopping <strong>used 2022–2023</strong> in the <strong>Dallas metro</strong> — you called out the <strong>BMW X5</strong>. Here's how your shortlist stacks up on <strong>year, mileage, horsepower, 0–60, HUD, price, and value</strong>. Best in each row is highlighted.",
+      footDefault: 'AI pick: <strong>BMW X5 xDrive40i</strong> is your anchor — most horsepower and the sportiest stance; <strong>Genesis GV70 2.5T</strong> is the value play with HUD and 300 hp; <strong>Audi Q5</strong> splits the difference on tech and quattro grip.',
     },
     picks: [
       {
-        key: 'audi',
-        name: '2023 Audi A4 quattro',
-        price: '$42,990',
-        year: 2023,
-        make: 'Audi',
-        model: 'A4',
-        match: '98% match',
-        location: null,
-        locationIcon: 'location-dot',
-        trimLabel: 'Premium Plus · AWD Sedan',
-        warrantyBadge: 'Factory warranty active',
-        specs: [
-          { icon: 'gauge-high', text: '261 hp' },
-          { icon: 'snowflake', text: 'quattro AWD' },
-          { icon: 'gas-pump', text: '27 mpg' },
-        ],
-        expert: 'Critics praise the refined cabin and composed ride; the 2.0T quattro is the sweet spot for all-weather grip without thirst.',
-        ownersRating: '4.7/5',
-        ownersText: 'Owners love interior quality and winter confidence; a few note higher routine service costs.',
-        compareMetrics: { price: 42990, mpg: 27, hp: 261, zero: 5.2, miles: 18400, distMin: 0, value: 0 },
-        drawer: {
-          dealer: 'DriveClear Charlotte',
-          distance: 'At your appointment dealer',
-          value: 'At market',
-          valueClass: 'at',
-          intro: "Here's the full picture on the <strong>2023 Audi A4 quattro</strong> at your appointment dealer. It's a strong fit for European AWD sedans in your range, with factory warranty still active.",
-          specs: [
-            ['Engine', '2.0L Turbo I4'], ['Horsepower', '261 hp'], ['0–60 mph', '5.2 s'],
-            ['Drivetrain', 'quattro AWD'], ['Year', '2023'], ['Mileage', '18,400 mi'],
-            ['MPG (comb.)', '27'], ['Warranty', 'Factory until 2027 / 50k mi'],
-          ],
-          fit: 'Matches all four must-haves: European make, AWD, sedan, and $30k–$50k. Quickest 0–60 of your shortlist and the only one physically at your appointment dealer.',
-          watch: 'Routine maintenance runs higher than mainstream brands — budget for premium service intervals.',
-          chips: ['Is the price fair?', 'How reliable is it?', 'What will service cost?'],
-        },
-      },
-      {
-        key: 'bmw',
-        name: '2022 BMW 330i xDrive',
-        price: '$39,850',
+        key: 'x5',
+        name: '2022 BMW X5 xDrive40i',
+        price: '$45,990',
         year: 2022,
         make: 'BMW',
-        model: '330i',
-        match: '95% match',
-        location: null,
+        model: 'X5',
+        trim: 'xDrive40i',
+        match: '98% match',
+        location: 'Dallas, TX',
         locationIcon: 'location-dot',
-        trimLabel: 'Sport Line · AWD Sedan',
-        warrantyBadge: 'Factory warranty active',
+        trimLabel: 'M Sport · Phytonic Blue · AWD SUV',
+        warrantyBadge: 'Head-Up Display',
         specs: [
-          { icon: 'gauge-high', text: '255 hp' },
-          { icon: 'snowflake', text: 'xDrive AWD' },
-          { icon: 'gas-pump', text: '30 mpg' },
+          { icon: 'palette', text: 'Phytonic Blue' },
+          { icon: 'gauge-high', text: '335 hp' },
+          { icon: 'display', text: 'HUD' },
         ],
-        expert: "Widely called the driver's pick in the class — sharp handling with xDrive traction and a strong, efficient turbo four.",
-        ownersRating: '4.6/5',
-        ownersText: 'Praised for fun-to-drive feel and tech; some wish for more rear-seat space.',
-        compareMetrics: { price: 39850, mpg: 30, hp: 255, zero: 5.3, miles: 24100, distMin: 25, value: 1800 },
+        expert: 'Car and Driver calls the X5 "the athlete in the family" — muscular M Sport lines, 335 hp turbo six, and one of the few midsize SUVs that feels genuinely quick.',
+        ownersRating: '4.5/5',
+        ownersText: 'Owners love the driving position and HUD; first-time luxury buyers should budget for premium fuel and service intervals.',
+        compareMetrics: { price: 45990, mpg: 23, hp: 335, zero: 5.3, miles: 26800, distMin: 0, value: 2800 },
         drawer: {
-          dealer: 'Lake Norman BMW · Huntersville',
-          distance: '25 min away',
-          value: '$1,800 below market',
+          dealer: 'DriveClear Dallas',
+          distance: 'At your Dallas dealer',
+          value: '$2,800 below market',
           valueClass: 'great',
-          intro: "Here's the breakdown on the <strong>2022 BMW 330i xDrive</strong>. It's my best-value pick on your shortlist — priced about $1,800 under comparable listings, with factory warranty active.",
+          intro: "Here's the <strong>2022 BMW X5 xDrive40i</strong> in <strong>Phytonic Blue</strong> — M Sport package, <strong>head-up display</strong>, and 335 hp.",
           specs: [
-            ['Engine', '2.0L Turbo I4'], ['Horsepower', '255 hp'], ['0–60 mph', '5.3 s'],
-            ['Drivetrain', 'xDrive AWD'], ['Year', '2022'], ['Mileage', '24,100 mi'],
-            ['MPG (comb.)', '30'], ['Warranty', 'Factory until 2026 / 50k mi'],
+            ['Engine', '3.0L Turbo I6'], ['Horsepower', '335 hp'], ['0–60 mph', '5.3 s'],
+            ['Exterior', 'Phytonic Blue Metallic'], ['Drivetrain', 'xDrive AWD'], ['Year', '2022'], ['Mileage', '26,800 mi'],
+            ['Head-Up Display', 'Yes'], ['MPG (comb.)', '23'],
           ],
-          fit: 'Hits every criterion and leads on value. Best efficiency of the gas models and the sharpest driving feel — strong if performance is your priority.',
-          watch: 'Tighter rear seat and a firmer ride than the Audi or Volvo — worth a test sit if you carry passengers.',
-          chips: ['Why is it below market?', 'Compare to the Audi', 'Is mileage a concern?'],
+          fit: 'Your benchmark — sportiest look in the group, strongest performance, and HUD standard on this trim. Closest to the "sporty midsize SUV" picture in your head.',
+          watch: 'As a first-time buyer, factor insurance and maintenance above mainstream SUVs — worth it if performance and presence matter most.',
+          chips: ['Is HUD easy to use?', 'Insurance for a first-time buyer?', 'Compare to the Audi Q5'],
         },
       },
       {
-        key: 'volvo',
-        name: '2023 Volvo S60 B5',
-        price: '$38,500',
-        year: 2023,
-        make: 'Volvo',
-        model: 'S60',
-        match: '93% match',
-        location: null,
-        locationIcon: 'route',
-        trimLabel: 'Plus · AWD Sedan',
-        warrantyBadge: 'Factory warranty active',
+        key: 'q5',
+        name: '2022 Audi Q5 Premium Plus',
+        price: '$37,490',
+        year: 2022,
+        make: 'Audi',
+        model: 'Q5',
+        trim: 'Premium Plus',
+        match: '94% match',
+        location: 'Plano, TX',
+        locationIcon: 'location-dot',
+        trimLabel: 'Premium Plus · Daytona Gray · AWD SUV',
+        warrantyBadge: 'Head-Up Display',
         specs: [
-          { icon: 'gauge-high', text: '247 hp' },
-          { icon: 'snowflake', text: 'AWD' },
-          { icon: 'gas-pump', text: '29 mpg' },
+          { icon: 'palette', text: 'Daytona Gray' },
+          { icon: 'gauge-high', text: '261 hp' },
+          { icon: 'display', text: 'HUD' },
         ],
-        expert: 'Standout safety scores and a calm, upscale cabin; the mild-hybrid B5 AWD is smooth and quietly quick.',
-        ownersRating: '4.8/5',
-        ownersText: 'Owners rate comfort and seats highly; infotainment has a slight learning curve.',
-        compareMetrics: { price: 38500, mpg: 31, hp: 247, zero: 5.9, miles: 15900, distMin: 45, value: 900 },
+        expert: 'Edmunds ranks the Q5 among the best-handling compact-luxury SUVs — sharp <strong>Daytona Gray</strong> finish, Virtual Cockpit, and quattro grip without the X5 price step.',
+        ownersRating: '4.6/5',
+        ownersText: 'Praised for tech and all-weather confidence; slightly smaller than an X5 but still roomy for a first SUV.',
+        compareMetrics: { price: 37490, mpg: 25, hp: 261, zero: 5.7, miles: 22400, distMin: 18, value: 2200 },
         drawer: {
-          dealer: 'Volvo Cars South Charlotte',
-          distance: '45 min away',
-          value: '$900 below market',
-          valueClass: 'good',
-          intro: "Here's the detail on the <strong>2023 Volvo S60 B5 AWD</strong>. It's the lowest price and most efficient on your shortlist, with the highest owner rating — but it's the farthest drive.",
+          dealer: 'DriveClear Plano',
+          distance: '18 min from Dallas',
+          value: '$2,200 below market',
+          valueClass: 'great',
+          intro: "Here's the <strong>2022 Audi Q5 Premium Plus</strong> in <strong>Daytona Gray</strong> — HUD, quattro AWD, and a lower price than the X5.",
           specs: [
-            ['Engine', '2.0L Turbo + Mild Hybrid'], ['Horsepower', '247 hp'], ['0–60 mph', '5.9 s'],
-            ['Drivetrain', 'AWD'], ['Year', '2023'], ['Mileage', '15,900 mi'],
-            ['MPG (comb.)', '31'], ['Warranty', 'Factory until 2027 / 50k mi'],
+            ['Engine', '2.0L Turbo I4'], ['Horsepower', '261 hp'], ['0–60 mph', '5.7 s'],
+            ['Exterior', 'Daytona Gray Pearl'], ['Drivetrain', 'quattro AWD'], ['Year', '2022'], ['Mileage', '22,400 mi'],
+            ['Head-Up Display', 'Yes'], ['MPG (comb.)', '25'],
           ],
-          fit: 'Meets all four criteria at the lowest price, with the best fuel economy and top safety scores. Trade-off is a 3-hour round trip to see it.',
-          watch: 'Least sporty of the three and the longest drive to inspect — factor the distance into your Saturday plan.',
-          chips: ['Is the drive worth it?', 'How safe is it?', 'Can a closer dealer get one?'],
+          fit: 'Best "similar to X5" alternative on tech and design — Virtual Cockpit plus HUD, quattro AWD, and about $13k less than the X5 on this lot.',
+          watch: 'Less horsepower than the X5 or GV70 — test drive if straight-line punch is your top priority.',
+          chips: ['X5 vs Q5 size?', 'How is the HUD?', 'Is quattro worth it?'],
+        },
+      },
+      {
+        key: 'gv70',
+        name: '2022 Genesis GV70 2.5T',
+        price: '$39,490',
+        year: 2022,
+        make: 'Genesis',
+        model: 'GV70',
+        trim: '2.5T Select',
+        match: '96% match',
+        location: 'Irving, TX',
+        locationIcon: 'location-dot',
+        trimLabel: '2.5T Select · Vik Black · AWD SUV',
+        warrantyBadge: 'Head-Up Display',
+        specs: [
+          { icon: 'palette', text: 'Vik Black' },
+          { icon: 'gauge-high', text: '300 hp' },
+          { icon: 'display', text: 'HUD' },
+        ],
+        expert: 'MotorTrend calls the GV70 a "styling standout" — <strong>Vik Black</strong> coupe-like lines, 300 hp turbo four, and near-luxury cabin at a price that undercuts BMW and Audi.',
+        ownersRating: '4.7/5',
+        ownersText: 'First-time luxury buyers often cite the warranty and HUD as pleasant surprises; sportier than Volvo, less badge prestige than BMW.',
+        compareMetrics: { price: 39490, mpg: 23, hp: 300, zero: 5.5, miles: 19200, distMin: 12, value: 3200 },
+        drawer: {
+          dealer: 'DriveClear Irving',
+          distance: '12 min from Dallas',
+          value: '$3,200 below market',
+          valueClass: 'great',
+          intro: "Here's the <strong>2022 Genesis GV70 2.5T</strong> in <strong>Vik Black</strong> — sportiest-looking alternative with <strong>HUD</strong>, 300 hp, and the lowest miles of the three.",
+          specs: [
+            ['Engine', '2.5L Turbo I4'], ['Horsepower', '300 hp'], ['0–60 mph', '5.5 s'],
+            ['Exterior', 'Vik Black'], ['Drivetrain', 'AWD'], ['Year', '2022'], ['Mileage', '19,200 mi'],
+            ['Head-Up Display', 'Yes'], ['MPG (comb.)', '23'],
+          ],
+          fit: 'Strong X5 alternative if you want sporty looks and 300 hp without fully stretching to BMW money — HUD included and lowest mileage here.',
+          watch: 'Genesis resale trails BMW/Audi historically; great if you plan to keep it long-term.',
+          chips: ['GV70 vs X5 feel?', 'Warranty for first-time buyers?', 'Schedule test drive'],
         },
       },
     ],
+    // Prior ChatGPT conversation — seeds SRP "Ask ChatGPT" on load (facilitator can edit).
+    srpChat: {
+      openInAiMode: true,
+      chips: [
+        'Show BMW, Audi, or Genesis only',
+        'Under $40k',
+        'Lowest mileage first',
+        '2022 only',
+      ],
+      messages: [
+        {
+          role: 'user',
+          text: "I'm a first-time buyer — I want a sporty used midsize SUV with a head-up display. Something like a BMW X5 but open to similar options.",
+        },
+        {
+          role: 'ai',
+          html: 'Got it — <strong>sporty midsize SUV</strong> with <strong>HUD</strong> is a clear brief. The <strong>BMW X5</strong> is a strong anchor; <strong>Audi Q5</strong> and <strong>Genesis GV70</strong> are common alternates with HUD on the right trims.',
+        },
+        {
+          role: 'user',
+          text: '2022 or 2023, AWD, blue grey or black, Dallas area, under $55k. Good credit — around 6.9% APR.',
+        },
+        {
+          role: 'ai',
+          html: 'Perfect — I\'ll shop <strong>2022–2023 AWD SUVs</strong> around <strong>Dallas</strong>, <strong>under $55k</strong>, in <strong>blue, grey, or black</strong>, with <strong>HUD</strong> where listed. Three strong matches to start: <strong>X5</strong>, <strong>Q5</strong>, and <strong>GV70</strong>.',
+        },
+      ],
+      resumeHtml: 'Picking up your <strong>ChatGPT</strong> conversation — I\'ve loaded those filters on DriveClear inventory. Your three shortlist SUVs should be in the results. Tell me what to tighten, e.g. <em>"Genesis only"</em> or <em>"under $40k."</em>',
+    },
   },
+};
+
+// ── First-time buyer progress bar (OFF by default) ──
+// Facilitator: copy into PARTICIPANT.homepage.buyingProgress to show on index.
+// Keep steps realistic — educate on the normal used-car path, not gamified fluff.
+const BUYING_PROGRESS_TEMPLATE = {
+  eyebrow: 'DriveClear Assistant',
+  title: 'First-Time Buyer Guide',
+  summary: 'Most first-time buyers follow the same basic order. You\'re on <strong>step 3</strong> — compare your matches below.',
+  currentStep: 2,
+  steps: [
+    {
+      key: 'want',
+      label: 'What car I want',
+      status: 'done',
+      aiTip: 'Start with <strong>body style, must-have features, and how you want it to feel</strong> — not the payment yet. Narrow to 2–3 models that fit before you shop every listing.',
+      action: { label: 'Browse matches', href: 'srp.html' },
+      chips: ['How do I narrow body style?', 'Why does HUD matter?'],
+    },
+    {
+      key: 'afford',
+      label: 'What can I afford',
+      status: 'done',
+      aiTip: 'Layer in <strong>total cost</strong>: price cap, monthly payment, insurance, and gas. Decide <strong>finance vs. cash</strong> and get pre-approved so you know your real number.',
+      action: { label: 'Estimate payment', href: 'financing.html' },
+      chips: ['Finance vs. pay cash?', 'What monthly can I afford?'],
+    },
+    {
+      key: 'compare',
+      label: 'Compare',
+      status: 'current',
+      aiTip: 'Start with a <strong>small shortlist (2–4 cars)</strong>, then compare finalists <strong>side-by-side</strong> on price, mileage, year, and features before you schedule test drives.',
+      action: { label: 'Compare your picks', href: 'compare.html' },
+      chips: ['Why only a few cars?', 'What do I look at first?', 'What should I compare first?'],
+    },
+    {
+      key: 'drive',
+      label: 'Test drive & purchase',
+      status: 'upcoming',
+      aiTip: 'Drive your <strong>top one or two</strong> picks. Confirm must-haves, get comfortable with how it drives, then finalize payment and paperwork.',
+      action: { label: 'Schedule test drive', href: 'vdp.html?id=1' },
+      chips: ['What to check on a test drive?'],
+    },
+  ],
 };
 
 // Qualitative need -> concrete filter presets. Presets only fill gaps;
@@ -229,6 +339,7 @@ const Profile = {
       P.make = PARTICIPANT.makes.length === 1 ? PARTICIPANT.makes[0] : PARTICIPANT.makes.slice();
     }
     if (PARTICIPANT.minYear != null) P.minYear = PARTICIPANT.minYear;
+    if (PARTICIPANT.maxYear != null) P.maxYear = PARTICIPANT.maxYear;
     if (PARTICIPANT.maxMiles != null) P.maxMiles = PARTICIPANT.maxMiles;
     if (PARTICIPANT.drivetrain && (!Array.isArray(PARTICIPANT.drivetrain) || PARTICIPANT.drivetrain.length)) {
       P.drive = Array.isArray(PARTICIPANT.drivetrain)
@@ -266,7 +377,8 @@ const Profile = {
     const P = this.toParams();
     const parts = [];
     if (P.drive) parts.push(Array.isArray(P.drive) ? P.drive.join('/') : P.drive);
-    if (P.minYear) parts.push(P.minYear + '+');
+    if (P.minYear && P.maxYear && P.maxYear > P.minYear) parts.push(`${P.minYear}–${P.maxYear}`);
+    else if (P.minYear) parts.push(P.minYear + '+');
     if (Array.isArray(P.make)) parts.push(P.make.join('/'));
     else if (P.make) parts.push(P.make);
     if (P.body === 'SUV') parts.push('SUVs');
@@ -385,6 +497,7 @@ const Profile = {
       if (d) q.set('drive', d);
     }
     if (P.minYear) q.set('minYear', P.minYear);
+    if (P.maxYear) q.set('maxYear', P.maxYear);
     if (P.maxPrice) q.set('maxPrice', P.maxPrice);
     if (Array.isArray(P.make) && P.make.length === 1) q.set('make', P.make[0]);
     const qs = q.toString();
@@ -446,4 +559,5 @@ const Profile = {
 if (typeof window !== 'undefined') {
   window.Profile = Profile;
   window.PARTICIPANT = PARTICIPANT;
+  window.BUYING_PROGRESS_TEMPLATE = BUYING_PROGRESS_TEMPLATE;
 }

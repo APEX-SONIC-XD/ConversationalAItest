@@ -43,11 +43,11 @@
 </nav>
 
 <!-- ═══════════════════════ HERO ═══════════════════════ -->
-<section class="hero" aria-label="Hero">
+<section class="hero" id="hero" aria-label="Hero">
   <div class="hero-bg" aria-hidden="true"></div>
   <div class="hero-overlay" aria-hidden="true"></div>
-  <div class="container" style="width:100%">
-    <div class="hero-content">
+  <div class="container hero-inner">
+    <div class="hero-content" id="hero-default">
       <div class="hero-eyebrow">
         <i class="fa-solid fa-badge-check"></i> No Dealer Fees · Transparent Pricing
       </div>
@@ -114,6 +114,14 @@
           <div class="hero-stat-label">Dealer Fees</div>
         </div>
       </div>
+    </div>
+
+    <div class="ai-bp ai-bp-hero" id="ai-buy-progress" hidden aria-label="First-time buyer progress"></div>
+
+    <div class="hero-bp-search" id="hero-bp-search" hidden>
+      <a href="srp.html" class="btn btn-primary btn-sm hero-bp-search-btn" id="hero-bp-search-btn">
+        <i class="fa-solid fa-search"></i> Search Cars
+      </a>
     </div>
   </div>
 </section>
