@@ -8,7 +8,7 @@
 
    PLUG-IN CONTRACT — every AI feature (current or future) should:
      • on init, read one or more of:
-         Profile.toParams()    -> intent {body,maxPrice,make,minYear,
+         Profile.toParams()    -> intent {body,maxPrice,make,minYear,maxYear,
                                    maxMiles,drive,minMpg,maxDist}
          Profile.apr()         -> APR % derived from the credit tier
          Profile.priorities()  -> ordered ranking keys (compare page)
@@ -29,163 +29,204 @@
    ============================================================ */
 
 const PARTICIPANT = {
-  // ── Core shopping intent (SRP, VDP payments, finance, compare, nav search) ──
-  // TEST SESSION — Honda/Toyota SUVs, $28k budget, fair credit
-  maxPrice: 28000,
+  // ── P1 — NYC + Philadelphia / PA · Jeep Wrangler Unlimited ──
+  maxPrice: null,
   maxApproved: null,
   maxMonthly: null,
-  body: 'SUV',
-  makes: ['Honda', 'Toyota'],
-  minYear: 2020,
-  maxMiles: null,
+  body: null,
+  makes: ['Jeep'],
+  minYear: 2015,
+  maxYear: 2022,
+  maxMiles: 75000,
   drivetrain: null,
   minMpg: null,
-  maxDist: null,
+  maxDist: 150,
 
-  needs: ['family'],
+  features: ['sunroof', 'leather', 'navigation'],
+
+  needs: ['bluetooth', 'reliable', 'value', 'kbb', 'locationprice'],
 
   tradeIn: null,
 
-  creditTier: 'fair',
-  journeyStage: 'Prepared',
+  creditTier: null,
+  journeyStage: null,
 
-  // ── Market / region (inventory lot cities, distance context) ──
-  // Facilitator: set label + lotCities when participant is shopping in a new area.
   market: {
-    label: 'Charlotte, NC',
+    label: 'New York City & Pennsylvania',
     lotCities: [
-      'Charlotte, NC', 'Huntersville, NC', 'Matthews, NC', 'Fort Mill, SC',
-      'Rock Hill, SC', 'Gastonia, NC', 'Mooresville, NC', 'Concord, NC',
-      'Indian Trail, NC', 'Pineville, NC',
+      'Queens, NY', 'Long Island City, NY', 'Brooklyn, NY', 'Manhattan, NY',
+      'Bronx, NY', 'Staten Island, NY', 'Flushing, NY', 'Jamaica, NY',
+      'Astoria, NY', 'Yonkers, NY', 'White Plains, NY', 'New Rochelle, NY',
+      'Jersey City, NJ', 'Newark, NJ', 'Edison, NJ', 'Stamford, CT',
+      'Hicksville, NY', 'Huntington, NY', 'Princeton, NJ', 'Greenwich, CT',
+      'Philadelphia, PA', 'King of Prussia, PA', 'Allentown, PA', 'Reading, PA',
+      'Harrisburg, PA', 'Lancaster, PA', 'Bethlehem, PA', 'Wilkes-Barre, PA',
+      'Scranton, PA', 'Pittsburgh, PA',
     ],
   },
 
-  // ── Homepage AI recommendations (index.html) ──
-  // Facilitator: edit display copy here — name, price, expert blurbs, drawer text.
-  // VDP link (optional): set year + make + model, or vdpId as fallback.
   homepage: {
-    titleAccent: 'DriveClear Charlotte',
-    appointment: 'Saturday, 10:30 AM',
-    dealerAddress: '1234 South Tryon St, Charlotte, NC',
+    titleAccent: 'DriveClear NYC',
+    appointment: null,
+    dealerAddress: '4520 Northern Blvd, Long Island City, NY 11101',
     criteriaText: null,
-    footText: 'Ranked by fit to your criteria, expert reviews, and verified owner sentiment.',
-    footLinkText: null,
-    footLinkHref: null,
+    selections: {
+      groups: [
+        {
+          key: 'priority',
+          label: 'Rank by',
+          default: 'price',
+          options: [
+            { id: 'price', label: 'Best price', icon: 'tag' },
+            { id: 'kbb', label: 'KBB value', icon: 'book' },
+            { id: 'near', label: 'Closest', icon: 'location-dot' },
+          ],
+        },
+        {
+          key: 'hardTop',
+          label: 'Hard top',
+          default: 'flexible',
+          options: [
+            { id: 'flexible', label: 'Flexible', icon: 'wind' },
+            { id: 'required', label: 'Required', icon: 'car-side' },
+          ],
+        },
+        {
+          key: 'market',
+          label: 'Markets',
+          default: 'all',
+          options: [
+            { id: 'all', label: 'All areas', icon: 'globe' },
+            { id: 'nyc', label: 'NYC', icon: 'city' },
+            { id: 'pa', label: 'Philadelphia & PA', icon: 'map' },
+          ],
+        },
+      ],
+    },
+    footText: 'Sorted by lowest price and KBB spread first — cheaper markets (Philadelphia & PA) rank ahead of higher-priced NYC lots when the deal is better.',
+    footLinkText: 'See cheapest Jeeps by location →',
+    footLinkHref: 'srp.html?make=Jeep&minYear=2015&maxYear=2022&maxMiles=75000&maxDist=150&q=wrangler&feat=sunroof&feat=leather&feat=navigation&sort=price-asc',
     compare: {
-      title: 'European AWD sedans — compared on what matters',
-      subtitle: "Skipping the frills. Here's <strong>engine performance, drivetrain, year, mileage, price, and value</strong> for your shortlisted sedans across nearby dealers. Best in each row is highlighted.",
-      footDefault: 'AI pick: <strong>BMW 330i xDrive</strong> balances strongest value with near-best performance; <strong>Volvo S60</strong> is the lowest price and most efficient.',
+      title: 'Jeep Wrangler — best price by location',
+      subtitle: 'You are shopping across <strong>NYC, Philadelphia, and Pennsylvania</strong> and want to <strong>prioritize locations with better prices</strong> — not just what is closest. Distance matters less than the deal. Each row compares <strong>list price, KBB fair purchase, and market</strong> so you can see where the savings are.',
+      footDefault: 'AI pick: <strong>2019 Sport, Astoria ($28,990)</strong> is the lowest ask overall; <strong>2018 Sport, Philadelphia ($31,990)</strong> is the best hard-top price if PA undercuts NYC; <strong>2020 Sport S, Brooklyn ($33,990)</strong> costs more — only pick it if you need a newer year and will not travel for savings.',
     },
     picks: [
       {
-        key: 'audi',
-        name: '2023 Audi A4 quattro',
-        price: '$42,990',
-        year: 2023,
-        make: 'Audi',
-        model: 'A4',
-        match: '98% match',
-        location: null,
+        key: 'softtop19',
+        name: '2019 Jeep Wrangler Unlimited Sport',
+        price: '$28,990',
+        year: 2019,
+        make: 'Jeep',
+        model: 'Wrangler',
+        trim: 'Unlimited Sport Soft Top',
+        match: '97% match',
+        recTags: { hardTop: false, market: 'nyc' },
+        location: 'Astoria, NY',
         locationIcon: 'location-dot',
-        trimLabel: 'Premium Plus · AWD Sedan',
-        warrantyBadge: 'Factory warranty active',
+        trimLabel: 'Lowest price · Astoria, NY · Soft Top',
+        warrantyBadge: 'Best price in region',
         specs: [
-          { icon: 'gauge-high', text: '261 hp' },
-          { icon: 'snowflake', text: 'quattro AWD' },
-          { icon: 'gas-pump', text: '27 mpg' },
+          { icon: 'tag', text: 'Lowest ask: $28,990' },
+          { icon: 'map-location-dot', text: 'NYC · $2,100 below KBB' },
+          { icon: 'bluetooth-b', text: 'Bluetooth' },
         ],
-        expert: 'Critics praise the refined cabin and composed ride; the 2.0T quattro is the sweet spot for all-weather grip without thirst.',
-        ownersRating: '4.7/5',
-        ownersText: 'Owners love interior quality and winter confidence; a few note higher routine service costs.',
-        compareMetrics: { price: 42990, mpg: 27, hp: 261, zero: 5.2, miles: 18400, distMin: 0, value: 0 },
+        expert: 'Lowest-priced Unlimited on your board — Astoria asks $28,990, about $2,100 under KBB. NYC lots run higher on hard-top trims; this soft-top Sport leads on location-adjusted price.',
+        ownersRating: '4.3/5',
+        ownersText: 'Shoppers comparing NYC vs. PA often start here — lowest sticker in the tri-state search, even if Philadelphia hard-tops come close on KBB spread.',
+        compareMetrics: { price: 28990, mpg: 21, hp: 285, zero: 7.1, miles: 43800, distMin: 10, value: 2100 },
         drawer: {
-          dealer: 'DriveClear Charlotte',
-          distance: 'At your appointment dealer',
-          value: 'At market',
-          valueClass: 'at',
-          intro: "Here's the full picture on the <strong>2023 Audi A4 quattro</strong> at your appointment dealer. It's a strong fit for European AWD sedans in your range, with factory warranty still active.",
-          specs: [
-            ['Engine', '2.0L Turbo I4'], ['Horsepower', '261 hp'], ['0–60 mph', '5.2 s'],
-            ['Drivetrain', 'quattro AWD'], ['Year', '2023'], ['Mileage', '18,400 mi'],
-            ['MPG (comb.)', '27'], ['Warranty', 'Factory until 2027 / 50k mi'],
-          ],
-          fit: 'Matches all four must-haves: European make, AWD, sedan, and $30k–$50k. Quickest 0–60 of your shortlist and the only one physically at your appointment dealer.',
-          watch: 'Routine maintenance runs higher than mainstream brands — budget for premium service intervals.',
-          chips: ['Is the price fair?', 'How reliable is it?', 'What will service cost?'],
-        },
-      },
-      {
-        key: 'bmw',
-        name: '2022 BMW 330i xDrive',
-        price: '$39,850',
-        year: 2022,
-        make: 'BMW',
-        model: '330i',
-        match: '95% match',
-        location: null,
-        locationIcon: 'location-dot',
-        trimLabel: 'Sport Line · AWD Sedan',
-        warrantyBadge: 'Factory warranty active',
-        specs: [
-          { icon: 'gauge-high', text: '255 hp' },
-          { icon: 'snowflake', text: 'xDrive AWD' },
-          { icon: 'gas-pump', text: '30 mpg' },
-        ],
-        expert: "Widely called the driver's pick in the class — sharp handling with xDrive traction and a strong, efficient turbo four.",
-        ownersRating: '4.6/5',
-        ownersText: 'Praised for fun-to-drive feel and tech; some wish for more rear-seat space.',
-        compareMetrics: { price: 39850, mpg: 30, hp: 255, zero: 5.3, miles: 24100, distMin: 25, value: 1800 },
-        drawer: {
-          dealer: 'Lake Norman BMW · Huntersville',
-          distance: '25 min away',
-          value: '$1,800 below market',
+          dealer: 'DriveClear Astoria',
+          distance: '10 min · Astoria, NY',
+          value: '$2,100 below KBB · lowest list price',
           valueClass: 'great',
-          intro: "Here's the breakdown on the <strong>2022 BMW 330i xDrive</strong>. It's my best-value pick on your shortlist — priced about $1,800 under comparable listings, with factory warranty active.",
+          intro: 'Here is the <strong>lowest-priced match</strong> in your search — <strong>2019 Wrangler Unlimited Sport</strong> in <strong>Astoria, NY</strong> at <strong>$28,990</strong>, about <strong>$2,100 under Kelley Blue Book</strong>.',
           specs: [
-            ['Engine', '2.0L Turbo I4'], ['Horsepower', '255 hp'], ['0–60 mph', '5.3 s'],
-            ['Drivetrain', 'xDrive AWD'], ['Year', '2022'], ['Mileage', '24,100 mi'],
-            ['MPG (comb.)', '30'], ['Warranty', 'Factory until 2026 / 50k mi'],
+            ['List price', '$28,990 · lowest in search'], ['KBB fair purchase', '~$31,100'], ['vs. KBB', '$2,100 below'],
+            ['Market', 'Astoria, NY'], ['Top', 'Premium soft top'], ['Bluetooth', 'Yes'],
+            ['Engine', '3.6L V6'], ['Year', '2019'], ['Mileage', '43,800 mi'],
           ],
-          fit: 'Hits every criterion and leads on value. Best efficiency of the gas models and the sharpest driving feel — strong if performance is your priority.',
-          watch: 'Tighter rear seat and a firmer ride than the Audi or Volvo — worth a test sit if you carry passengers.',
-          chips: ['Why is it below market?', 'Compare to the Audi', 'Is mileage a concern?'],
+          fit: '#1 on price by location — if the deal matters most, this is the floor before you trade features or drive to PA.',
+          watch: 'Soft top, not removable hard top — Philadelphia hard-tops start ~$3k higher but include bolt-off hardware.',
+          chips: ['Cheapest market overall?', 'NYC vs Philly on price?', 'Soft top vs hard top cost?'],
         },
       },
       {
-        key: 'volvo',
-        name: '2023 Volvo S60 B5',
-        price: '$38,500',
-        year: 2023,
-        make: 'Volvo',
-        model: 'S60',
-        match: '93% match',
-        location: null,
-        locationIcon: 'route',
-        trimLabel: 'Plus · AWD Sedan',
-        warrantyBadge: 'Factory warranty active',
+        key: 'sport18',
+        name: '2018 Jeep Wrangler Unlimited Sport',
+        price: '$31,990',
+        year: 2018,
+        make: 'Jeep',
+        model: 'Wrangler',
+        trim: 'Unlimited Sport',
+        match: '95% match',
+        recTags: { hardTop: true, market: 'pa' },
+        location: 'Philadelphia, PA',
+        locationIcon: 'location-dot',
+        trimLabel: 'Best hard-top price · Philadelphia, PA',
+        warrantyBadge: 'PA market · below KBB',
         specs: [
-          { icon: 'gauge-high', text: '247 hp' },
-          { icon: 'snowflake', text: 'AWD' },
-          { icon: 'gas-pump', text: '29 mpg' },
+          { icon: 'tag', text: 'Hard top · $31,990' },
+          { icon: 'map-location-dot', text: 'Philadelphia · $1,200 below KBB' },
+          { icon: 'car-side', text: 'Removable hard top' },
         ],
-        expert: 'Standout safety scores and a calm, upscale cabin; the mild-hybrid B5 AWD is smooth and quietly quick.',
-        ownersRating: '4.8/5',
-        ownersText: 'Owners rate comfort and seats highly; infotainment has a slight learning curve.',
-        compareMetrics: { price: 38500, mpg: 31, hp: 247, zero: 5.9, miles: 15900, distMin: 45, value: 900 },
+        expert: 'Philadelphia often undercuts NYC on the same hard-top Sport trim — this one lists at $31,990, about $2k less than comparable Brooklyn Sport S inventory and $1,200 under KBB fair purchase for the Philly market.',
+        ownersRating: '4.2/5',
+        ownersText: 'Buyers prioritizing price over proximity say PA is worth the drive when hard-top Unlimiteds run $1,500–$2,500 cheaper than NYC lots.',
+        compareMetrics: { price: 31990, mpg: 21, hp: 285, zero: 7.2, miles: 47200, distMin: 95, value: 1200 },
         drawer: {
-          dealer: 'Volvo Cars South Charlotte',
-          distance: '45 min away',
-          value: '$900 below market',
-          valueClass: 'good',
-          intro: "Here's the detail on the <strong>2023 Volvo S60 B5 AWD</strong>. It's the lowest price and most efficient on your shortlist, with the highest owner rating — but it's the farthest drive.",
+          dealer: 'DriveClear Philadelphia',
+          distance: '95 mi · Philadelphia, PA',
+          value: '$1,200 below KBB · best hard-top price',
+          valueClass: 'great',
+          intro: 'Here is the <strong>best-priced hard-top Unlimited</strong> in your search — <strong>2018 Sport</strong> in <strong>Philadelphia, PA</strong> at <strong>$31,990</strong>, where PA listings undercut NYC on the same equipment.',
           specs: [
-            ['Engine', '2.0L Turbo + Mild Hybrid'], ['Horsepower', '247 hp'], ['0–60 mph', '5.9 s'],
-            ['Drivetrain', 'AWD'], ['Year', '2023'], ['Mileage', '15,900 mi'],
-            ['MPG (comb.)', '31'], ['Warranty', 'Factory until 2027 / 50k mi'],
+            ['List price', '$31,990 · best hard-top ask'], ['KBB fair purchase', '~$33,200'], ['vs. KBB', '$1,200 below'],
+            ['Market', 'Philadelphia, PA'], ['Top', 'Removable hard top'], ['Bluetooth', 'Yes'],
+            ['Engine', '3.6L V6'], ['Year', '2018'], ['Mileage', '47,200 mi'],
           ],
-          fit: 'Meets all four criteria at the lowest price, with the best fuel economy and top safety scores. Trade-off is a 3-hour round trip to see it.',
-          watch: 'Least sporty of the three and the longest drive to inspect — factor the distance into your Saturday plan.',
-          chips: ['Is the drive worth it?', 'How safe is it?', 'Can a closer dealer get one?'],
+          fit: 'Lead pick if you need a hard top and want the cheapest market — PA beats NYC on this trim by about $2k vs. the Brooklyn Sport S.',
+          watch: '~95 miles from NYC — only skip it if local convenience outweighs $2k+ in savings.',
+          chips: ['Is Philly worth the drive?', 'PA vs NYC price gap?', '2018 vs 2020 for savings?'],
+        },
+      },
+      {
+        key: 'sports20',
+        name: '2020 Jeep Wrangler Unlimited Sport S',
+        price: '$33,990',
+        year: 2020,
+        make: 'Jeep',
+        model: 'Wrangler',
+        trim: 'Unlimited Sport S',
+        match: '91% match',
+        recTags: { hardTop: true, market: 'nyc' },
+        location: 'Brooklyn, NY',
+        locationIcon: 'location-dot',
+        trimLabel: 'Higher NYC price · Brooklyn · Hard Top',
+        warrantyBadge: '$1,400 below KBB',
+        specs: [
+          { icon: 'tag', text: 'NYC ask: $33,990' },
+          { icon: 'map-location-dot', text: 'Brooklyn · +$2k vs Philly' },
+          { icon: 'car-side', text: 'Removable hard top' },
+        ],
+        expert: 'Brooklyn lists this Sport S at $33,990 — still $1,400 under KBB, but roughly $2k more than the Philadelphia hard-top Sport for a newer year. NYC convenience premium shows up here.',
+        ownersRating: '4.3/5',
+        ownersText: 'Local buyers pay up for newer years in NYC; cross-market shoppers often skip Brooklyn listings when Philadelphia has the same hardware for less.',
+        compareMetrics: { price: 33990, mpg: 22, hp: 285, zero: 7.0, miles: 35200, distMin: 12, value: 1400 },
+        drawer: {
+          dealer: 'DriveClear Brooklyn',
+          distance: '12 min · Brooklyn, NY',
+          value: '$1,400 below KBB · higher NYC price',
+          valueClass: 'good',
+          intro: 'Here is the <strong>2020 Sport S in Brooklyn</strong> — convenient and under KBB, but <strong>$2k more</strong> than the Philadelphia hard-top option because NYC lots price newer years higher.',
+          specs: [
+            ['List price', '$33,990 · NYC premium'], ['KBB fair purchase', '~$35,400'], ['vs. KBB', '$1,400 below'],
+            ['Market', 'Brooklyn, NY'], ['Top', 'Removable hard top'], ['Bluetooth', 'Yes'],
+            ['Engine', '3.6L V6'], ['Year', '2020'], ['Mileage', '35,200 mi'],
+          ],
+          fit: 'Pick this only if you need a 2020 close to home and will not travel to PA for a better location price.',
+          watch: 'Highest price on the board — location-based shopping favors Philadelphia or the Astoria soft-top first.',
+          chips: ['Why is Brooklyn $2k more?', 'Worth staying local?', 'Compare to Philly hard top'],
         },
       },
     ],
@@ -229,6 +270,7 @@ const Profile = {
       P.make = PARTICIPANT.makes.length === 1 ? PARTICIPANT.makes[0] : PARTICIPANT.makes.slice();
     }
     if (PARTICIPANT.minYear != null) P.minYear = PARTICIPANT.minYear;
+    if (PARTICIPANT.maxYear != null) P.maxYear = PARTICIPANT.maxYear;
     if (PARTICIPANT.maxMiles != null) P.maxMiles = PARTICIPANT.maxMiles;
     if (PARTICIPANT.drivetrain && (!Array.isArray(PARTICIPANT.drivetrain) || PARTICIPANT.drivetrain.length)) {
       P.drive = Array.isArray(PARTICIPANT.drivetrain)
@@ -237,6 +279,7 @@ const Profile = {
     }
     if (PARTICIPANT.minMpg != null) P.minMpg = PARTICIPANT.minMpg;
     if (PARTICIPANT.maxDist != null) P.maxDist = PARTICIPANT.maxDist;
+    if (PARTICIPANT.features && PARTICIPANT.features.length) P.features = PARTICIPANT.features.slice();
     return P;
   },
 
@@ -253,12 +296,15 @@ const Profile = {
     const out = [];
     const add = m => { if (!out.includes(m)) out.push(m); };
     const needs = (PARTICIPANT.needs || []).map(n => String(n).toLowerCase());
-    if (PARTICIPANT.maxPrice != null || needs.some(n => /budget|cheap|afford|first/.test(n))) add('price');
-    if (PARTICIPANT.maxDist != null || needs.some(n => /near|close|local|distance/.test(n))) add('dist');
+    const priceByLocation = needs.some(n => /locationprice|marketprice|cheapermarket/.test(n));
+    if (PARTICIPANT.maxPrice != null || needs.some(n => /budget|cheap|afford|first|value|kbb|blue book/.test(n)) || priceByLocation) {
+      add('price');
+    }
+    if (needs.some(n => /value|deal|worth|kbb|blue book/.test(n))) add('value');
+    if (!priceByLocation && (PARTICIPANT.maxDist != null || needs.some(n => /near|close|local|distance/.test(n)))) add('dist');
     if (PARTICIPANT.minMpg != null || needs.some(n => /mpg|fuel|efficien|eco|commut/.test(n))) add('mpg');
     if (PARTICIPANT.maxMiles != null || needs.some(n => /mileage|newer|low mile/.test(n))) add('miles');
     if (needs.some(n => /sporty|fun|fast|performance|power/.test(n))) { add('hp'); add('zero'); }
-    if (needs.some(n => /value|deal|worth/.test(n))) add('value');
     return out;
   },
 
@@ -266,7 +312,8 @@ const Profile = {
     const P = this.toParams();
     const parts = [];
     if (P.drive) parts.push(Array.isArray(P.drive) ? P.drive.join('/') : P.drive);
-    if (P.minYear) parts.push(P.minYear + '+');
+    if (P.minYear && PARTICIPANT.maxYear) parts.push(P.minYear + '–' + PARTICIPANT.maxYear);
+    else if (P.minYear) parts.push(P.minYear + '+');
     if (Array.isArray(P.make)) parts.push(P.make.join('/'));
     else if (P.make) parts.push(P.make);
     if (P.body === 'SUV') parts.push('SUVs');
@@ -290,6 +337,9 @@ const Profile = {
     const hp = PARTICIPANT.homepage;
     if (!hp) return '';
     if (hp.subtitle) return hp.subtitle;
+    if (hp.selections && hp.selections.groups && hp.selections.groups.length) {
+      return 'Adjust what matters below — your matches re-rank instantly.';
+    }
     const criteria = hp.criteriaText || this.summary();
     const appt = hp.appointment
       ? `Based on your appointment <strong>${hp.appointment}</strong> and what you told me`
@@ -385,6 +435,10 @@ const Profile = {
       if (d) q.set('drive', d);
     }
     if (P.minYear) q.set('minYear', P.minYear);
+    if (P.maxYear) q.set('maxYear', P.maxYear);
+    if (P.maxMiles) q.set('maxMiles', P.maxMiles);
+    if (P.maxDist) q.set('maxDist', P.maxDist);
+    if (P.features && P.features.length) P.features.forEach(f => q.append('feat', f));
     if (P.maxPrice) q.set('maxPrice', P.maxPrice);
     if (Array.isArray(P.make) && P.make.length === 1) q.set('make', P.make[0]);
     const qs = q.toString();

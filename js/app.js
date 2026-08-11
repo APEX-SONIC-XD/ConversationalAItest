@@ -64,6 +64,9 @@ document.addEventListener('DOMContentLoaded', () => {
   initFeaturedGrid();
   initHomepageRec();
   initComparePage();
+  initFavoritesPage();
+  initFavoritesNav();
+  initScheduleTestDrives();
 
   // Interior pages
   if (document.getElementById('sell-trade-form')) initSellTradePage();
@@ -71,6 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (document.getElementById('fin-prep')) initFinancePrep();
   if (document.getElementById('trade-prep')) initTradePrep();
   if (document.getElementById('td-confirm-root') || document.getElementById('td-prep')) initTestDriveConfirmation();
+  if (document.getElementById('carfax-report-root')) initCarfaxReport();
 });
 
 // ─── Homepage AI recommendations (reads PARTICIPANT.homepage) ───
@@ -104,21 +108,13 @@ function initHomepageRec() {
 
   const sketch = 'https://plus.unsplash.com/premium_vector-1733984597729-fad43b660da0?fm=jpg&q=60&w=900&auto=format&fit=crop';
   const drawerCars = {};
-
-  grid.innerHTML = hp.picks.map(pick => {
+  hp.picks.forEach(pick => {
     const v = typeof findVehicleForPick === 'function' ? findVehicleForPick(pick) : null;
-    const img = pick.imageUrl || v?.images?.[0] || sketch;
     const name = pick.name || (v ? `${v.year} ${v.make} ${v.model}` : 'Vehicle');
     const trim = pick.trimLabel || '';
     const price = pick.price || (v ? formatPrice(v.price) : '—');
-    const vdpId = v?.id;
-    const locIcon = pick.locationIcon || 'location-dot';
     const pickLoc = (typeof Profile !== 'undefined' && Profile.pickLocation)
       ? Profile.pickLocation(pick) : (pick.location || 'In stock');
-    const specsHtml = (pick.specs || []).map(s =>
-      `<span><i class="fa-solid fa-${escapeHtml(s.icon)}"></i> ${escapeHtml(s.text)}</span>`
-    ).join('');
-
     const d = pick.drawer || {};
     drawerCars[pick.key] = {
       name,
@@ -135,12 +131,82 @@ function initHomepageRec() {
       owners: { rating: pick.ownersRating || '—', text: pick.ownersText || '' },
       watch: d.watch || '',
       chips: d.chips || ['Is the price fair?', 'How reliable is it?'],
-      vdpId: vdpId || null,
+      vdpId: v?.id || null,
     };
+  });
+
+  const inferRecTags = pick => {
+    if (pick.recTags) return pick.recTags;
+    const loc = String(pick.location || '').toLowerCase();
+    const text = `${pick.trimLabel || ''} ${pick.name || ''} ${pick.trim || ''}`.toLowerCase();
+    return {
+      hardTop: !/soft top/.test(text),
+      market: /,\s*pa\b|philadelphia/.test(loc) ? 'pa' : 'nyc',
+    };
+  };
+
+  const selectionState = {};
+  const selConfig = hp.selections;
+  if (selConfig && selConfig.groups) {
+    selConfig.groups.forEach(g => { selectionState[g.key] = g.default || g.options[0]?.id; });
+  }
+
+  const PRIORITY_LABELS = { price: 'lowest price', kbb: 'KBB value', near: 'distance' };
+  const MARKET_LABELS = { all: 'NYC & Pennsylvania', nyc: 'NYC only', pa: 'Philadelphia & PA' };
+
+  function filterPicks(picks) {
+    let out = picks.slice();
+    if (selectionState.hardTop === 'required') {
+      out = out.filter(p => inferRecTags(p).hardTop);
+    }
+    if (selectionState.market === 'nyc') {
+      out = out.filter(p => inferRecTags(p).market === 'nyc');
+    } else if (selectionState.market === 'pa') {
+      out = out.filter(p => inferRecTags(p).market === 'pa');
+    }
+    return out;
+  }
+
+  function sortPicks(picks) {
+    const out = picks.slice();
+    const cm = p => p.compareMetrics || {};
+    switch (selectionState.priority) {
+      case 'kbb':
+        out.sort((a, b) => (cm(b).value || 0) - (cm(a).value || 0));
+        break;
+      case 'near':
+        out.sort((a, b) => (cm(a).distMin ?? 999) - (cm(b).distMin ?? 999));
+        break;
+      default:
+        out.sort((a, b) => (cm(a).price || 0) - (cm(b).price || 0));
+    }
+    return out;
+  }
+
+  function matchLabel(i, total) {
+    if (i === 0) return 'Top match';
+    if (i === 1 && total > 2) return 'Strong match';
+    return `${Math.max(88, 97 - i * 3)}% match`;
+  }
+
+  function renderPickCard(pick, index, total) {
+    const v = typeof findVehicleForPick === 'function' ? findVehicleForPick(pick) : null;
+    const img = pick.imageUrl || v?.images?.[0] || sketch;
+    const name = pick.name || (v ? `${v.year} ${v.make} ${v.model}` : 'Vehicle');
+    const trim = pick.trimLabel || '';
+    const price = pick.price || (v ? formatPrice(v.price) : '—');
+    const vdpId = v?.id;
+    const locIcon = pick.locationIcon || 'location-dot';
+    const pickLoc = (typeof Profile !== 'undefined' && Profile.pickLocation)
+      ? Profile.pickLocation(pick) : (pick.location || 'In stock');
+    const specsHtml = (pick.specs || []).map(s =>
+      `<span><i class="fa-solid fa-${escapeHtml(s.icon)}"></i> ${escapeHtml(s.text)}</span>`
+    ).join('');
 
     return `<article class="ai-rec-card${vdpId ? '' : ' ai-rec-card-static'}"${vdpId ? ` data-vdp-id="${vdpId}"` : ''}>
       <div class="ai-rec-img" style="background-image:url('${img}')">
-        <span class="ai-rec-match">${escapeHtml(pick.match || 'Match')}</span>
+        <span class="ai-rec-match">${escapeHtml(matchLabel(index, total))}</span>
+        ${vdpId ? `<button type="button" class="ai-rec-save v-save${typeof isSaved === 'function' && isSaved(vdpId) ? ' saved' : ''}" data-id="${vdpId}" title="Favorite" aria-label="Favorite"><i class="fa-${typeof isSaved === 'function' && isSaved(vdpId) ? 'solid' : 'regular'} fa-heart"></i></button>` : ''}
         <span class="ai-rec-loc"><i class="fa-solid fa-${escapeHtml(locIcon)}"></i> ${escapeHtml(pickLoc)}</span>
       </div>
       <div class="ai-rec-body">
@@ -162,16 +228,99 @@ function initHomepageRec() {
         <button type="button" class="btn btn-primary btn-block btn-sm ai-detail-open" data-car="${escapeHtml(pick.key)}"><i class="fa-solid fa-wand-magic-sparkles"></i> View details with AI</button>
       </div>
     </article>`;
-  }).join('');
+  }
+
+  function bindGridEvents() {
+    grid.querySelectorAll('.ai-rec-card[data-vdp-id]').forEach(card => {
+      card.addEventListener('click', e => {
+        if (e.target.closest('.ai-detail-open') || e.target.closest('.v-save')) return;
+        window.location.href = `vdp.html?id=${card.dataset.vdpId}`;
+      });
+    });
+    grid.querySelectorAll('.ai-detail-open').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        if (typeof window.__openAiDetail === 'function') window.__openAiDetail(btn.dataset.car);
+      });
+    });
+    grid.querySelectorAll('.v-save').forEach(btn => {
+      const id = parseInt(btn.dataset.id, 10);
+      btn.addEventListener('click', e => {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleSave(id);
+        const saved = isSaved(id);
+        btn.classList.toggle('saved', saved);
+        btn.innerHTML = saved ? '<i class="fa-solid fa-heart"></i>' : '<i class="fa-regular fa-heart"></i>';
+      });
+    });
+  }
+
+  function updateStatus(count) {
+    const statusEl = document.getElementById('ai-rec-status');
+    if (!statusEl || !selConfig) return;
+    statusEl.hidden = false;
+    const n = count;
+    const rank = PRIORITY_LABELS[selectionState.priority] || 'best fit';
+    const market = MARKET_LABELS[selectionState.market] || 'all areas';
+    const top = selectionState.hardTop === 'required' ? 'hard top required' : 'hard top flexible';
+    if (!n) {
+      statusEl.innerHTML = 'No matches with those settings — try <strong>Flexible</strong> on hard top or <strong>All areas</strong>.';
+      return;
+    }
+    statusEl.innerHTML = `Showing <strong>${n} Jeep${n === 1 ? '' : 's'}</strong> · sorted by <strong>${rank}</strong> · <strong>${market}</strong> · ${top}`;
+  }
+
+  function renderGrid() {
+    const filtered = sortPicks(filterPicks(hp.picks));
+    grid.classList.remove('ai-rec-grid-1', 'ai-rec-grid-2');
+    if (filtered.length === 1) grid.classList.add('ai-rec-grid-1');
+    else if (filtered.length === 2) grid.classList.add('ai-rec-grid-2');
+
+    if (!filtered.length) {
+      grid.innerHTML = `<div class="ai-rec-empty" style="grid-column:1/-1;padding:32px;text-align:center;color:var(--text-mid);background:#fff;border-radius:var(--r-xl);border:1px solid var(--border)">
+        <i class="fa-solid fa-sliders" style="font-size:28px;color:var(--teal);margin-bottom:12px;display:block"></i>
+        <strong style="display:block;color:var(--text-dark);margin-bottom:6px">No matches with these settings</strong>
+        Try flexible on hard top or expand to all markets.
+      </div>`;
+    } else {
+      grid.innerHTML = filtered.map((pick, i) => renderPickCard(pick, i, filtered.length)).join('');
+    }
+    updateStatus(filtered.length);
+    bindGridEvents();
+  }
+
+  const controlsEl = document.getElementById('ai-rec-controls');
+  if (controlsEl && selConfig && selConfig.groups) {
+    controlsEl.hidden = false;
+    controlsEl.innerHTML = selConfig.groups.map(g => `
+      <div class="ai-rec-control-row" data-group="${escapeHtml(g.key)}">
+        <span class="ai-rec-control-label">${escapeHtml(g.label)}</span>
+        <div class="ai-rec-pills" role="group" aria-label="${escapeHtml(g.label)}">
+          ${g.options.map(o => `
+            <button type="button" class="ai-rec-pill${selectionState[g.key] === o.id ? ' active' : ''}"
+              data-group="${escapeHtml(g.key)}" data-value="${escapeHtml(o.id)}">
+              <i class="fa-solid fa-${escapeHtml(o.icon || 'circle')}"></i> ${escapeHtml(o.label)}
+            </button>`).join('')}
+        </div>
+      </div>`).join('');
+
+    controlsEl.querySelectorAll('.ai-rec-pill').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const group = btn.dataset.group;
+        const value = btn.dataset.value;
+        if (selectionState[group] === value) return;
+        selectionState[group] = value;
+        controlsEl.querySelectorAll(`.ai-rec-pill[data-group="${group}"]`).forEach(b => {
+          b.classList.toggle('active', b.dataset.value === value);
+        });
+        renderGrid();
+      });
+    });
+  }
 
   initHomeDetailModal(drawerCars);
-
-  grid.querySelectorAll('.ai-rec-card[data-vdp-id]').forEach(card => {
-    card.addEventListener('click', e => {
-      if (e.target.closest('.ai-detail-open')) return;
-      window.location.href = `vdp.html?id=${card.dataset.vdpId}`;
-    });
-  });
+  renderGrid();
 }
 
 function initHomeDetailModal(CARS) {
@@ -261,13 +410,7 @@ function initHomeDetailModal(CARS) {
 
   const open = key => { render(key); modal.hidden = false; document.body.style.overflow = 'hidden'; };
   const close = () => { modal.hidden = true; document.body.style.overflow = ''; };
-
-  document.querySelectorAll('.ai-detail-open').forEach(btn => {
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
-      open(btn.dataset.car);
-    });
-  });
+  window.__openAiDetail = open;
 
   const closeBtn = document.getElementById('ai-detail-close');
   const backdrop = document.getElementById('ai-detail-backdrop');
@@ -317,6 +460,99 @@ function initFeaturedGrid() {
 }
 
 // ─── Compare page (reads Profile.compareCars) ───
+function vehiclesToCompareCars(vehicles) {
+  return vehicles.map((v, i) => {
+    const mpg = Math.round((v.mpgCity + v.mpgHwy) / 2);
+    const dist = typeof vehicleDistance === 'function' ? vehicleDistance(v) : 0;
+    const savings = v.marketSavings || 0;
+    return {
+      key: 'v' + v.id,
+      col: i + 1,
+      name: `${v.year} ${v.make} ${v.model}`,
+      displayName: `${v.year} ${v.make} ${v.model}`,
+      trimLabel: `${v.trim} · ${v.extColor}`,
+      dealer: v.location || 'DriveClear',
+      distance: v.location || 'In stock',
+      price: v.price,
+      mpg,
+      hp: v.hp,
+      zero: 7.0,
+      miles: v.mileage,
+      distMin: dist,
+      dist,
+      value: savings,
+      year: v.year,
+      engine: v.engine,
+      drivetrain: v.drivetrain,
+      valueLabel: savings > 0 ? `$${savings.toLocaleString()} below market` : 'At market',
+      valueClass: savings > 1000 ? 'great' : savings > 0 ? 'good' : 'at',
+      vdpId: v.id,
+    };
+  });
+}
+
+function renderCompareTable(cars, table) {
+  if (!table || !cars.length) return;
+
+  const fmtMiles = m => {
+    if (!m) return '—';
+    return m >= 1000 ? `${Math.round(m / 100) / 10}k mi` : `${m} mi`;
+  };
+  const fmtDist = c => {
+    if (c.distMin === 0) return 'At your dealer';
+    if (typeof c.distance === 'string' && c.distance) return c.distance;
+    return c.distMin != null ? `${c.distMin} mi away` : '—';
+  };
+
+  const rows = [
+    { label: 'Dealer', icon: 'store', cells: c => escapeHtml(c.dealer) },
+    { metric: 'distMin', label: 'Distance', icon: 'route', cells: c => escapeHtml(fmtDist(c)) },
+    { label: 'Year', icon: 'calendar', cells: c => c.year || '—' },
+    { metric: 'miles', label: 'Mileage', icon: 'gauge', cells: c => fmtMiles(c.miles) },
+    { label: 'Engine', icon: 'engine', cells: c => escapeHtml(c.engine || '—') },
+    { metric: 'hp', label: 'Horsepower', icon: 'gauge-high', cells: c => `${c.hp || '—'} hp` },
+    { metric: 'zero', label: '0–60 mph', icon: 'stopwatch', cells: c => `${c.zero || '—'} s` },
+    { label: 'Drivetrain', icon: 'snowflake', cells: c => escapeHtml(c.drivetrain || '—') },
+    { metric: 'mpg', label: 'MPG (comb.)', icon: 'gas-pump', cells: c => c.mpg || '—' },
+    { metric: 'price', label: 'Price', icon: 'tag', cells: c => `<span class="xdc-price">${formatPrice(c.price)}</span>` },
+    { metric: 'value', label: 'Value', icon: 'arrow-trend-down', cells: c => `<span class="xdc-val xdc-val-${c.valueClass || 'at'}">${escapeHtml(c.valueLabel || 'At market')}</span>` },
+  ];
+
+  const metricDir = { price: 'min', mpg: 'max', hp: 'max', zero: 'min', miles: 'min', distMin: 'min', value: 'max' };
+
+  const headCells = cars.map(c => `
+    <th data-veh="${escapeHtml(c.key)}">
+      <div class="xdc-veh">${escapeHtml(c.displayName || c.name)}</div>
+      <div class="xdc-veh-trim">${escapeHtml(c.trimLabel || '')}</div>
+    </th>`).join('');
+
+  const bodyRows = rows.map(row => {
+    let bestIdx = -1;
+    if (row.metric) {
+      const dir = metricDir[row.metric];
+      const nums = cars.map(c => c[row.metric]);
+      const best = nums.slice().sort((a, b) => dir === 'min' ? a - b : b - a)[0];
+      bestIdx = nums.indexOf(best);
+    }
+    const tds = cars.map((c, i) => {
+      const cls = i === bestIdx && row.metric ? ' class="xdc-best"' : '';
+      return `<td${cls}>${row.cells(c)}</td>`;
+    }).join('');
+    const metricKey = row.metric === 'distMin' ? 'dist' : row.metric;
+    return `<tr${metricKey ? ` data-metric="${metricKey}"` : ''}>
+      <td class="xdc-rowlabel"><i class="fa-solid fa-${row.icon}"></i> ${row.label}</td>${tds}</tr>`;
+  }).join('');
+
+  const ctaRow = cars.map(c => {
+    const href = c.vdpId ? `vdp.html?id=${c.vdpId}` : '#';
+    return `<td><a href="${href}" class="btn btn-outline btn-sm btn-block">View</a></td>`;
+  }).join('');
+
+  table.innerHTML = `
+    <thead><tr><th class="xdc-rowlabel">Spec</th>${headCells}</tr></thead>
+    <tbody>${bodyRows}<tr class="xdc-cta-row"><td class="xdc-rowlabel"></td>${ctaRow}</tr></tbody>`;
+}
+
 function initComparePage() {
   const table = document.querySelector('.xdc-table');
   if (!table || typeof Profile === 'undefined' || !Profile.compareCars) return;
@@ -345,59 +581,96 @@ function initComparePage() {
     footEl.innerHTML = `<i class="fa-solid fa-circle-info"></i> ${meta.footDefault}`;
   }
 
-  const fmtMiles = m => {
-    if (!m) return '—';
-    return m >= 1000 ? `${Math.round(m / 100) / 10}k mi` : `${m} mi`;
-  };
-  const fmtDist = c => c.distMin === 0 ? 'At your dealer' : (c.distance || `${c.distMin} min away`);
+  renderCompareTable(cars, table);
+}
 
-  const rows = [
-    { label: 'Dealer', icon: 'store', cells: c => escapeHtml(c.dealer) },
-    { metric: 'distMin', label: 'Distance', icon: 'route', cells: c => escapeHtml(fmtDist(c)) },
-    { label: 'Year', icon: 'calendar', cells: c => c.year || '—' },
-    { metric: 'miles', label: 'Mileage', icon: 'gauge', cells: c => fmtMiles(c.miles) },
-    { label: 'Engine', icon: 'engine', cells: c => escapeHtml(c.engine) },
-    { metric: 'hp', label: 'Horsepower', icon: 'gauge-high', cells: c => `${c.hp} hp` },
-    { metric: 'zero', label: '0–60 mph', icon: 'stopwatch', cells: c => `${c.zero} s` },
-    { label: 'Drivetrain', icon: 'snowflake', cells: c => escapeHtml(c.drivetrain) },
-    { metric: 'mpg', label: 'MPG (comb.)', icon: 'gas-pump', cells: c => c.mpg },
-    { metric: 'price', label: 'Price', icon: 'tag', cells: c => `<span class="xdc-price">${formatPrice(c.price)}</span>` },
-    { metric: 'value', label: 'Value', icon: 'arrow-trend-down', cells: c => `<span class="xdc-val xdc-val-${c.valueClass}">${escapeHtml(c.valueLabel)}</span>` },
-  ];
+function initFavoritesPage() {
+  const root = document.getElementById('favorites-root');
+  if (!root || typeof getSaved !== 'function') return;
 
-  const metricDir = { price: 'min', mpg: 'max', hp: 'max', zero: 'min', miles: 'min', distMin: 'min', value: 'max' };
+  const ids = getSaved();
+  const vehicles = ids.map(id => getVehicleById(id)).filter(Boolean);
+  const emptyEl = document.getElementById('fav-empty');
+  const needMoreEl = document.getElementById('fav-need-more');
+  const wrapEl = document.getElementById('fav-compare-wrap');
+  const stripEl = document.getElementById('fav-saved-strip');
+  const table = document.getElementById('fav-table');
+  const titleEl = document.getElementById('fav-title');
+  const subEl = document.getElementById('fav-sub');
 
-  const headCells = cars.map(c => `
-    <th data-veh="${escapeHtml(c.key)}">
-      <div class="xdc-veh">${escapeHtml(c.displayName)}</div>
-      <div class="xdc-veh-trim">${escapeHtml(c.trimLabel)}</div>
-    </th>`).join('');
+  if (!vehicles.length) {
+    if (emptyEl) emptyEl.hidden = false;
+    if (needMoreEl) needMoreEl.hidden = true;
+    if (wrapEl) wrapEl.hidden = true;
+    const schedSec = document.getElementById('fav-schedule-section');
+    if (schedSec) schedSec.hidden = true;
+    return;
+  }
 
-  const bodyRows = rows.map(row => {
-    let bestIdx = -1;
-    if (row.metric) {
-      const dir = metricDir[row.metric];
-      const nums = cars.map(c => c[row.metric]);
-      const best = nums.slice().sort((a, b) => dir === 'min' ? a - b : b - a)[0];
-      bestIdx = nums.indexOf(best);
+  if (emptyEl) emptyEl.hidden = true;
+
+  const schedSec = document.getElementById('fav-schedule-section');
+  const schedText = document.getElementById('fav-schedule-text');
+  const schedBtn = document.getElementById('fav-schedule-btn');
+  if (schedSec) schedSec.hidden = false;
+  if (schedText) {
+    const locCount = new Set(vehicles.map(v => v.location)).size;
+    schedText.textContent = vehicles.length === 1
+      ? 'Book a test drive for the car you saved — choose a date and time that works.'
+      : locCount > 1
+        ? `Book all ${vehicles.length} favorites — we'll optimize your route by location (NYC first, then PA) with suggested times.`
+        : `Book test drives for all ${vehicles.length} favorites at ${vehicles[0].location} — consecutive slots suggested.`;
+  }
+  if (schedBtn) {
+    schedBtn.innerHTML = vehicles.length === 1
+      ? '<i class="fa-solid fa-calendar-check"></i> Schedule test drive'
+      : `<i class="fa-solid fa-calendar-days"></i> Schedule ${vehicles.length} test drives`;
+  }
+
+  if (vehicles.length === 1) {
+    if (needMoreEl) {
+      needMoreEl.hidden = false;
+      const countOne = document.getElementById('fav-count-one');
+      if (countOne) countOne.textContent = '1';
     }
-    const tds = cars.map((c, i) => {
-      const cls = i === bestIdx && row.metric ? ' class="xdc-best"' : '';
-      return `<td${cls}>${row.cells(c)}</td>`;
-    }).join('');
-    const metricKey = row.metric === 'distMin' ? 'dist' : row.metric;
-    return `<tr${metricKey ? ` data-metric="${metricKey}"` : ''}>
-      <td class="xdc-rowlabel"><i class="fa-solid fa-${row.icon}"></i> ${row.label}</td>${tds}</tr>`;
-  }).join('');
+    if (wrapEl) wrapEl.hidden = true;
+    if (titleEl) titleEl.textContent = 'AI comparison · 1 favorite';
+    if (subEl) subEl.textContent = 'Save one more car to unlock side-by-side AI comparison.';
+    return;
+  }
 
-  const ctaRow = cars.map(c => {
-    const href = c.vdpId ? `vdp.html?id=${c.vdpId}` : '#';
-    return `<td><a href="${href}" class="btn btn-outline btn-sm btn-block">View</a></td>`;
-  }).join('');
+  if (needMoreEl) needMoreEl.hidden = true;
+  if (wrapEl) wrapEl.hidden = false;
 
-  table.innerHTML = `
-    <thead><tr><th class="xdc-rowlabel">Spec</th>${headCells}</tr></thead>
-    <tbody>${bodyRows}<tr class="xdc-cta-row"><td class="xdc-rowlabel"></td>${ctaRow}</tr></tbody>`;
+  const cars = vehiclesToCompareCars(vehicles);
+  window.FAVORITES_CARS = cars;
+
+  if (titleEl) titleEl.textContent = `AI comparison · ${cars.length} favorites`;
+  if (subEl) subEl.textContent = 'Your saved listings compared side-by-side. Tell the assistant what matters and it will highlight the best pick.';
+  if (table) renderCompareTable(cars, table);
+
+  if (stripEl) {
+    stripEl.innerHTML = vehicles.map(v => `
+      <div class="fav-strip-card" data-id="${v.id}">
+        <button type="button" class="fav-strip-remove" data-id="${v.id}" aria-label="Remove favorite"><i class="fa-solid fa-times"></i></button>
+        <a href="vdp.html?id=${v.id}" class="fav-strip-link">
+          <div class="fav-strip-img"><img src="${v.images[0]}" alt=""></div>
+          <div class="fav-strip-info">
+            <div class="fav-strip-name">${v.year} ${escapeHtml(v.make)} ${escapeHtml(v.model)}</div>
+            <div class="fav-strip-meta">${formatPrice(v.price)} · ${escapeHtml(v.location)}</div>
+          </div>
+        </a>
+      </div>`).join('');
+
+    stripEl.querySelectorAll('.fav-strip-remove').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleSave(parseInt(btn.dataset.id, 10));
+        location.reload();
+      });
+    });
+  }
 }
 
 function getVisitContext() {
@@ -511,12 +784,376 @@ function cardHTML(v) {
 
 // ─── Saved / Favorites ───────────────────────────────────
 function getSaved() { return JSON.parse(localStorage.getItem('dc_saved') || '[]'); }
-function isSaved(id) { return getSaved().includes(id); }
+function isSaved(id) { return getSaved().includes(parseInt(id, 10)); }
 function toggleSave(id) {
+  id = parseInt(id, 10);
   const saved = getSaved();
   const idx = saved.indexOf(id);
-  if (idx > -1) saved.splice(idx, 1); else saved.push(id);
+  const adding = idx === -1;
+  if (adding) saved.push(id);
+  else saved.splice(idx, 1);
   localStorage.setItem('dc_saved', JSON.stringify(saved));
+  updateFavoritesNavBadge();
+  renderFavoritesTray();
+  if (adding) showFavoritesToast(getSaved().length);
+  return adding;
+}
+
+function updateFavoritesNavBadge() {
+  const count = getSaved().length;
+  document.querySelectorAll('.nav-favorites').forEach(link => {
+    let badge = link.querySelector('.nav-fav-badge');
+    if (count > 0) {
+      if (!badge) {
+        badge = document.createElement('span');
+        badge.className = 'nav-fav-badge';
+        link.appendChild(badge);
+      }
+      badge.textContent = count;
+      badge.hidden = false;
+    } else if (badge) {
+      badge.hidden = true;
+    }
+  });
+}
+
+function initFavoritesNav() {
+  document.querySelectorAll('.nav-right').forEach(right => {
+    if (right.querySelector('.nav-favorites')) return;
+    const link = document.createElement('a');
+    link.href = 'favorites.html';
+    link.className = 'nav-favorites';
+    link.title = 'Your favorites';
+    link.innerHTML = '<i class="fa-regular fa-heart"></i><span class="nav-fav-label">Favorites</span>';
+    const hamburger = right.querySelector('.nav-hamburger');
+    if (hamburger) right.insertBefore(link, hamburger);
+    else right.appendChild(link);
+  });
+  document.querySelectorAll('.mobile-nav').forEach(nav => {
+    if (nav.querySelector('a[href="favorites.html"]')) return;
+    const used = nav.querySelector('a[href="srp.html"]');
+    if (!used) return;
+    const link = document.createElement('a');
+    link.href = 'favorites.html';
+    link.textContent = 'Favorites';
+    used.insertAdjacentElement('afterend', link);
+  });
+  updateFavoritesNavBadge();
+}
+
+function showFavoritesToast(count) {
+  let toast = document.getElementById('favorites-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'favorites-toast';
+    toast.className = 'compare-toast favorites-toast';
+    document.body.appendChild(toast);
+  }
+  if (count >= 2) {
+    toast.innerHTML = `Saved to favorites · <a href="schedule-test-drives.html">Schedule test drives</a> · <a href="favorites.html">AI compare</a>`;
+  } else {
+    toast.innerHTML = `Saved · <a href="schedule-test-drives.html">Schedule a test drive</a>`;
+  }
+  toast.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => toast.classList.remove('show'), 3200);
+}
+
+function clearFavorites() {
+  localStorage.setItem('dc_saved', '[]');
+  updateFavoritesNavBadge();
+  renderFavoritesTray();
+}
+
+function dismissStickyTrays() {
+  ['favorites-tray', 'compare-tray'].forEach(id => {
+    document.getElementById(id)?.remove();
+  });
+}
+
+function renderFavoritesTray() {
+  dismissStickyTrays();
+}
+
+// ─── Test Drive Scheduling (favorites) ───────────────────
+const TD_TIME_SLOTS = ['9:30 AM', '11:00 AM', '1:30 PM', '3:00 PM', '4:30 PM'];
+
+function addDaysToDateStr(dateStr, days) {
+  const d = new Date(dateStr + 'T12:00:00');
+  d.setDate(d.getDate() + days);
+  while (d.getDay() === 0) d.setDate(d.getDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
+function getLocationMarket(loc) {
+  const s = String(loc || '').toLowerCase();
+  if (/,\s*pa\b|philadelphia|allentown|reading|harrisburg|lancaster|scranton|pittsburgh|king of prussia|bethlehem|wilkes/.test(s)) return 'pa';
+  if (/,\s*(ny|nj|ct)\b|queens|brooklyn|manhattan|bronx|staten|long island|astoria|flushing|jamaica|yonkers|jersey|newark|stamford|hicksville|huntington|white plains|new rochelle|princeton|greenwich|edison/.test(s)) return 'nyc';
+  return 'other';
+}
+
+function estimateDriveMiles(fromLoc, toLoc) {
+  const from = getLocationMarket(fromLoc);
+  const to = getLocationMarket(toLoc);
+  if (from === to && fromLoc === toLoc) return 0;
+  if (from !== to) return from === 'nyc' && to === 'pa' ? 95 : 75;
+  return 22;
+}
+
+function optimizeTestDrivePlan(vehicles) {
+  const byLoc = new Map();
+  vehicles.forEach(v => {
+    const loc = v.location || 'Unknown';
+    if (!byLoc.has(loc)) byLoc.set(loc, []);
+    byLoc.get(loc).push(v);
+  });
+
+  const marketOrder = { nyc: 0, pa: 1, other: 2 };
+  const locGroups = [...byLoc.entries()].map(([location, vehs]) => ({
+    location,
+    market: getLocationMarket(location),
+    vehicles: vehs.slice().sort((a, b) => vehicleDistance(a) - vehicleDistance(b)),
+    minDist: Math.min(...vehs.map(v => vehicleDistance(v))),
+  }));
+
+  locGroups.sort((a, b) => {
+    const mo = marketOrder[a.market] - marketOrder[b.market];
+    if (mo !== 0) return mo;
+    return a.minDist - b.minDist;
+  });
+
+  const baseDate = defaultTestDriveDate(2);
+  let slotCursor = 0;
+  let currentDate = baseDate;
+  const plan = [];
+
+  locGroups.forEach((group, gi) => {
+    const prev = locGroups[gi - 1];
+    let travelNote = null;
+
+    if (prev) {
+      const miles = estimateDriveMiles(prev.location, group.location);
+      if (prev.market !== group.market) {
+        travelNote = `~${miles} mi to ${group.location} — allow a midday drive; afternoon slots suggested in PA.`;
+        if (slotCursor + 2 >= TD_TIME_SLOTS.length) {
+          currentDate = addDaysToDateStr(currentDate, 1);
+          slotCursor = 0;
+        } else {
+          slotCursor = Math.max(slotCursor + 2, 2);
+        }
+      } else if (prev.location !== group.location) {
+        travelNote = miles > 0
+          ? `~${miles} mi between lots — consecutive slots with a short buffer.`
+          : 'Same market — back-to-back slots suggested.';
+        slotCursor += 1;
+        if (slotCursor >= TD_TIME_SLOTS.length) {
+          currentDate = addDaysToDateStr(currentDate, 1);
+          slotCursor = 0;
+        }
+      }
+    }
+
+    const groupStartSlot = slotCursor;
+    const groupStartDate = currentDate;
+    const vehiclePlans = [];
+
+    group.vehicles.forEach(v => {
+      if (slotCursor >= TD_TIME_SLOTS.length) {
+        currentDate = addDaysToDateStr(currentDate, 1);
+        slotCursor = 0;
+      }
+      vehiclePlans.push({
+        vehicle: v,
+        date: currentDate,
+        time: TD_TIME_SLOTS[slotCursor],
+      });
+      slotCursor += 1;
+    });
+
+    plan.push({
+      stopNum: gi + 1,
+      location: group.location,
+      market: group.market,
+      marketLabel: group.market === 'pa' ? 'Philadelphia & PA' : group.market === 'nyc' ? 'NYC metro' : 'Other',
+      vehicles: vehiclePlans,
+      startTime: TD_TIME_SLOTS[groupStartSlot],
+      endTime: TD_TIME_SLOTS[Math.min(slotCursor - 1, TD_TIME_SLOTS.length - 1)],
+      startDate: groupStartDate,
+      travelNote,
+    });
+  });
+
+  return plan;
+}
+
+function renderTestDriveCard(v, date, time) {
+  const slotOptions = TD_TIME_SLOTS.map(t =>
+    `<option value="${escapeHtml(t)}"${t === time ? ' selected' : ''}>${escapeHtml(t)}</option>`
+  ).join('');
+  return `
+    <div class="std-card" data-id="${v.id}">
+      <label class="std-include">
+        <input type="checkbox" class="std-check" name="include-${v.id}" checked>
+        <span>Schedule this drive</span>
+      </label>
+      <div class="std-card-main">
+        <div class="std-card-img"><img src="${v.images[0]}" alt=""></div>
+        <div class="std-card-info">
+          <div class="std-card-name">${v.year} ${escapeHtml(v.make)} ${escapeHtml(v.model)}</div>
+          <div class="std-card-meta">${escapeHtml(v.trim)} · ${formatPrice(v.price)}</div>
+        </div>
+      </div>
+      <div class="std-card-fields">
+        <label class="std-field">
+          <span>Date</span>
+          <input type="date" class="std-date" name="date-${v.id}" value="${date}" required>
+        </label>
+        <label class="std-field">
+          <span>Time</span>
+          <select class="std-time" name="time-${v.id}">${slotOptions}</select>
+        </label>
+        <label class="std-field std-field-grow">
+          <span>Location</span>
+          <input type="text" class="std-loc" value="${escapeHtml(v.location)}" readonly>
+        </label>
+      </div>
+    </div>`;
+}
+
+function defaultTestDriveDate(offsetDays) {
+  const d = new Date();
+  d.setDate(d.getDate() + (offsetDays || 2));
+  while (d.getDay() === 0) d.setDate(d.getDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
+function formatTestDriveWhen(dateStr, timeStr) {
+  if (!dateStr || !timeStr) return 'your scheduled time';
+  const d = new Date(dateStr + 'T12:00:00');
+  const day = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  return `${day} · ${timeStr}`;
+}
+
+function saveTestDriveSchedule(bookings) {
+  sessionStorage.setItem('dc_test_drives', JSON.stringify(bookings));
+}
+
+function getTestDriveSchedule() {
+  try { return JSON.parse(sessionStorage.getItem('dc_test_drives') || '[]'); }
+  catch (_) { return []; }
+}
+
+function initScheduleTestDrives() {
+  const root = document.getElementById('std-root');
+  if (!root) return;
+
+  const ids = getSaved();
+  const vehicles = ids.map(id => getVehicleById(id)).filter(Boolean);
+  const emptyEl = document.getElementById('std-empty');
+  const wrapEl = document.getElementById('std-form-wrap');
+  const form = document.getElementById('std-form');
+  const tipEl = document.getElementById('std-ai-tip');
+  const routeSummaryEl = document.getElementById('std-route-summary');
+  const subEl = document.getElementById('std-sub');
+
+  if (!vehicles.length) {
+    if (emptyEl) emptyEl.hidden = false;
+    if (wrapEl) wrapEl.hidden = true;
+    return;
+  }
+
+  if (emptyEl) emptyEl.hidden = true;
+  if (wrapEl) wrapEl.hidden = false;
+
+  const plan = optimizeTestDrivePlan(vehicles);
+  const stopCount = plan.length;
+  const dayCount = new Set(plan.flatMap(g => g.vehicles.map(vp => vp.date))).size;
+
+  if (subEl) {
+    subEl.textContent = stopCount === 1
+      ? `All ${vehicles.length} favorite${vehicles.length > 1 ? 's are' : ' is'} at ${plan[0].location} — stack them on the same day.`
+      : `Optimized route across ${stopCount} location${stopCount > 1 ? 's' : ''} — closest NYC stops first, then PA, with travel time built in.`;
+  }
+
+  if (routeSummaryEl) {
+    routeSummaryEl.hidden = stopCount <= 1;
+    routeSummaryEl.innerHTML = plan.map(group => {
+      const when = group.startDate === group.vehicles[group.vehicles.length - 1].date
+        ? `${group.startTime} – ${group.endTime}`
+        : `${group.startDate} – ${group.vehicles[group.vehicles.length - 1].date}`;
+      return `<span class="std-route-pill"><i class="fa-solid fa-location-dot"></i> Stop ${group.stopNum}: <strong>${escapeHtml(group.location)}</strong> · ${group.vehicles.length} drive${group.vehicles.length > 1 ? 's' : ''} · ${escapeHtml(when)}</span>`;
+    }).join('');
+  }
+
+  if (tipEl) {
+    if (stopCount === 1) {
+      tipEl.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles"></i> <strong>Route optimized:</strong> All favorites are at <strong>${escapeHtml(plan[0].location)}</strong> — I've stacked ${vehicles.length} consecutive slot${vehicles.length > 1 ? 's' : ''} on the same day.`;
+    } else {
+      const markets = [...new Set(plan.map(g => g.market))];
+      const crossMarket = markets.includes('nyc') && markets.includes('pa');
+      tipEl.innerHTML = crossMarket
+        ? `<i class="fa-solid fa-wand-magic-sparkles"></i> <strong>Route optimized:</strong> ${vehicles.length} drives across <strong>${stopCount} stops</strong> — NYC metro first (${plan.filter(g => g.market === 'nyc').map(g => g.location).join(', ') || '—'}), then PA (${plan.filter(g => g.market === 'pa').map(g => g.location).join(', ') || '—'}). ${dayCount > 1 ? 'Spans ' + dayCount + ' days to avoid rushing.' : 'Same-day with afternoon PA slots.'}`
+        : `<i class="fa-solid fa-wand-magic-sparkles"></i> <strong>Route optimized:</strong> Grouped by location — ${plan.map(g => `${escapeHtml(g.location)} (${g.vehicles.length})`).join(' → ')}. Closest stop first.`;
+    }
+  }
+
+  if (!form) return;
+
+  form.innerHTML = plan.map((group, gi) => {
+    const cards = group.vehicles.map(vp => renderTestDriveCard(vp.vehicle, vp.date, vp.time)).join('');
+    const dateLabel = group.startDate === group.vehicles[group.vehicles.length - 1].date
+      ? group.startDate
+      : `${group.startDate} – ${group.vehicles[group.vehicles.length - 1].date}`;
+    return `
+      ${group.travelNote ? `<div class="std-route-leg"><i class="fa-solid fa-route"></i> ${escapeHtml(group.travelNote)}</div>` : ''}
+      <section class="std-location-group" data-location="${escapeHtml(group.location)}">
+        <div class="std-route-header">
+          <span class="std-route-stop">${group.stopNum}</span>
+          <div class="std-route-title-wrap">
+            <div class="std-route-title">${escapeHtml(group.location)}</div>
+            <div class="std-route-meta">${group.vehicles.length} test drive${group.vehicles.length > 1 ? 's' : ''} · ${escapeHtml(group.startTime)} – ${escapeHtml(group.endTime)} · ${escapeHtml(dateLabel)}</div>
+          </div>
+          <span class="std-route-market">${escapeHtml(group.marketLabel)}</span>
+        </div>
+        <div class="std-route-cards">${cards}</div>
+      </section>`;
+  }).join('');
+
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    const bookings = [];
+    let routeOrder = 0;
+    form.querySelectorAll('.std-location-group').forEach(groupEl => {
+      const stopNum = groupEl.querySelector('.std-route-stop')?.textContent || '';
+      const location = groupEl.dataset.location || '';
+      groupEl.querySelectorAll('.std-card').forEach(card => {
+        const id = parseInt(card.dataset.id, 10);
+        const check = card.querySelector('.std-check');
+        if (check && !check.checked) return;
+        const date = card.querySelector('.std-date')?.value;
+        const time = card.querySelector('.std-time')?.value;
+        const v = getVehicleById(id);
+        if (!v || !date || !time) return;
+        routeOrder += 1;
+        bookings.push({
+          vehicleId: id,
+          date,
+          time,
+          when: formatTestDriveWhen(date, time),
+          location: v.location,
+          title: `${v.year} ${v.make} ${v.model} ${v.trim}`,
+          stopNum: parseInt(stopNum, 10) || null,
+          routeOrder,
+        });
+      });
+    });
+    if (!bookings.length) {
+      alert('Select at least one vehicle to schedule.');
+      return;
+    }
+    saveTestDriveSchedule(bookings);
+    window.location.href = 'test-drive-confirmation.html?multi=1';
+  });
 }
 
 // ─── SRP ─────────────────────────────────────────────────
@@ -576,6 +1213,30 @@ function updateFilterCounts() {
   });
 }
 
+const FEATURE_FILTER_LABELS = {
+  carplay: 'Apple CarPlay',
+  sunroof: 'Sunroof / Moonroof',
+  heated: 'Heated Seats',
+  camera: 'Backup Camera',
+  blindspot: 'Blind Spot Monitor',
+  leather: 'Leather Seats',
+  navigation: 'Navigation',
+};
+
+function vehicleHasFeature(v, key) {
+  const hay = (v.features || []).join(' ').toLowerCase();
+  switch (key) {
+    case 'carplay': return /carplay|android auto/.test(hay);
+    case 'sunroof': return /sunroof|moonroof|sky one-touch|panorama|dual-pane/.test(hay);
+    case 'heated': return /heated (front )?seat|heated & ventilated/.test(hay);
+    case 'camera': return /backup camera|rear camera|parkview|park assistant/.test(hay);
+    case 'blindspot': return /blind spot|blis\b/.test(hay);
+    case 'leather': return /leather/.test(hay);
+    case 'navigation': return /\bnav\b|navigation/.test(hay);
+    default: return false;
+  }
+}
+
 function initSRP() {
   const grid = document.getElementById('srp-grid');
   const countEl = document.getElementById('srp-count');
@@ -600,6 +1261,7 @@ function initSRP() {
     maxDist: parseInt(urlP.get('maxDist')) || 0,
     sort: urlP.get('sort') || 'recommended',
     query: urlP.get('q') || '',
+    features: urlP.getAll('feat'),
   };
 
   // Pre-fill search input
@@ -628,6 +1290,12 @@ function initSRP() {
       if (cb) cb.checked = true;
     });
   }
+  if (state.features.length) {
+    state.features.forEach(f => {
+      const cb = document.querySelector(`.fp-feature[value="${f}"]`);
+      if (cb) cb.checked = true;
+    });
+  }
 
   // Price inputs
   const minPriceIn = document.getElementById('fp-min-price');
@@ -642,7 +1310,7 @@ function initSRP() {
   if (maxYearIn && urlP.get('maxYear')) maxYearIn.value = state.maxYear;
 
   // Seed from the participant profile when the page wasn't opened with explicit filters.
-  const URL_FILTER_KEYS = ['make', 'body', 'drive', 'minYear', 'maxYear', 'minPrice', 'maxPrice', 'maxMiles', 'minMpg', 'maxDist', 'q'];
+  const URL_FILTER_KEYS = ['make', 'body', 'drive', 'minYear', 'maxYear', 'minPrice', 'maxPrice', 'maxMiles', 'minMpg', 'maxDist', 'q', 'feat'];
   if (typeof Profile !== 'undefined' && Profile.toParams && !URL_FILTER_KEYS.some(k => urlP.has(k))) {
     const pp = Profile.toParams();
     [].concat(pp.make || []).forEach(m => { const cb = document.querySelector(`.fp-make[value="${m}"]`); if (cb) cb.checked = true; });
@@ -651,6 +1319,13 @@ function initSRP() {
     if (pp.maxPrice && maxPriceIn) maxPriceIn.value = pp.maxPrice;
     if (pp.maxMiles && maxMilesIn) maxMilesIn.value = pp.maxMiles;
     if (pp.minYear && minYearIn) minYearIn.value = pp.minYear;
+    if (pp.maxYear && maxYearIn) maxYearIn.value = pp.maxYear;
+    if (pp.features && pp.features.length) {
+      pp.features.forEach(f => {
+        const cb = document.querySelector(`.fp-feature[value="${f}"]`);
+        if (cb) cb.checked = true;
+      });
+    }
     state.minMpg = pp.minMpg || 0;
     state.maxDist = pp.maxDist || 0;
   }
@@ -666,6 +1341,7 @@ function initSRP() {
     state.maxYear = parseInt(maxYearIn?.value) || 2024;
     state.query = searchInput?.value.trim().toLowerCase() || '';
     state.sort = sortSel?.value || 'recommended';
+    state.features = [...document.querySelectorAll('.fp-feature:checked')].map(c => c.value);
   }
 
   function applyAndRender() {
@@ -684,6 +1360,7 @@ function initSRP() {
         const haystack = `${v.year} ${v.make} ${v.model} ${v.trim} ${v.body} ${v.extColor}`.toLowerCase();
         if (!haystack.includes(q)) return false;
       }
+      if (state.features.length && !state.features.every(f => vehicleHasFeature(v, f))) return false;
       return true;
     });
 
@@ -713,7 +1390,7 @@ function initSRP() {
   });
 
   // Filter change listeners
-  document.querySelectorAll('.fp-make, .fp-body, .fp-drive').forEach(cb => {
+  document.querySelectorAll('.fp-make, .fp-body, .fp-drive, .fp-feature').forEach(cb => {
     cb.addEventListener('change', applyAndRender);
   });
   [minPriceIn, maxPriceIn, maxMilesIn, minYearIn, maxYearIn].forEach(inp => {
@@ -722,14 +1399,14 @@ function initSRP() {
   if (searchInput) searchInput.addEventListener('input', debounce(applyAndRender, 300));
   if (sortSel) sortSel.addEventListener('change', applyAndRender);
   if (clearBtn) clearBtn.addEventListener('click', () => {
-    document.querySelectorAll('.fp-make, .fp-body, .fp-drive').forEach(cb => cb.checked = false);
+    document.querySelectorAll('.fp-make, .fp-body, .fp-drive, .fp-feature').forEach(cb => cb.checked = false);
     if (minPriceIn) minPriceIn.value = '';
     if (maxPriceIn) maxPriceIn.value = '';
     if (maxMilesIn) maxMilesIn.value = '';
-    if (minYearIn) minYearIn.value = 2018;
+    if (minYearIn) minYearIn.value = 2015;
     if (maxYearIn) maxYearIn.value = 2024;
     if (searchInput) searchInput.value = '';
-    state.make = []; state.body = []; state.drive = [];
+    state.make = []; state.body = []; state.drive = []; state.features = [];
     state.minPrice = 0; state.maxPrice = 50000; state.maxMiles = 100000;
     state.minYear = 2010; state.maxYear = 2024; state.minMpg = 0; state.maxDist = 0; state.query = '';
     applyAndRender();
@@ -898,6 +1575,10 @@ function renderActiveTags(container, state) {
   const tags = [];
   state.make.forEach(m => tags.push({ label: m, remove: () => { const cb = document.querySelector(`.fp-make[value="${m}"]`); if(cb) cb.checked=false; } }));
   state.body.forEach(b => tags.push({ label: b, remove: () => { const cb = document.querySelector(`.fp-body[value="${b}"]`); if(cb) cb.checked=false; } }));
+  state.features.forEach(f => tags.push({
+    label: FEATURE_FILTER_LABELS[f] || f,
+    remove: () => { const cb = document.querySelector(`.fp-feature[value="${f}"]`); if (cb) cb.checked = false; },
+  }));
   if (state.maxPrice < 50000) tags.push({ label: `Under ${formatPrice(state.maxPrice)}`, remove: () => { document.getElementById('fp-max-price').value=''; } });
   if (state.maxMiles < 100000) tags.push({ label: `Under ${state.maxMiles.toLocaleString()} mi`, remove: () => { document.getElementById('fp-max-miles').value=''; } });
 
@@ -1014,6 +1695,69 @@ function populateVDP(v) {
       <span class="vdp-flag flag-carfax"><i class="fa-solid fa-file-shield"></i> Carfax Available</span>
       <span class="vdp-flag" style="background:#f5f3ff;color:#6d28d9"><i class="fa-solid fa-map-marker-alt"></i> ${v.location}</span>
     `;
+  }
+
+  const histBadges = document.getElementById('vdp-history-badges');
+  if (histBadges) {
+    histBadges.innerHTML = [
+      v.owners === 1 ? '<span class="vdp-hist-badge"><i class="fa-solid fa-circle-check"></i> 1 previous owner</span>' : '',
+      v.accidentFree ? '<span class="vdp-hist-badge"><i class="fa-solid fa-shield-halved"></i> No reported accidents</span>' : '',
+      '<span class="vdp-hist-badge"><i class="fa-solid fa-file-shield"></i> Clean Carfax available</span>',
+      '<span class="vdp-hist-badge"><i class="fa-solid fa-wrench"></i> 150-point inspection passed</span>',
+      '<span class="vdp-hist-badge"><i class="fa-solid fa-file-certificate"></i> Clean title</span>',
+    ].filter(Boolean).join('');
+  }
+
+  const histReport = document.getElementById('vdp-history-report');
+  if (histReport) {
+    histReport.innerHTML = `
+      <a href="carfax-report.html?id=${v.id}" target="_blank" rel="noopener noreferrer" class="vdp-carfax-btn">
+        <span class="vdp-carfax-logo" aria-hidden="true">CARFAX</span>
+        <span class="vdp-carfax-btn-copy">
+          <strong>View Full Vehicle History Report</strong>
+          <span>Owners, accidents, service records &amp; title info</span>
+        </span>
+        <span class="vdp-carfax-btn-action">
+          Open report
+          <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
+        </span>
+      </a>`;
+  }
+
+  const transEl = document.getElementById('vdp-transparency-grid');
+  if (transEl) {
+    const marketLine = v.marketSavings > 0
+      ? `<strong>${formatPrice(v.marketSavings)} below</strong> similar local listings`
+      : 'Priced at the local market average for this year, trim, and mileage';
+    transEl.innerHTML = `
+      <div class="vdp-trans-item">
+        <div class="vdp-trans-icon"><i class="fa-solid fa-tag"></i></div>
+        <div>
+          <div class="vdp-trans-title">Your price</div>
+          <div class="vdp-trans-val">${formatPrice(v.price)} — fixed, no-haggle, zero dealer fees</div>
+        </div>
+      </div>
+      <div class="vdp-trans-item">
+        <div class="vdp-trans-icon"><i class="fa-solid fa-chart-line"></i></div>
+        <div>
+          <div class="vdp-trans-title">Market comparison</div>
+          <div class="vdp-trans-val">${marketLine}</div>
+        </div>
+      </div>
+      <div class="vdp-trans-item">
+        <div class="vdp-trans-icon"><i class="fa-solid fa-book"></i></div>
+        <div>
+          <div class="vdp-trans-title">KBB &amp; local benchmarks</div>
+          <div class="vdp-trans-val">Benchmarked against Kelley Blue Book fair purchase range and comparable ${v.make} listings within 150 mi</div>
+        </div>
+      </div>
+      <div class="vdp-trans-item">
+        <div class="vdp-trans-icon"><i class="fa-solid fa-fingerprint"></i></div>
+        <div>
+          <div class="vdp-trans-title">Listing identifiers</div>
+          <div class="vdp-trans-val">Stock #${v.stockNum} · VIN ${v.vin.substring(0, 10)}… · ${v.location}</div>
+        </div>
+      </div>`;
   }
 
   // Specs
@@ -1191,6 +1935,88 @@ function generateMockAnswer(q) {
 }
 
 // ─── VDP AI Assist Mode ──────────────────────────────────
+const VDP_CAT_META = {
+  overview: {
+    desc: 'Photos, basics, and key stats — start here to see if this vehicle fits.',
+    chips: ['Is this a good fit for me?', 'What stands out on this trim?', 'How do I schedule a test drive?'],
+    topicKey: 'general',
+  },
+  transparency: {
+    desc: 'No-haggle pricing, market comparison, fees, and buyer protections — all upfront.',
+    chips: ['Are there hidden fees?', 'How was this price set?', 'Is this below market?'],
+    topicKey: 'price',
+  },
+  history: {
+    desc: 'Ownership, accidents, inspection, and title — verified before you visit.',
+    chips: ['How is accident history verified?', 'What does the Carfax include?', 'Why does 1-owner matter?'],
+    topicKey: 'history',
+  },
+  features: {
+    desc: 'Full specs, equipment, and trim details in one place.',
+    chips: ['Does it have the options I need?', 'What safety features are included?', 'How does this trim compare?'],
+    topicKey: 'feature',
+  },
+  payments: {
+    desc: 'Monthly estimates, calculator, and financing options.',
+    chips: ['What down payment should I put?', 'How does APR affect my payment?', 'Can I get pre-approved?'],
+    topicKey: 'payment',
+  },
+};
+
+const VDP_CAT_ORDER = ['overview', 'transparency', 'history', 'features', 'payments'];
+
+const VDP_CAT_LABELS = {
+  overview: 'Overview',
+  transparency: 'Transparency',
+  history: 'History',
+  features: 'Features & Specs',
+  payments: 'Payments',
+};
+
+let vdpOverlayBlocks = [];
+
+function applyVdpCategory(cat) {
+  const meta = VDP_CAT_META[cat] || VDP_CAT_META.overview;
+  const pool = document.getElementById('vdp-detail-pool');
+  const body = document.getElementById('vdp-cat-overlay-body');
+  const overlay = document.getElementById('vdp-cat-overlay');
+  const shell = document.querySelector('.vdp-sidebar-shell');
+  const titleEl = document.getElementById('vdp-cat-overlay-title');
+  const isOverview = cat === 'overview';
+
+  document.querySelectorAll('.vdp-ai-cat').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.vdpCat === cat);
+  });
+
+  const descEl = document.getElementById('vdp-ai-cat-desc');
+  if (descEl) descEl.textContent = meta.desc;
+  if (titleEl) titleEl.textContent = VDP_CAT_LABELS[cat] || cat;
+
+  vdpOverlayBlocks.forEach(el => pool?.appendChild(el));
+  vdpOverlayBlocks = [];
+
+  if (!isOverview && body && pool) {
+    [...pool.querySelectorAll(`.vdp-cat-block[data-vdp-cat="${cat}"]`)].forEach(el => {
+      body.appendChild(el);
+      vdpOverlayBlocks.push(el);
+    });
+  } else if (body) {
+    body.innerHTML = '';
+  }
+
+  if (overlay) overlay.classList.toggle('open', !isOverview);
+  if (shell) shell.classList.toggle('is-expanded', true);
+  if (shell) shell.classList.toggle('is-overview', isOverview);
+
+  const wrap = document.querySelector('.vdp-wrap');
+  if (wrap) {
+    wrap.classList.toggle('is-overview', isOverview);
+    wrap.classList.toggle('is-expanded', !isOverview);
+  }
+
+  return meta;
+}
+
 // A toggle that turns the page into an "ask anything" surface: hovering any
 // explained element shows a quick snippet; clicking opens a chat sidebar.
 function initVDPAiMode(v) {
@@ -1223,7 +2049,12 @@ function initVDPAiMode(v) {
   document.querySelectorAll('.feat-item').forEach(el => tag(el, 'feature'));
   tag(document.getElementById('payment-calc'), 'calc');
   tag(document.querySelector('.gallery .g-main'), 'photos');
+  tag(document.getElementById('vdp-transparency'), 'market');
+  tag(document.getElementById('vdp-history'), 'history');
+  tag(document.getElementById('vdp-ai-command'), 'general');
 
+  let activeCategory = 'overview';
+  let categoryTopicKey = VDP_CAT_META.overview.topicKey;
   let aiOn = false;
   let activeTarget = null;
   let activeInfo = null;
@@ -1369,7 +2200,10 @@ function initVDPAiMode(v) {
     addMsg('pa-msg-user', escapeHtml(q));
     drawerInput.value = '';
     const typing = addMsg('pa-msg-bot pa-typing', `<span class="pa-typing-dots"><span></span><span></span><span></span></span>`);
-    setTimeout(() => { typing.remove(); addMsg('pa-msg-bot', generateVdpAnswer(activeInfo?.key, q, v)); }, 650);
+    setTimeout(() => {
+      typing.remove();
+      addMsg('pa-msg-bot', generateVdpAnswer(activeInfo?.key || categoryTopicKey, q, v));
+    }, 650);
   };
 
   const openDrawer = (info) => {
@@ -1383,6 +2217,19 @@ function initVDPAiMode(v) {
     drawer.setAttribute('aria-hidden', 'false');
     requestAnimationFrame(() => scrim.classList.add('show'));
     setTimeout(() => drawerInput.focus(), 220);
+  };
+
+  const openDrawerForCategory = (cat, question) => {
+    const meta = VDP_CAT_META[cat] || VDP_CAT_META.overview;
+    categoryTopicKey = meta.topicKey;
+    activeInfo = {
+      key: meta.topicKey,
+      title: document.querySelector(`.vdp-ai-cat[data-vdp-cat="${cat}"]`)?.textContent.trim() || cat,
+      text: meta.desc,
+      chips: meta.chips,
+    };
+    openDrawer(activeInfo);
+    if (question) askDrawer(question);
   };
   const closeDrawer = () => {
     drawer.classList.remove('open');
@@ -1418,6 +2265,30 @@ function initVDPAiMode(v) {
     else if (pinned) { activeTarget = null; hideTip(); }
   });
 
+  // ── Category navigation ──────────────────────────────
+  const catNav = document.getElementById('vdp-ai-categories');
+
+  const setCategory = (cat) => {
+    activeCategory = cat;
+    const meta = applyVdpCategory(cat);
+    categoryTopicKey = meta.topicKey;
+  };
+
+  catNav && catNav.addEventListener('click', (e) => {
+    const btn = e.target.closest('.vdp-ai-cat');
+    if (!btn) return;
+    setCategory(btn.dataset.vdpCat || 'overview');
+  });
+
+  document.addEventListener('click', (e) => {
+    const link = e.target.closest('a[href="#payment-calc"]');
+    if (!link) return;
+    e.preventDefault();
+    setCategory('payments');
+  });
+
+  setCategory('overview');
+
   // ── Toggle ─────────────────────────────────────────────
   const setMode = (on) => {
     aiOn = on;
@@ -1437,6 +2308,9 @@ function generateVdpAnswer(key, q, v) {
     return generateMockAnswer(q);
   switch (key) {
     case 'price': case 'market':
+      if (/hidden|fee|doc|surprise|extra/.test(t)) {
+        return `<p>DriveClear charges <strong>zero dealer fees</strong> — no documentation fee, no processing fee, no add-ons at signing. The ${formatPrice(v.price)} list price is what you pay before tax and registration.</p>`;
+      }
       return `<p>Every DriveClear price is set by comparing this exact ${v.year} ${v.make} ${v.model} ${v.trim} against recent local sales — then we remove dealer and doc fees. It's a fixed, no-haggle price.</p><p>${v.marketSavings > 0 ? `Right now it's about <strong>${formatPrice(v.marketSavings)} below</strong> the local average.` : `It's priced right at the local average.`}</p>`;
     case 'mileage':
       return `<p>At ${formatMileage(v.mileage)}, this ${v.year} ${v.make} is well within a healthy range — modern vehicles routinely run past 150,000 miles with regular maintenance.</p><p>It also passed our 150-point inspection.</p>`;
@@ -1557,6 +2431,84 @@ function updateVDPSaveBtn(id) {
   btn.addEventListener('click', () => { toggleSave(id); refresh(); });
 }
 
+function initCarfaxReport() {
+  const id = new URLSearchParams(window.location.search).get('id') || '1';
+  const v = getVehicleById(id);
+  const root = document.getElementById('carfax-report-root');
+  if (!v || !root) return;
+
+  document.title = `CARFAX Vehicle History — ${v.year} ${v.make} ${v.model} — DriveClear`;
+
+  const set = (elId, html) => {
+    const el = document.getElementById(elId);
+    if (el) el.innerHTML = html;
+  };
+
+  set('crf-title', `${v.year} ${v.make} ${v.model} ${v.trim}`);
+  set('crf-subtitle', `VIN ${v.vin} · Stock #${v.stockNum} · ${formatMileage(v.mileage)}`);
+  set('crf-owners', v.owners === 1 ? '1 Owner' : `${v.owners} Owners`);
+  set('crf-accidents', v.accidentFree ? 'No Accidents' : 'See Report');
+  set('crf-title-status', 'Clean Title');
+  set('crf-service', '12 Records');
+
+  const backLink = document.getElementById('crf-back-link');
+  if (backLink) backLink.href = `vdp.html?id=${v.id}`;
+
+  const events = [
+    {
+      date: `${v.year + 1}`,
+      green: true,
+      title: 'Listed for sale at DriveClear',
+      sub: `${formatMileage(v.mileage)} · ${v.location} · Accident-free listing verified`,
+    },
+    {
+      date: `${v.year}`,
+      green: true,
+      title: 'Passed 150-point inspection',
+      sub: 'DriveClear certified pre-listing inspection — no structural or mechanical issues flagged.',
+    },
+    {
+      date: `${v.year - 1}`,
+      title: 'Routine maintenance recorded',
+      sub: `Oil change and multi-point inspection at authorized ${v.make} service center.`,
+    },
+    {
+      date: `${v.year - 2}`,
+      title: 'Registration renewed',
+      sub: `Personal vehicle registration renewed in ${v.location.split(',')[1]?.trim() || 'CO'}.`,
+    },
+    {
+      date: `${v.year - 3}`,
+      green: true,
+      title: v.owners === 1 ? 'First owner purchased new' : 'Ownership transfer recorded',
+      sub: v.owners === 1
+        ? `Original purchase at ${v.make} dealership · Personal use · No fleet or rental use reported.`
+        : 'Title transferred to subsequent owner · Personal use vehicle.',
+    },
+  ];
+
+  if (!v.accidentFree) {
+    events.unshift({
+      date: `${v.year - 1}`,
+      title: 'Minor damage reported',
+      sub: 'Rear bumper cosmetic damage reported — no structural damage indicated on record.',
+    });
+  }
+
+  const timeline = document.getElementById('crf-timeline');
+  if (timeline) {
+    timeline.innerHTML = events.map(ev => `
+      <div class="carfax-event">
+        <div class="carfax-event-date">${escapeHtml(ev.date)}</div>
+        <div class="carfax-event-dot${ev.green ? ' green' : ''}"></div>
+        <div>
+          <div class="carfax-event-title">${escapeHtml(ev.title)}</div>
+          <div class="carfax-event-sub">${escapeHtml(ev.sub)}</div>
+        </div>
+      </div>`).join('');
+  }
+}
+
 /* ============================================================
    COMPARE FEATURE
    ============================================================ */
@@ -1621,80 +2573,9 @@ function showCompareToast(msg) {
   toast._t = setTimeout(() => toast.classList.remove('show'), 2800);
 }
 
-// ─── Compare Tray ──────────────────────────────────────
-function ensureCompareTray() {
-  let tray = document.getElementById('compare-tray');
-  if (!tray) {
-    tray = document.createElement('div');
-    tray.id = 'compare-tray';
-    tray.className = 'compare-tray';
-    document.body.appendChild(tray);
-  }
-  return tray;
-}
-
+// ─── Compare Tray (sticky bar removed — use favorites.html / compare.html) ───
 function renderCompareTray() {
-  const tray = ensureCompareTray();
-  const list = getCompareList();
-  if (list.length === 0) {
-    tray.classList.remove('open');
-    return;
-  }
-  const vehicles = list.map(id => getVehicleById(id)).filter(Boolean);
-  const slotCount = Math.max(2, vehicles.length);
-  const emptySlots = Math.max(0, slotCount - vehicles.length);
-
-  tray.innerHTML = `
-    <div class="ct-inner">
-      <div class="ct-label">
-        <div class="ct-label-icon"><i class="fa-solid fa-scale-balanced"></i></div>
-        <div>
-          <div class="ct-label-title">Compare <strong>${vehicles.length}</strong> ${vehicles.length === 1 ? 'car' : 'cars'}</div>
-          <div class="ct-label-sub">${vehicles.length < 2 ? 'Add at least one more to compare' : 'Ready to see them side-by-side'}</div>
-        </div>
-      </div>
-      <div class="ct-slots">
-        ${vehicles.map(v => `
-          <div class="ct-slot" data-id="${v.id}">
-            <div class="ct-slot-img">
-              <img src="${v.images[0]}" alt="${v.year} ${v.make} ${v.model}">
-            </div>
-            <div class="ct-slot-info">
-              <div class="ct-slot-title">${v.year} ${v.make}</div>
-              <div class="ct-slot-sub">${v.model} · ${formatPrice(v.price)}</div>
-            </div>
-            <button class="ct-slot-remove" data-id="${v.id}" aria-label="Remove from compare" type="button">
-              <i class="fa-solid fa-times"></i>
-            </button>
-          </div>
-        `).join('')}
-        ${Array.from({length: emptySlots}).map(() => `
-          <div class="ct-slot ct-slot-empty">
-            <i class="fa-solid fa-plus"></i>
-            <span>Add a car</span>
-          </div>
-        `).join('')}
-      </div>
-      <div class="ct-actions">
-        <button class="ct-clear-btn" id="ct-clear" type="button">Clear</button>
-        <button class="btn btn-primary ct-compare-btn" id="ct-compare" type="button" ${vehicles.length < 2 ? 'disabled' : ''}>
-          <i class="fa-solid fa-wand-magic-sparkles"></i>
-          Compare ${vehicles.length >= 2 ? 'Now' : ''}
-        </button>
-      </div>
-    </div>
-  `;
-  tray.classList.add('open');
-
-  tray.querySelectorAll('.ct-slot-remove').forEach(btn => {
-    btn.addEventListener('click', () => toggleCompare(parseInt(btn.dataset.id)));
-  });
-  document.getElementById('ct-clear')?.addEventListener('click', clearCompare);
-  document.getElementById('ct-compare')?.addEventListener('click', () => {
-    const ids = getCompareList();
-    if (ids.length < 2) return;
-    window.location.href = 'compare.html?ids=' + ids.join(',');
-  });
+  dismissStickyTrays();
 }
 
 // ─── Compare Modal ────────────────────────────────────
@@ -2499,10 +3380,21 @@ function initFinancePrep() {
 let tdPrepVehicle = null;
 
 function initTestDriveConfirmation() {
+  const multi = new URLSearchParams(window.location.search).get('multi') === '1';
+  const bookings = getTestDriveSchedule();
+  const visit = getVisitContext();
+
+  if (multi && bookings.length) {
+    renderMultiTestDriveConfirmation(bookings, visit);
+    const first = getVehicleById(bookings[0].vehicleId);
+    tdPrepVehicle = first;
+    if (document.getElementById('td-prep')) initTestDrivePrep(first, bookings);
+    return;
+  }
+
   const id = new URLSearchParams(window.location.search).get('id') || '1';
   const v = typeof getVehicleById === 'function' ? getVehicleById(id) : null;
   tdPrepVehicle = v;
-  const visit = getVisitContext();
 
   const prepSub = document.getElementById('td-prep-sub');
   if (prepSub) {
@@ -2536,18 +3428,95 @@ function initTestDriveConfirmation() {
   if (document.getElementById('td-prep')) initTestDrivePrep(v || getVehicleById?.('1'));
 }
 
+function renderMultiTestDriveConfirmation(bookings, visit) {
+  const root = document.getElementById('td-confirm-root');
+  if (!root) return;
+
+  const count = bookings.length;
+  const vehicleEl = document.getElementById('td-vehicle');
+  const detailsEl = document.getElementById('td-details');
+  const vdpLink = document.getElementById('td-vdp-link');
+  const heading = root.querySelector('h1');
+
+  if (heading) heading.textContent = count === 1 ? 'Test Drive Scheduled!' : `${count} Test Drives Scheduled!`;
+  if (vehicleEl) {
+    vehicleEl.textContent = count === 1
+      ? bookings[0].title
+      : `${count} vehicles from your favorites`;
+  }
+
+  const intro = root.querySelector('p');
+  if (intro) {
+    intro.innerHTML = count === 1
+      ? `You're all set to drive the <strong id="td-vehicle" style="color:var(--text-dark)">${escapeHtml(bookings[0].title)}</strong>. We've sent a confirmation with directions and what to bring.`
+      : `You're all set for <strong>${count} test drives</strong> from your favorites. We've sent one confirmation email with each appointment, location, and what to bring.`;
+  }
+
+  if (detailsEl) {
+    const byStop = new Map();
+    bookings.forEach(b => {
+      const key = b.stopNum != null ? `stop-${b.stopNum}` : b.location;
+      if (!byStop.has(key)) byStop.set(key, { stopNum: b.stopNum, location: b.location, items: [] });
+      byStop.get(key).items.push(b);
+    });
+    const groups = [...byStop.values()].sort((a, b) => (a.stopNum || 999) - (b.stopNum || 999));
+    const multiStop = groups.length > 1;
+
+    detailsEl.innerHTML = groups.map(group => {
+      const cards = group.items.map(b => {
+        const v = getVehicleById(b.vehicleId);
+        return `
+          <div class="td-multi-block${multiStop ? ' td-multi-block-nested' : ''}">
+            <div class="td-multi-head">${escapeHtml(b.title)}</div>
+            <div class="td-detail-row"><span>When</span><strong>${escapeHtml(b.when)}</strong></div>
+            ${multiStop ? '' : `<div class="td-detail-row"><span>Location</span><strong>${escapeHtml(b.location || (v && v.location) || '—')}</strong></div>`}
+            ${v ? `<div class="td-detail-row"><span>Price</span><strong>${formatPrice(v.price)}</strong></div>` : ''}
+            <a href="vdp.html?id=${b.vehicleId}" class="td-multi-link">View listing <i class="fa-solid fa-arrow-right"></i></a>
+          </div>`;
+      }).join('');
+
+      if (!multiStop) return cards;
+
+      return `
+        <div class="td-route-group">
+          <div class="td-route-head">
+            <span class="td-route-num">${group.stopNum || '—'}</span>
+            <strong>${escapeHtml(group.location || 'Location TBD')}</strong>
+            <span class="td-route-count">${group.items.length} drive${group.items.length > 1 ? 's' : ''}</span>
+          </div>
+          ${cards}
+        </div>`;
+    }).join('');
+  }
+
+  if (vdpLink) {
+    vdpLink.href = 'favorites.html';
+    vdpLink.innerHTML = '<i class="fa-solid fa-heart"></i> Back to favorites';
+  }
+
+  const prepSub = document.getElementById('td-prep-sub');
+  if (prepSub) {
+    prepSub.textContent = count === 1
+      ? `Personalized for your ${bookings[0].when} visit — walk in ready for the drive.`
+      : `Personalized for your ${count} upcoming drives — what to bring, what to check on each Jeep, and what's optional.`;
+  }
+}
+
 function tdVehicleAge(v) { return new Date().getFullYear() - v.year; }
 function tdIsLuxury(v) { return ['Audi', 'BMW', 'Mercedes-Benz', 'Volvo', 'Lexus', 'Genesis', 'Acura', 'Cadillac', 'Lincoln'].includes(v.make); }
 function tdHasAWD(v) { return /AWD|4WD|quattro|xDrive|4MATIC/i.test(v.drivetrain); }
 function tdHasTurbo(v) { return /turbo/i.test(v.engine); }
 function tdWarrantyLikely(v) { return tdVehicleAge(v) <= 3 && v.mileage < 50000; }
 
-function initTestDrivePrep(v) {
+function initTestDrivePrep(v, bookings) {
   if (!v) return;
 
   const visit = getVisitContext();
+  const multi = Array.isArray(bookings) && bookings.length > 1;
   const title = `${v.year} ${v.make} ${v.model}`;
-  const byline = `<i class="fa-solid fa-wand-magic-sparkles"></i> Personalized for · <span>${title} · ${formatMileage(v.mileage)} · ${v.drivetrain}</span>`;
+  const byline = multi
+    ? `<i class="fa-solid fa-wand-magic-sparkles"></i> Personalized for · <span>${bookings.length} test drives · starting with ${title}</span>`
+    : `<i class="fa-solid fa-wand-magic-sparkles"></i> Personalized for · <span>${title} · ${formatMileage(v.mileage)} · ${v.drivetrain}</span>`;
   ['td-visit-byline', 'td-tips-byline', 'td-plans-byline'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.innerHTML = byline;
@@ -2579,19 +3548,41 @@ function initTestDrivePrep(v) {
   if (highMiles)
     visitItems.push({ icon: 'gauge-high', html: `<strong>Higher mileage (${formatMileage(v.mileage)})</strong> — totally normal on a used car; we'll explain what's been replaced and what's due next.` });
 
-  tdGen(document.getElementById('td-visit-body'), 450, () => `
+  if (multi) {
+    visitItems.unshift({
+      icon: 'calendar-days',
+      html: `<strong>${bookings.length} appointments booked</strong> — ${bookings.map(b => `${escapeHtml(b.when)} (${escapeHtml(b.location)})`).join('; ')}`,
+    });
+  }
+
+  tdGen(document.getElementById('td-visit-body'), 450, () => {
+    const scheduleBlock = multi ? `
+      <div class="td-schedule-list">
+        ${bookings.map((b, i) => `
+          <div class="td-schedule-item">
+            <span class="td-schedule-num">${i + 1}</span>
+            <div>
+              <strong>${escapeHtml(b.title)}</strong>
+              <div class="td-schedule-meta">${escapeHtml(b.when)} · ${escapeHtml(b.location)}</div>
+            </div>
+          </div>`).join('')}
+      </div>` : '';
+    return `
+    ${scheduleBlock}
     <p style="font-size:14px;color:var(--text-mid);line-height:1.65;margin:0 0 14px">
-      You're driving the <strong style="color:var(--text-dark)">${v.year} ${v.make} ${v.model} ${v.trim}</strong> ${visit.when} at ${visit.place}.
-      Here's what makes this visit smooth — nothing fancy, just the stuff people wish they'd known.
+      ${multi
+        ? `You're test-driving <strong style="color:var(--text-dark)">${bookings.length} favorites</strong> — starting with the <strong style="color:var(--text-dark)">${v.year} ${v.make} ${v.model}</strong>. Here's what makes each visit smooth.`
+        : `You're driving the <strong style="color:var(--text-dark)">${v.year} ${v.make} ${v.model} ${v.trim}</strong> ${visit.when} at ${visit.place}. Here's what makes this visit smooth — nothing fancy, just the stuff people wish they'd known.`}
     </p>
     <div class="td-checklist">
       ${visitItems.map(it => `<div class="td-check-item"><i class="fa-solid fa-${it.icon}"></i><span>${it.html}</span></div>`).join('')}
     </div>
     <div class="td-visit-note">
-      <strong>Pro tip:</strong> Bring whoever helps you decide — spouse, friend, whoever.
-      ${v.body === 'SUV' || v.body === 'Minivan' ? ' With a ' + v.body.toLowerCase() + ', have them sit in the second row and try the cargo area.' : ' Have them sit in back and listen for road noise on your route.'}
+      <strong>Pro tip:</strong> ${multi ? 'Driving multiple Jeeps? Compare hard-top removal, Bluetooth pairing, and ride comfort back-to-back while they\'re fresh.' : 'Bring whoever helps you decide — spouse, friend, whoever.'}
+      ${!multi && (v.body === 'SUV' || v.body === 'Minivan') ? ' With a ' + v.body.toLowerCase() + ', have them sit in the second row and try the cargo area.' : !multi ? ' Have them sit in back and listen for road noise on your route.' : ''}
       Need to reschedule? Reply to your confirmation email anytime.
-    </div>`);
+    </div>`;
+  });
 
   // ── 2. What to look for on the drive ──
   const faqItem = o => `<div class="faq-item"><button type="button" class="faq-q">${o.q} <i class="fa-solid fa-chevron-down"></i></button><div class="faq-a">${o.a}</div></div>`;
@@ -3041,10 +4032,10 @@ function generateFinancePrepAnswer(q) {
 
 // ─── Init compare on page load ────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  // Render tray if there's already a saved compare list from a previous session
   setTimeout(() => {
     refreshCompareButtons();
-    if (getCompareList().length) renderCompareTray();
+    dismissStickyTrays();
+    updateFavoritesNavBadge();
   }, 100);
 });
 

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CARFAX Vehicle History — DriveClear</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<nav class="nav" role="navigation">
+  <div class="container nav-inner">
+    <a href="index.html" class="nav-logo">
+      <div class="logo-mark">DC</div>
+      Drive<span class="accent">Clear</span>
+    </a>
+    <form class="nav-search" role="search" action="srp.html">
+      <i class="fa-solid fa-magnifying-glass"></i>
+      <input type="text" name="q" placeholder="Search make, model, year…" aria-label="Search vehicles" autocomplete="off">
+    </form>
+    <ul class="nav-links">
+      <li><a href="srp.html" class="active">Used Cars</a></li>
+      <li><a href="sell-trade.html">Sell / Trade</a></li>
+      <li><a href="financing.html">Financing</a></li>
+    </ul>
+    <div class="nav-right">
+      <button class="nav-hamburger" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<nav class="mobile-nav">
+  <a href="index.html">Home</a>
+  <a href="srp.html">Used Cars</a>
+  <a href="sell-trade.html">Sell / Trade</a>
+  <a href="financing.html">Financing</a>
+</nav>
+
+<div class="container carfax-report-page" id="carfax-report-root">
+  <div class="carfax-report-head">
+    <div>
+      <div class="carfax-report-brand"><i class="fa-solid fa-file-shield"></i> CARFAX</div>
+      <div class="carfax-report-meta">
+        <h1 id="crf-title">Vehicle History Report</h1>
+        <p id="crf-subtitle">Loading vehicle details…</p>
+      </div>
+    </div>
+    <div class="carfax-report-actions">
+      <a href="vdp.html?id=1" class="btn btn-ghost" id="crf-back-link">
+        <i class="fa-solid fa-arrow-left"></i> Back to listing
+      </a>
+      <button type="button" class="btn btn-primary" onclick="window.print()">
+        <i class="fa-solid fa-print"></i> Print report
+      </button>
+    </div>
+  </div>
+
+  <div class="carfax-summary-grid">
+    <div class="carfax-summary-card">
+      <i class="fa-solid fa-user"></i>
+      <div class="label">Owners</div>
+      <div class="value" id="crf-owners">—</div>
+    </div>
+    <div class="carfax-summary-card">
+      <i class="fa-solid fa-shield-halved"></i>
+      <div class="label">Accidents</div>
+      <div class="value" id="crf-accidents">—</div>
+    </div>
+    <div class="carfax-summary-card">
+      <i class="fa-solid fa-file-certificate"></i>
+      <div class="label">Title</div>
+      <div class="value" id="crf-title-status">—</div>
+    </div>
+    <div class="carfax-summary-card">
+      <i class="fa-solid fa-wrench"></i>
+      <div class="label">Service</div>
+      <div class="value" id="crf-service">—</div>
+    </div>
+  </div>
+
+  <div class="carfax-report-panel">
+    <h2>Reported history</h2>
+    <div class="carfax-timeline" id="crf-timeline"></div>
+  </div>
+
+  <p class="carfax-report-note">
+    Sample vehicle history report for study purposes. Always review the official report and inspect the vehicle before purchase.
+  </p>
+</div>
+
+<script src="js/inventory.js"></script>
+<script src="js/profile.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

@@ -57,12 +57,42 @@
 
 <!-- ═══════════════════════ VDP MAIN ═══════════════════════ -->
 <div class="container" id="vdp-root">
+
+  <!-- ─── AI Assist Command (top) ─── -->
+  <section class="vdp-ai-command" id="vdp-ai-command" aria-label="DriveClear AI assistant">
+    <div class="vdp-ai-command-inner">
+      <div class="vdp-ai-command-top">
+        <div class="vdp-ai-command-id">
+          <span class="vdp-ai-command-avatar"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
+          <div>
+            <h2 class="vdp-ai-command-title">DriveClear AI Assist</h2>
+            <p class="vdp-ai-command-sub" id="vdp-ai-cat-desc">Browse this listing by topic — or turn on interactive mode to ask about anything on the page.</p>
+          </div>
+        </div>
+        <button class="ai-toggle vdp-ai-command-toggle" id="ai-toggle" type="button" role="switch" aria-checked="false" aria-label="Toggle AI interactive mode">
+          <span class="ai-toggle-ic"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
+          <span class="ai-toggle-text">
+            <span class="ai-toggle-name">Interactive</span>
+            <span class="ai-toggle-state" id="ai-toggle-state">Off</span>
+          </span>
+          <span class="ai-switch"><span class="ai-switch-knob"></span></span>
+        </button>
+      </div>
+
+      <nav class="vdp-ai-categories" id="vdp-ai-categories" aria-label="Listing topics">
+        <button type="button" class="vdp-ai-cat active" data-vdp-cat="overview"><i class="fa-solid fa-car"></i> Overview</button>
+        <button type="button" class="vdp-ai-cat" data-vdp-cat="transparency"><i class="fa-solid fa-scale-balanced"></i> Transparency</button>
+        <button type="button" class="vdp-ai-cat" data-vdp-cat="history"><i class="fa-solid fa-clock-rotate-left"></i> History</button>
+        <button type="button" class="vdp-ai-cat" data-vdp-cat="features"><i class="fa-solid fa-list-check"></i> Features &amp; Specs</button>
+        <button type="button" class="vdp-ai-cat" data-vdp-cat="payments"><i class="fa-solid fa-calculator"></i> Payments</button>
+      </nav>
+    </div>
+  </section>
+
   <div class="vdp-wrap">
 
-    <!-- ─── Left: Gallery + Details ─── -->
-    <div>
-
-      <!-- Photo Gallery -->
+    <!-- ─── Left: gallery only (fixed) ─── -->
+    <div class="vdp-primary">
       <div class="gallery" aria-label="Vehicle photos">
         <div class="g-main">
           <img id="g-main-img" src="" alt="Vehicle photo">
@@ -76,221 +106,116 @@
         </div>
         <div class="g-thumbs" id="g-thumbs"></div>
       </div>
+    </div>
 
-      <!-- Details Sections -->
-      <div class="vdp-details" style="margin-top:20px">
-
-        <!-- Description -->
-        <div class="vdp-section">
-          <h2 class="vdp-sec-title">About This Vehicle</h2>
-          <p class="vdp-desc" id="vdp-desc">Loading vehicle description…</p>
-        </div>
-
-        <!-- Specs -->
-        <div class="vdp-section">
-          <h2 class="vdp-sec-title">Vehicle Specifications</h2>
-          <div class="specs-grid" id="vdp-specs">
-            <!-- Rendered by app.js -->
-          </div>
-        </div>
-
-        <!-- Features -->
-        <div class="vdp-section">
-          <h2 class="vdp-sec-title">Features &amp; Options</h2>
-          <div class="features-grid" id="vdp-features">
-            <!-- Rendered by app.js -->
-          </div>
-        </div>
-
-        <!-- Vehicle History -->
-        <div class="vdp-section">
-          <h2 class="vdp-sec-title">Vehicle History</h2>
-          <div class="hist-items">
-            <div class="hist-item">
-              <div class="hist-icon green"><i class="fa-solid fa-user"></i></div>
-              <div>
-                <div class="hist-title">1 Previous Owner</div>
-                <div class="hist-sub">Personal use vehicle — not a fleet or rental car</div>
-              </div>
-              <div class="hist-check"><i class="fa-solid fa-check"></i></div>
-            </div>
-            <div class="hist-item">
-              <div class="hist-icon green"><i class="fa-solid fa-shield-halved"></i></div>
-              <div>
-                <div class="hist-title">No Reported Accidents</div>
-                <div class="hist-sub">No damage or structural issue events on record</div>
-              </div>
-              <div class="hist-check"><i class="fa-solid fa-check"></i></div>
-            </div>
-            <div class="hist-item">
-              <div class="hist-icon blue"><i class="fa-solid fa-file-shield"></i></div>
-              <div>
-                <div class="hist-title">Clean Carfax Report</div>
-                <div class="hist-sub">Full vehicle history available — no title issues</div>
-              </div>
-              <div class="hist-check"><i class="fa-solid fa-check"></i></div>
-            </div>
-            <div class="hist-item">
-              <div class="hist-icon green"><i class="fa-solid fa-wrench"></i></div>
-              <div>
-                <div class="hist-title">150-Point Inspection</div>
-                <div class="hist-sub">Inspected by a certified DriveClear technician</div>
-              </div>
-              <div class="hist-check"><i class="fa-solid fa-check"></i></div>
-            </div>
-            <div class="hist-item">
-              <div class="hist-icon green"><i class="fa-solid fa-file-certificate"></i></div>
-              <div>
-                <div class="hist-title">Clean Title</div>
-                <div class="hist-sub">Not salvage, rebuilt, or flood-damaged</div>
-              </div>
-              <div class="hist-check"><i class="fa-solid fa-check"></i></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Payment Calculator -->
-        <div class="vdp-section" id="payment-calc">
-          <h2 class="vdp-sec-title">Estimate Your Payment</h2>
-          <div class="calc-row">
-            <div class="calc-row-label">
-              Down Payment <span id="calc-down-label">$0</span>
-            </div>
-            <input type="range" class="calc-slider" id="calc-down-slider" min="0" max="20000" value="0" step="500" aria-label="Down payment slider">
-          </div>
-          <div class="calc-inp-row" style="margin-bottom:14px">
-            <div>
-              <label style="font-size:13px;color:var(--text-mid);font-weight:600;display:block;margin-bottom:5px">Down Payment</label>
-              <input type="number" class="calc-inp" id="calc-down" value="0" min="0" step="500" placeholder="$0" aria-label="Down payment amount">
-            </div>
-            <div>
-              <label style="font-size:13px;color:var(--text-mid);font-weight:600;display:block;margin-bottom:5px">Interest Rate (APR %)</label>
-              <input type="number" class="calc-inp" id="calc-rate" value="" min="0.1" max="30" step="0.1" placeholder="APR %" aria-label="Interest rate">
-            </div>
-          </div>
-          <div>
-            <label style="font-size:13px;color:var(--text-mid);font-weight:600;display:block;margin-bottom:5px">Loan Term</label>
-            <select class="calc-inp" id="calc-term" style="width:100%" aria-label="Loan term">
-              <option value="24">24 Months (2 Years)</option>
-              <option value="36">36 Months (3 Years)</option>
-              <option value="48">48 Months (4 Years)</option>
-              <option value="60" selected>60 Months (5 Years)</option>
-              <option value="72">72 Months (6 Years)</option>
-            </select>
-          </div>
-          <div class="calc-result" id="calc-result">
-            <div class="calc-mo">—</div>
-            <div class="calc-mo-label">Estimated Monthly Payment</div>
-          </div>
-          <p class="calc-note">* Estimated payment for illustration purposes only. Actual rate based on credit approval. Taxes and fees not included.</p>
-          <div style="margin-top:16px">
-            <a href="financing.html" class="btn btn-primary btn-block btn-lg">
-              <i class="fa-solid fa-lock"></i> Get Pre-Approved — Won't Affect Credit Score
-            </a>
-          </div>
-        </div>
-
-      </div><!-- /vdp-details -->
-    </div><!-- /left col -->
-
-    <!-- ─── Right: Sidebar ─── -->
+    <!-- ─── Right: sidebar + category overlay ─── -->
     <div class="vdp-sidebar">
+      <div class="vdp-sidebar-shell">
+        <div class="vdp-sidebar-base vdp-card">
+          <div class="vdp-year-tag" id="vdp-year">2021</div>
+          <h1 class="vdp-title-h" id="vdp-make-model">Loading…</h1>
+          <div class="vdp-trim-tag" id="vdp-trim"></div>
+          <div class="vdp-price" id="vdp-price">—</div>
+          <div class="vdp-mo" id="vdp-monthly"></div>
 
-      <!-- Price Card -->
-      <div class="vdp-card">
-        <div class="vdp-year-tag" id="vdp-year">2021</div>
-        <h1 class="vdp-title-h" id="vdp-make-model">Loading…</h1>
-        <div class="vdp-trim-tag" id="vdp-trim"></div>
-
-        <div class="vdp-price" id="vdp-price">—</div>
-        <div class="vdp-mo" id="vdp-monthly"></div>
-
-        <!-- Payment Options AI Assistant Popover -->
-        <div class="pa-popover" id="pa-popover" hidden role="dialog" aria-label="Payment options assistant">
-          <div class="pa-arrow"></div>
-          <div class="pa-header">
-            <div class="pa-title">
-              <div class="pa-avatar"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
-              <div>
-                <div class="pa-name">DriveClear Assistant</div>
-                <div class="pa-status"><span class="pa-dot"></span> Ask about payments</div>
+          <div class="pa-popover" id="pa-popover" hidden role="dialog" aria-label="Payment options assistant">
+            <div class="pa-arrow"></div>
+            <div class="pa-header">
+              <div class="pa-title">
+                <div class="pa-avatar"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+                <div>
+                  <div class="pa-name">DriveClear Assistant</div>
+                  <div class="pa-status"><span class="pa-dot"></span> Ask about payments</div>
+                </div>
+              </div>
+              <button type="button" class="pa-close" id="pa-close" aria-label="Close assistant">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+            <div class="pa-body" id="pa-body">
+              <div class="pa-msg pa-msg-bot">
+                <div class="pa-msg-avatar"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+                <div class="pa-msg-bubble">
+                  <div class="pa-msg-label">About Payment Options</div>
+                  <p>Your estimated monthly payment is a quick preview based on a <strong>60-month loan</strong> at your profile APR with <strong>$0 down</strong>.</p>
+                  <p>You can adjust your down payment, term, and rate in the <a href="#payment-calc">Payment Calculator</a> below to fit your budget — or get pre-approved to lock in your real rate.</p>
+                </div>
               </div>
             </div>
-            <button type="button" class="pa-close" id="pa-close" aria-label="Close assistant">
-              <i class="fa-solid fa-xmark"></i>
+            <div class="pa-chips" id="pa-chips" aria-label="Suggested questions">
+              <button type="button" class="pa-chip" data-q="How does APR affect my monthly payment?">How does APR affect my payment?</button>
+              <button type="button" class="pa-chip" data-q="What down payment do you recommend?">What down payment should I put down?</button>
+              <button type="button" class="pa-chip" data-q="Can I trade in my current vehicle?">Can I trade in my current car?</button>
+            </div>
+            <form class="pa-input-row" id="pa-form">
+              <input type="text" class="pa-input" id="pa-input" placeholder="Ask a follow-up question…" autocomplete="off" aria-label="Ask a follow-up question">
+              <button type="submit" class="pa-send" aria-label="Send message">
+                <i class="fa-solid fa-arrow-up"></i>
+              </button>
+            </form>
+            <div class="pa-footer">
+              <i class="fa-solid fa-shield-halved"></i> AI-assisted answers · Not a financing offer
+            </div>
+          </div>
+
+          <div class="vdp-mkt-pill" id="vdp-mkt-pill"></div>
+
+          <div class="vdp-stats">
+            <div class="vdp-stat">
+              <div class="vdp-stat-v" id="vdp-mileage-stat">—</div>
+              <div class="vdp-stat-l">Mileage</div>
+            </div>
+            <div class="vdp-stat">
+              <div class="vdp-stat-v" id="vdp-engine-stat">—</div>
+              <div class="vdp-stat-l">Engine</div>
+            </div>
+            <div class="vdp-stat">
+              <div class="vdp-stat-v" id="vdp-mpg-stat">— / —</div>
+              <div class="vdp-stat-l">MPG City / Hwy</div>
+            </div>
+            <div class="vdp-stat">
+              <div class="vdp-stat-v" id="vdp-drivetrain-stat">—</div>
+              <div class="vdp-stat-l">Drivetrain</div>
+            </div>
+          </div>
+
+          <div class="vdp-ctas">
+            <a href="financing.html" class="btn btn-primary">
+              <i class="fa-solid fa-lock"></i> Get Pre-Approved
+            </a>
+            <a href="#" class="btn btn-dark" id="vdp-test-drive-btn">
+              <i class="fa-solid fa-calendar-check"></i> Schedule a Test Drive
+            </a>
+            <button class="btn btn-ghost" id="vdp-save-btn">
+              <i class="fa-regular fa-heart"></i> Save Vehicle
             </button>
           </div>
 
-          <div class="pa-body" id="pa-body">
-            <div class="pa-msg pa-msg-bot">
-              <div class="pa-msg-avatar"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
-              <div class="pa-msg-bubble">
-                <div class="pa-msg-label">About Payment Options</div>
-                <p>Your estimated monthly payment is a quick preview based on a <strong>60-month loan</strong> at your profile APR with <strong>$0 down</strong>.</p>
-                <p>You can adjust your down payment, term, and rate in the <a href="#payment-calc">Payment Calculator</a> below to fit your budget — or get pre-approved to lock in your real rate.</p>
-              </div>
-            </div>
-          </div>
-
-          <div class="pa-chips" id="pa-chips" aria-label="Suggested questions">
-            <button type="button" class="pa-chip" data-q="How does APR affect my monthly payment?">How does APR affect my payment?</button>
-            <button type="button" class="pa-chip" data-q="What down payment do you recommend?">What down payment should I put down?</button>
-            <button type="button" class="pa-chip" data-q="Can I trade in my current vehicle?">Can I trade in my current car?</button>
-          </div>
-
-          <form class="pa-input-row" id="pa-form">
-            <input type="text" class="pa-input" id="pa-input" placeholder="Ask a follow-up question…" autocomplete="off" aria-label="Ask a follow-up question">
-            <button type="submit" class="pa-send" aria-label="Send message">
-              <i class="fa-solid fa-arrow-up"></i>
-            </button>
-          </form>
-          <div class="pa-footer">
-            <i class="fa-solid fa-shield-halved"></i> AI-assisted answers · Not a financing offer
-          </div>
+          <div class="vdp-flags" id="vdp-flags"></div>
         </div>
 
-        <div class="vdp-mkt-pill" id="vdp-mkt-pill"></div>
-
-        <!-- Key Stats -->
-        <div class="vdp-stats">
-          <div class="vdp-stat">
-            <div class="vdp-stat-v" id="vdp-mileage-stat">—</div>
-            <div class="vdp-stat-l">Mileage</div>
+        <div class="vdp-cat-overlay" id="vdp-cat-overlay" aria-live="polite">
+          <div class="vdp-cat-overlay-head">
+            <h3 class="vdp-cat-overlay-title" id="vdp-cat-overlay-title">Overview</h3>
           </div>
-          <div class="vdp-stat">
-            <div class="vdp-stat-v" id="vdp-engine-stat">—</div>
-            <div class="vdp-stat-l">Engine</div>
-          </div>
-          <div class="vdp-stat">
-            <div class="vdp-stat-v" id="vdp-mpg-stat">— / —</div>
-            <div class="vdp-stat-l">MPG City / Hwy</div>
-          </div>
-          <div class="vdp-stat">
-            <div class="vdp-stat-v" id="vdp-drivetrain-stat">—</div>
-            <div class="vdp-stat-l">Drivetrain</div>
-          </div>
-        </div>
-
-        <!-- CTAs -->
-        <div class="vdp-ctas">
-          <a href="financing.html" class="btn btn-primary">
-            <i class="fa-solid fa-lock"></i> Get Pre-Approved
-          </a>
-          <a href="#" class="btn btn-dark" id="vdp-test-drive-btn">
-            <i class="fa-solid fa-calendar-check"></i> Schedule a Test Drive
-          </a>
-          <button class="btn btn-ghost" id="vdp-save-btn">
-            <i class="fa-regular fa-heart"></i> Save Vehicle
-          </button>
-        </div>
-
-        <!-- Trust Flags -->
-        <div class="vdp-flags" id="vdp-flags">
-          <!-- Rendered by app.js -->
+          <div class="vdp-cat-overlay-body" id="vdp-cat-overlay-body"></div>
         </div>
       </div>
+    </div>
 
-      <!-- Contact Card -->
+  </div><!-- /vdp-wrap -->
+
+  <!-- Category detail pool (moved into overlay on tab select) -->
+  <div id="vdp-detail-pool" class="vdp-detail-pool" hidden aria-hidden="true">
+
+    <div class="vdp-cat-block" data-vdp-cat="overview">
+      <div class="vdp-section">
+        <h2 class="vdp-sec-title">About This Vehicle</h2>
+        <p class="vdp-desc" id="vdp-desc">Loading vehicle description…</p>
+      </div>
+    </div>
+
+    <div class="vdp-cat-block" data-vdp-cat="overview">
       <div class="vdp-card">
         <h3 style="font-size:15px;font-weight:700;margin-bottom:14px">Questions? We're Here.</h3>
         <div style="display:flex;flex-direction:column;gap:10px">
@@ -309,8 +234,16 @@
           Mon–Sat 9am–8pm · Sun 11am–6pm
         </div>
       </div>
+    </div>
 
-      <!-- Guarantee Card -->
+    <div class="vdp-cat-block" data-vdp-cat="transparency">
+      <div class="vdp-section" id="vdp-transparency">
+        <h2 class="vdp-sec-title"><i class="fa-solid fa-scale-balanced"></i> Pricing Transparency</h2>
+        <div class="vdp-transparency-grid" id="vdp-transparency-grid"></div>
+      </div>
+    </div>
+
+    <div class="vdp-cat-block" data-vdp-cat="transparency">
       <div class="vdp-card" style="background:var(--teal-light);border-color:rgba(0,191,179,0.25)">
         <div style="display:flex;align-items:flex-start;gap:12px">
           <div style="width:42px;height:42px;background:var(--teal);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">
@@ -324,8 +257,9 @@
           </div>
         </div>
       </div>
+    </div>
 
-      <!-- No Fees Card -->
+    <div class="vdp-cat-block" data-vdp-cat="transparency">
       <div class="vdp-card" style="background:var(--success-light);border-color:rgba(56,161,105,0.25)">
         <div style="display:flex;align-items:center;gap:12px">
           <i class="fa-solid fa-tag" style="color:var(--success);font-size:22px;flex-shrink:0"></i>
@@ -335,10 +269,121 @@
           </div>
         </div>
       </div>
+    </div>
 
-    </div><!-- /sidebar -->
+    <div class="vdp-cat-block" data-vdp-cat="history">
+      <div class="vdp-section" id="vdp-history">
+        <h2 class="vdp-sec-title"><i class="fa-solid fa-clock-rotate-left"></i> Vehicle History</h2>
+        <div class="hist-items">
+          <div class="hist-item">
+            <div class="hist-icon green"><i class="fa-solid fa-user"></i></div>
+            <div>
+              <div class="hist-title">1 Previous Owner</div>
+              <div class="hist-sub">Personal use vehicle — not a fleet or rental car</div>
+            </div>
+            <div class="hist-check"><i class="fa-solid fa-check"></i></div>
+          </div>
+          <div class="hist-item">
+            <div class="hist-icon green"><i class="fa-solid fa-shield-halved"></i></div>
+            <div>
+              <div class="hist-title">No Reported Accidents</div>
+              <div class="hist-sub">No damage or structural issue events on record</div>
+            </div>
+            <div class="hist-check"><i class="fa-solid fa-check"></i></div>
+          </div>
+          <div class="hist-item">
+            <div class="hist-icon blue"><i class="fa-solid fa-file-shield"></i></div>
+            <div>
+              <div class="hist-title">Clean Carfax Report</div>
+              <div class="hist-sub">Full vehicle history available — no title issues</div>
+            </div>
+            <div class="hist-check"><i class="fa-solid fa-check"></i></div>
+          </div>
+          <div class="hist-item">
+            <div class="hist-icon green"><i class="fa-solid fa-wrench"></i></div>
+            <div>
+              <div class="hist-title">150-Point Inspection</div>
+              <div class="hist-sub">Inspected by a certified DriveClear technician</div>
+            </div>
+            <div class="hist-check"><i class="fa-solid fa-check"></i></div>
+          </div>
+          <div class="hist-item">
+            <div class="hist-icon green"><i class="fa-solid fa-file-certificate"></i></div>
+            <div>
+              <div class="hist-title">Clean Title</div>
+              <div class="hist-sub">Not salvage, rebuilt, or flood-damaged</div>
+            </div>
+            <div class="hist-check"><i class="fa-solid fa-check"></i></div>
+          </div>
+        </div>
+        <div class="vdp-history-report" id="vdp-history-report" aria-label="Vehicle history report access"></div>
+      </div>
+    </div>
 
-  </div><!-- /vdp-wrap -->
+    <div class="vdp-cat-block" data-vdp-cat="history">
+      <div class="vdp-card vdp-card-history">
+        <h3 class="vdp-card-mini-title"><i class="fa-solid fa-shield-halved"></i> Verified History</h3>
+        <div class="vdp-history-badges" id="vdp-history-badges"></div>
+      </div>
+    </div>
+
+    <div class="vdp-cat-block" data-vdp-cat="features">
+      <div class="vdp-section">
+        <h2 class="vdp-sec-title">Vehicle Specifications</h2>
+        <div class="specs-grid" id="vdp-specs"></div>
+      </div>
+    </div>
+
+    <div class="vdp-cat-block" data-vdp-cat="features">
+      <div class="vdp-section">
+        <h2 class="vdp-sec-title">Features &amp; Options</h2>
+        <div class="features-grid" id="vdp-features"></div>
+      </div>
+    </div>
+
+    <div class="vdp-cat-block" data-vdp-cat="payments">
+      <div class="vdp-section" id="payment-calc">
+        <h2 class="vdp-sec-title">Estimate Your Payment</h2>
+        <div class="calc-row">
+          <div class="calc-row-label">
+            Down Payment <span id="calc-down-label">$0</span>
+          </div>
+          <input type="range" class="calc-slider" id="calc-down-slider" min="0" max="20000" value="0" step="500" aria-label="Down payment slider">
+        </div>
+        <div class="calc-inp-row" style="margin-bottom:14px">
+          <div>
+            <label style="font-size:13px;color:var(--text-mid);font-weight:600;display:block;margin-bottom:5px">Down Payment</label>
+            <input type="number" class="calc-inp" id="calc-down" value="0" min="0" step="500" placeholder="$0" aria-label="Down payment amount">
+          </div>
+          <div>
+            <label style="font-size:13px;color:var(--text-mid);font-weight:600;display:block;margin-bottom:5px">Interest Rate (APR %)</label>
+            <input type="number" class="calc-inp" id="calc-rate" value="" min="0.1" max="30" step="0.1" placeholder="APR %" aria-label="Interest rate">
+          </div>
+        </div>
+        <div>
+          <label style="font-size:13px;color:var(--text-mid);font-weight:600;display:block;margin-bottom:5px">Loan Term</label>
+          <select class="calc-inp" id="calc-term" style="width:100%" aria-label="Loan term">
+            <option value="24">24 Months (2 Years)</option>
+            <option value="36">36 Months (3 Years)</option>
+            <option value="48">48 Months (4 Years)</option>
+            <option value="60" selected>60 Months (5 Years)</option>
+            <option value="72">72 Months (6 Years)</option>
+          </select>
+        </div>
+        <div class="calc-result" id="calc-result">
+          <div class="calc-mo">—</div>
+          <div class="calc-mo-label">Estimated Monthly Payment</div>
+        </div>
+        <p class="calc-note">* Estimated payment for illustration purposes only. Actual rate based on credit approval. Taxes and fees not included.</p>
+        <div style="margin-top:16px">
+          <a href="financing.html" class="btn btn-primary btn-block btn-lg">
+            <i class="fa-solid fa-lock"></i> Get Pre-Approved — Won't Affect Credit Score
+          </a>
+        </div>
+      </div>
+    </div>
+
+  </div>
 </div><!-- /container -->
 
 <!-- ═══════════════════════ SIMILAR VEHICLES ═══════════════════════ -->
@@ -366,6 +411,39 @@
   <a href="financing.html" class="btn btn-primary">Get Pre-Approved</a>
   <a href="#" class="btn btn-dark" id="vdp-test-drive-mobile">Test Drive</a>
 </div>
+
+<!-- Hover snippet + chat drawer (AI interactive mode) -->
+<div class="ai-tip" id="ai-tip" role="tooltip" hidden>
+  <button type="button" class="ai-tip-close" id="ai-tip-close" aria-label="Dismiss"><i class="fa-solid fa-xmark"></i></button>
+  <div class="ai-tip-title" id="ai-tip-title"></div>
+  <div class="ai-tip-text" id="ai-tip-text"></div>
+  <button type="button" class="ai-tip-more" id="ai-tip-more">
+    Ask AI about this <i class="fa-solid fa-arrow-right"></i>
+  </button>
+</div>
+
+<div class="ai-drawer-scrim" id="ai-drawer-scrim" hidden></div>
+<aside class="ai-drawer" id="ai-drawer" aria-label="DriveClear AI assistant" aria-hidden="true">
+  <div class="ai-drawer-head">
+    <div class="ai-drawer-id">
+      <span class="ai-drawer-avatar"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
+      <div>
+        <div class="ai-drawer-name">DriveClear Assistant</div>
+        <div class="ai-drawer-sub" id="ai-drawer-topic"><span class="pa-dot"></span> Ask about this vehicle</div>
+      </div>
+    </div>
+    <button type="button" class="ai-drawer-close" id="ai-drawer-close" aria-label="Close assistant">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+  </div>
+  <div class="ai-drawer-body" id="ai-drawer-body"></div>
+  <div class="ai-drawer-chips" id="ai-drawer-chips" aria-label="Suggested questions"></div>
+  <form class="ai-drawer-form" id="ai-drawer-form">
+    <input type="text" class="ai-drawer-input" id="ai-drawer-input" placeholder="Ask a follow-up question…" autocomplete="off" aria-label="Ask a follow-up question">
+    <button type="submit" class="ai-drawer-send" aria-label="Send message"><i class="fa-solid fa-arrow-up"></i></button>
+  </form>
+  <div class="ai-drawer-footer"><i class="fa-solid fa-shield-halved"></i> AI-assisted answers · Demo content</div>
+</aside>
 
 <!-- ═══════════════════════ FOOTER ═══════════════════════ -->
 <footer class="footer" role="contentinfo">
@@ -421,51 +499,6 @@
     </div>
   </div>
 </footer>
-
-<!-- ═══════════════════════ AI ASSIST MODE ═══════════════════════ -->
-<!-- Toggle: turns the page into an "ask anything" surface. VDP-only. -->
-<button class="ai-toggle" id="ai-toggle" type="button" role="switch" aria-checked="false" aria-label="Toggle AI Assist mode">
-  <span class="ai-toggle-ic"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
-  <span class="ai-toggle-text">
-    <span class="ai-toggle-name">AI Assist</span>
-    <span class="ai-toggle-state" id="ai-toggle-state">Off</span>
-  </span>
-  <span class="ai-switch"><span class="ai-switch-knob"></span></span>
-</button>
-
-<!-- Hover snippet that explains whatever element is under the AI cursor -->
-<div class="ai-tip" id="ai-tip" role="tooltip" hidden>
-  <button type="button" class="ai-tip-close" id="ai-tip-close" aria-label="Dismiss"><i class="fa-solid fa-xmark"></i></button>
-  <div class="ai-tip-title" id="ai-tip-title"></div>
-  <div class="ai-tip-text" id="ai-tip-text"></div>
-  <button type="button" class="ai-tip-more" id="ai-tip-more">
-    Ask AI about this <i class="fa-solid fa-arrow-right"></i>
-  </button>
-</div>
-
-<!-- Slide-in chat sidebar for a deeper conversation about an element -->
-<div class="ai-drawer-scrim" id="ai-drawer-scrim" hidden></div>
-<aside class="ai-drawer" id="ai-drawer" aria-label="DriveClear AI assistant" aria-hidden="true">
-  <div class="ai-drawer-head">
-    <div class="ai-drawer-id">
-      <span class="ai-drawer-avatar"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
-      <div>
-        <div class="ai-drawer-name">DriveClear Assistant</div>
-        <div class="ai-drawer-sub" id="ai-drawer-topic"><span class="pa-dot"></span> Ask about this vehicle</div>
-      </div>
-    </div>
-    <button type="button" class="ai-drawer-close" id="ai-drawer-close" aria-label="Close assistant">
-      <i class="fa-solid fa-xmark"></i>
-    </button>
-  </div>
-  <div class="ai-drawer-body" id="ai-drawer-body"></div>
-  <div class="ai-drawer-chips" id="ai-drawer-chips" aria-label="Suggested questions"></div>
-  <form class="ai-drawer-form" id="ai-drawer-form">
-    <input type="text" class="ai-drawer-input" id="ai-drawer-input" placeholder="Ask a follow-up question…" autocomplete="off" aria-label="Ask a follow-up question">
-    <button type="submit" class="ai-drawer-send" aria-label="Send message"><i class="fa-solid fa-arrow-up"></i></button>
-  </form>
-  <div class="ai-drawer-footer"><i class="fa-solid fa-shield-halved"></i> AI-assisted answers · Demo content</div>
-</aside>
 
 <script src="js/inventory.js"></script>
 <script src="js/profile.js"></script>
