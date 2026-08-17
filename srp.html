@@ -116,6 +116,14 @@
         <div class="fp-opts" id="fp-make-opts"></div>
       </div>
 
+      <!-- Model -->
+      <div class="fp-section">
+        <div class="fp-title" role="button" tabindex="0" aria-expanded="true">
+          Model <i class="fa-solid fa-chevron-down"></i>
+        </div>
+        <div class="fp-opts" id="fp-model-opts"></div>
+      </div>
+
       <!-- Body Style -->
       <div class="fp-section">
         <div class="fp-title" role="button" tabindex="0" aria-expanded="true">
@@ -149,8 +157,8 @@
         </div>
         <div class="fp-range">
           <div class="fp-range-row">
-            <input class="fp-range-input" id="fp-min-year" type="number" placeholder="From" value="2018" min="2010" max="2024" aria-label="Minimum year">
-            <input class="fp-range-input" id="fp-max-year" type="number" placeholder="To" value="2024" min="2010" max="2024" aria-label="Maximum year">
+            <input class="fp-range-input" id="fp-min-year" type="number" placeholder="From" min="2010" max="2024" aria-label="Minimum year">
+            <input class="fp-range-input" id="fp-max-year" type="number" placeholder="To" min="2010" max="2024" aria-label="Maximum year">
           </div>
         </div>
       </div>
@@ -188,13 +196,13 @@
           Features <i class="fa-solid fa-chevron-down"></i>
         </div>
         <div class="fp-opts">
-          <label class="fp-opt"><input type="checkbox"> Apple CarPlay</label>
-          <label class="fp-opt"><input type="checkbox"> Sunroof / Moonroof</label>
-          <label class="fp-opt"><input type="checkbox"> Heated Seats</label>
-          <label class="fp-opt"><input type="checkbox"> Backup Camera</label>
-          <label class="fp-opt"><input type="checkbox"> Blind Spot Monitor</label>
-          <label class="fp-opt"><input type="checkbox"> Leather Seats</label>
-          <label class="fp-opt"><input type="checkbox"> Navigation</label>
+          <label class="fp-opt"><input type="checkbox" class="fp-feature" value="carplay"> Apple CarPlay</label>
+          <label class="fp-opt"><input type="checkbox" class="fp-feature" value="sunroof"> Sunroof / Moonroof</label>
+          <label class="fp-opt"><input type="checkbox" class="fp-feature" value="heated"> Heated Seats</label>
+          <label class="fp-opt"><input type="checkbox" class="fp-feature" value="camera"> Backup Camera</label>
+          <label class="fp-opt"><input type="checkbox" class="fp-feature" value="blindspot"> Blind Spot Monitor</label>
+          <label class="fp-opt"><input type="checkbox" class="fp-feature" value="leather"> Leather Seats</label>
+          <label class="fp-opt"><input type="checkbox" class="fp-feature" value="nav"> Navigation</label>
         </div>
       </div>
       </div>

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Compare Cars Across Dealers — DriveClear</title>
+  <title>Saved Vehicles — DriveClear</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
@@ -24,6 +24,7 @@
     </form>
     <ul class="nav-links">
       <li><a href="srp.html">Used Cars</a></li>
+      <li><a href="favorites.html" class="active">Saved</a></li>
       <li><a href="sell-trade.html">Sell / Trade</a></li>
       <li><a href="financing.html">Financing</a></li>
     </ul>
@@ -38,6 +39,7 @@
 <nav class="mobile-nav">
   <a href="index.html">Home</a>
   <a href="srp.html">Used Cars</a>
+  <a href="favorites.html">Saved</a>
   <a href="sell-trade.html">Sell / Trade</a>
   <a href="financing.html">Financing</a>
 </nav>
@@ -48,33 +50,69 @@
     <div class="bc-inner">
       <a href="index.html">Home</a>
       <i class="fa-solid fa-chevron-right"></i>
-      <a href="srp.html">Used Cars</a>
-      <i class="fa-solid fa-chevron-right"></i>
-      <span>Compare</span>
+      <span>Saved</span>
     </div>
   </div>
 </div>
 
-<!-- ═══════════════════════ COMPARE PAGE ═══════════════════════ -->
-<div class="container" style="padding-top:40px;padding-bottom:24px">
-  <section class="xdc" aria-label="Compare new cars across dealers">
-    <div class="xdc-head">
+<!-- ═══════════════════════ FAVORITES PAGE ═══════════════════════ -->
+<section class="section fav-section" aria-label="Saved vehicles">
+  <div class="container">
+    <div class="fav-head">
       <div>
-        <h2 class="xdc-title" id="xdc-title">Your shortlist — compared on what matters</h2>
-        <p class="xdc-sub" id="xdc-sub">Side-by-side on price, performance, mileage, value, and safety ratings for your shortlisted vehicles.</p>
+        <h1 class="fav-title">Your Saved Vehicles</h1>
+        <p class="fav-sub" id="fav-sub">Compare your favorited cars side-by-side. Ask the assistant to highlight what matters.</p>
+      </div>
+      <div class="fav-actions" id="fav-actions" hidden>
+        <span class="fav-count" id="fav-count"></span>
       </div>
     </div>
 
-    <div class="xdc-table-wrap">
-      <table class="xdc-table">
-        <!-- Rendered by initComparePage() in app.js from profile.js picks -->
-      </table>
+    <div class="fav-empty" id="fav-empty">
+      <div class="fav-empty-icon"><i class="fa-regular fa-heart"></i></div>
+      <h2>No saved vehicles yet</h2>
+      <p>Tap the heart on any listing to save it here for later.</p>
+      <a href="srp.html" class="btn btn-primary">Browse inventory</a>
     </div>
-    <div class="xdc-foot" id="xdc-foot">
-      <i class="fa-solid fa-circle-info"></i> Compare trims side-by-side — dealer location, mileage, and price.
-    </div>
-  </section>
-</div>
+
+    <p class="fav-compare-hint" id="fav-compare-hint" hidden>
+      <i class="fa-regular fa-heart"></i> Save one more vehicle to compare side-by-side.
+    </p>
+
+    <section class="fav-compare-section xdc" id="fav-compare-section" hidden aria-label="Saved vehicles comparison">
+      <div class="fav-chat cmp-chat" id="fav-chat" aria-label="Compare assistant">
+        <div class="fav-chat-head">
+          <div class="pa-title">
+            <div class="pa-avatar"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+            <div>
+              <div class="pa-name">Compare your saved cars</div>
+              <div class="pa-status"><span class="pa-dot"></span> Highlights the better pick in the table</div>
+            </div>
+          </div>
+        </div>
+        <div class="cmp-chat-log" id="fav-chat-log" aria-live="polite"></div>
+        <div class="cmp-chat-chips" id="fav-chat-chips"></div>
+        <form class="cmp-chat-form" id="fav-chat-form">
+          <input type="text" id="fav-chat-input" placeholder="e.g. “Show crash test results”" autocomplete="off" aria-label="Ask about your saved vehicles">
+          <button type="submit" aria-label="Send message"><i class="fa-solid fa-arrow-up"></i></button>
+        </form>
+      </div>
+      <div class="xdc-table-wrap">
+        <table class="xdc-table" id="fav-compare-table"></table>
+      </div>
+    </section>
+
+    <section class="fav-next-steps" id="fav-next-steps" hidden aria-label="AI suggested next steps">
+      <div class="fav-next-head">
+        <div class="section-tag"><i class="fa-solid fa-wand-magic-sparkles"></i> AI Next Steps</div>
+        <h2 class="fav-next-title">What to do next</h2>
+        <p class="fav-next-sub" id="fav-next-sub"></p>
+      </div>
+      <div class="fav-next-grid" id="fav-next-grid"></div>
+      <div class="fp-takeaway" id="fav-next-takeaway"></div>
+    </section>
+  </div>
+</section>
 
 <!-- ═══════════════════════ FOOTER ═══════════════════════ -->
 <footer class="footer" role="contentinfo">

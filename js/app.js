@@ -53,6 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Conversational nav search suggestions (all pages)
   initNavSearchSuggest();
+  initNavSavedLink();
 
   // SRP init
   if (document.getElementById('srp-grid')) initSRP();
@@ -64,6 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initFeaturedGrid();
   initHomepageRec();
   initComparePage();
+  if (document.getElementById('fav-compare-section')) initFavoritesPage();
 
   // Interior pages
   if (document.getElementById('sell-trade-form')) initSellTradePage();
@@ -99,7 +101,10 @@ function initHomepageRec() {
       ? Profile.homepageFootLinkText()
       : (hp.footLinkText || 'See all matches →');
     const linkHref = (typeof Profile !== 'undefined' && Profile.srpHref) ? Profile.srpHref() : (hp.footLinkHref || 'srp.html');
-    foot.innerHTML = `<i class="fa-solid fa-circle-info"></i> ${footText} <a href="${escapeHtml(linkHref)}">${escapeHtml(linkText)}</a>`;
+    const compareLink = hp.compareLinkHref
+      ? ` <a href="${escapeHtml(hp.compareLinkHref)}">${escapeHtml(hp.compareLinkText || 'Compare across dealers →')}</a>`
+      : '';
+    foot.innerHTML = `<i class="fa-solid fa-circle-info"></i> ${footText} <a href="${escapeHtml(linkHref)}">${escapeHtml(linkText)}</a>${compareLink}`;
   }
 
   const sketch = 'https://plus.unsplash.com/premium_vector-1733984597729-fad43b660da0?fm=jpg&q=60&w=900&auto=format&fit=crop';
@@ -110,6 +115,10 @@ function initHomepageRec() {
     const img = pick.imageUrl || v?.images?.[0] || sketch;
     const name = pick.name || (v ? `${v.year} ${v.make} ${v.model}` : 'Vehicle');
     const trim = pick.trimLabel || '';
+    const miles = pick.compareMetrics?.miles ?? v?.mileage;
+    const trimLine = trim && miles != null
+      ? `${trim} · ${formatMileage(miles)}`
+      : trim || (miles != null ? formatMileage(miles) : '');
     const price = pick.price || (v ? formatPrice(v.price) : '—');
     const vdpId = v?.id;
     const locIcon = pick.locationIcon || 'location-dot';
@@ -119,10 +128,24 @@ function initHomepageRec() {
       `<span><i class="fa-solid fa-${escapeHtml(s.icon)}"></i> ${escapeHtml(s.text)}</span>`
     ).join('');
 
+    const trimDiffHtml = pick.trimCompare ? (() => {
+      const tc = pick.trimCompare;
+      const diffs = (tc.diffs || []).map(d =>
+        `<li><i class="fa-solid fa-check"></i> ${escapeHtml(d)}</li>`
+      ).join('');
+      return `<div class="ai-rec-trim-diff">
+        <div class="ai-rec-trim-diff-head">
+          <span class="ai-rec-trim-diff-label">Trim difference</span>
+          ${tc.tagline ? `<span class="ai-rec-trim-diff-tag">${escapeHtml(tc.tagline)}</span>` : ''}
+        </div>
+        ${diffs ? `<ul class="ai-rec-trim-diff-list">${diffs}</ul>` : ''}
+      </div>`;
+    })() : '';
+
     const d = pick.drawer || {};
     drawerCars[pick.key] = {
       name,
-      trim,
+      trim: trimLine || trim,
       dealer: d.dealer || 'DriveClear',
       distance: d.distance || pickLoc || 'In stock',
       price,
@@ -145,12 +168,13 @@ function initHomepageRec() {
       </div>
       <div class="ai-rec-body">
         <div class="ai-rec-name">${escapeHtml(name)}</div>
-        <div class="ai-rec-trim">${escapeHtml(trim)}</div>
+        <div class="ai-rec-trim">${escapeHtml(trimLine)}</div>
         <div class="ai-rec-price-row">
           <span class="ai-rec-price">${escapeHtml(price)}</span>
           ${pick.warrantyBadge ? `<span class="ai-rec-warranty"><i class="fa-solid fa-shield-halved"></i> ${escapeHtml(pick.warrantyBadge)}</span>` : ''}
         </div>
         ${specsHtml ? `<div class="ai-rec-specs">${specsHtml}</div>` : ''}
+        ${trimDiffHtml}
         ${pick.expert ? `<div class="ai-rec-insight ai-rec-expert">
           <div class="ai-rec-insight-label"><i class="fa-solid fa-user-tie"></i> Expert take</div>
           <p>${pick.expert}</p>
@@ -316,88 +340,389 @@ function initFeaturedGrid() {
   renderCards(vehicles.length ? vehicles : VEHICLES.slice(0, 6), featGrid);
 }
 
+// ─── Compare table (compare.html + favorites) ───
+const COMPARE_SKETCH = 'https://plus.unsplash.com/premium_vector-1733984597729-fad43b660da0?fm=jpg&q=60&w=900&auto=format&fit=crop';
+
+function resolveCompareCarSafety(c) {
+  const v = c.vdpId && typeof getVehicleById === 'function' ? getVehicleById(c.vdpId) : null;
+  const ratings = v
+    ? getVehicleSafetyRatings(v)
+    : (c.make && c.model)
+      ? getVehicleSafetyRatings(c)
+      : (typeof getSafetyRatingsFromLabel === 'function' ? getSafetyRatingsFromLabel(c.displayName || c.name) : null);
+  if (!ratings) return c;
+  const source = v || ((c.make && c.model) ? c : null);
+  const familyScore = source
+    ? Math.min(10, vehicleSafetyScore(source) + Math.round(safetyCompareScore(ratings) / 12))
+    : c.familyScore;
+  return Object.assign({}, c, ratings, {
+    safetyScore: safetyCompareScore(ratings),
+    crashScore: safetyCompareScore(ratings),
+    familyScore: familyScore ?? c.familyScore,
+  });
+}
+
+function formatNhtsaStars(n) {
+  if (n == null || isNaN(n)) return '—';
+  const filled = Math.round(Number(n));
+  const stars = Array.from({ length: 5 }, (_, i) =>
+    i < filled ? '<i class="fa-solid fa-star"></i>' : '<i class="fa-regular fa-star"></i>'
+  ).join('');
+  return `<span class="xdc-safety-stars" aria-label="NHTSA ${filled} out of 5 stars">${stars}</span><span class="xdc-safety-num">${filled}/5</span>`;
+}
+
+function formatIihsBadge(iihs) {
+  if (!iihs) return '—';
+  const cls = iihs.includes('+') ? 'top-plus' : /pick/i.test(iihs) ? 'top' : 'good';
+  return `<span class="xdc-iihs xdc-iihs-${cls}">${escapeHtml(iihs)}</span>`;
+}
+
+function formatSafetySummary(v) {
+  const r = getVehicleSafetyRatings(v);
+  if (!r) return '';
+  return `IIHS ${r.iihs} · NHTSA ${r.nhtsaOverall}★`;
+}
+
+function formatCrashTestSummary(c) {
+  const iihs = c.iihs ? `<strong>${escapeHtml(c.iihs)}</strong>` : '—';
+  return `<span class="xdc-crash-summary">${iihs} · NHTSA ${c.nhtsaOverall || '—'}★ overall · Front ${c.nhtsaFront || '—'}★ · Side ${c.nhtsaSide || '—'}★ · Rollover ${c.nhtsaRollover || '—'}★</span>`;
+}
+
+const FAV_COMPARE_FILTERS = [
+  { id: 'all', label: 'Key differences' },
+  { id: 'crash', label: 'Crash test results' },
+  { id: 'trim', label: 'Trim & features' },
+  { id: 'value', label: 'Price & value' },
+];
+
+const FAV_FILTER_ROWS = {
+  all: null,
+  crash: ['crashSummary', 'safetyScore', 'nhtsaOverall', 'nhtsaFront', 'nhtsaSide', 'nhtsaRollover'],
+  trim: ['trim', 'trimDesc', 'features'],
+  value: ['price', 'monthly', 'value', 'miles', 'year'],
+};
+
+const FAV_FILTER_MESSAGES = {
+  all: 'Highlighting rows where your saved cars differ. <strong>Teal cells</strong> mark the better pick in each row.',
+  crash: 'Highlighting <strong>crash test results</strong> — IIHS and NHTSA scores. Teal marks the stronger rating.',
+  trim: 'Highlighting <strong>trim, trim differences,</strong> and must-have features.',
+  value: 'Highlighting <strong>price, payment, value vs market,</strong> mileage, and year.',
+};
+
+function compareRowDiffers(cars, row) {
+  if (row.metric) {
+    const nums = cars.map(c => c[row.metric]).filter(n => n != null && !isNaN(n));
+    if (nums.length >= 2) return new Set(nums).size > 1;
+    const vals = cars.map(c => c[row.metric]);
+    return new Set(vals.map(v => String(v ?? ''))).size > 1;
+  }
+  const texts = cars.map(c => String(row.cells(c)).replace(/<[^>]+>/g, '').trim());
+  return new Set(texts).size > 1;
+}
+
+function isFavRowHighlighted(rowKey, activeFilter, differs) {
+  if (activeFilter === 'all') return differs;
+  const keys = FAV_FILTER_ROWS[activeFilter];
+  return keys ? keys.includes(rowKey) : false;
+}
+
+function getBestMetricIndices(values, dir = 'min') {
+  const entries = values
+    .map((n, i) => ({ n: Number(n), i }))
+    .filter(x => x.n != null && !isNaN(x.n));
+  if (entries.length < 2) return [];
+  const nums = entries.map(x => x.n);
+  const best = dir === 'min' ? Math.min(...nums) : Math.max(...nums);
+  const worst = dir === 'min' ? Math.max(...nums) : Math.min(...nums);
+  if (best === worst) return [];
+  return entries.filter(x => x.n === best).map(x => x.i);
+}
+
+function enrichTrimCompareDesc(cars) {
+  if (cars.length < 2 || typeof Profile === 'undefined' || !Profile.trimCompareDescription) return cars;
+  return cars.map(car => {
+    const peers = cars.filter(c => c.key !== car.key).map(c => ({
+      trim: c.trim || c.trimLabel?.split('·')[0]?.trim(),
+      hp: c.hp,
+      make: c.make,
+      model: c.model,
+    }));
+    const trimDesc = Profile.trimCompareDescription({
+      trim: car.trim || car.trimLabel?.split('·')[0]?.trim(),
+      vdpId: car.vdpId,
+      year: car.year,
+      make: car.make,
+      model: car.model,
+      hp: car.hp,
+    }, peers);
+    return Object.assign({}, car, { trimDesc: trimDesc || car.trimDesc });
+  });
+}
+
+function enrichCompareCars(cars) {
+  return cars.map(c => {
+    const v = c.vdpId && typeof getVehicleById === 'function' ? getVehicleById(c.vdpId) : null;
+    return resolveCompareCarSafety(Object.assign({}, c, {
+      vdpId: v?.id || c.vdpId,
+      image: c.image || v?.images?.[0] || COMPARE_SKETCH,
+      make: c.make || v?.make,
+      model: c.model || v?.model,
+    }));
+  });
+}
+
+function renderCompareTable(table, cars, opts = {}) {
+  if (!table || !cars.length) return;
+
+  const favoritesMode = !!opts.favoritesMode;
+  const activeFilter = opts.activeFilter || 'all';
+
+  cars = enrichCompareCars(cars);
+  if (favoritesMode) cars = enrichTrimCompareDesc(cars);
+  const apr = (typeof Profile !== 'undefined' && Profile.apr) ? Profile.apr() : 6.9;
+  const fmtMiles = m => {
+    if (!m) return '—';
+    return Number(m).toLocaleString('en-US') + ' mi';
+  };
+
+  const rows = [
+    { key: 'dealer', label: 'Dealer', icon: 'store', cells: c => formatDealerCell(c) },
+    { key: 'trim', label: 'Trim', icon: 'layer-group', cells: c => escapeHtml(c.trim || c.trimLabel) },
+    { key: 'trimDesc', label: favoritesMode ? 'Trim differences' : 'About this trim', icon: 'circle-info', cells: c => c.trimDesc ? `<span class="xdc-trim-desc">${escapeHtml(c.trimDesc)}</span>` : '—' },
+    { key: 'features', label: 'Must-haves', icon: 'couch', cells: c => `<span class="xdc-features">${escapeHtml(c.features)}</span>` },
+    { key: 'crashSummary', metric: 'crashScore', label: 'Crash test results', icon: 'shield-halved', cells: c => formatCrashTestSummary(c) },
+    { key: 'safetyScore', metric: 'safetyScore', label: 'IIHS rating', icon: 'award', cells: c => formatIihsBadge(c.iihs) },
+    { key: 'nhtsaOverall', metric: 'nhtsaOverall', label: 'NHTSA overall', icon: 'shield-halved', cells: c => formatNhtsaStars(c.nhtsaOverall) },
+    { key: 'nhtsaFront', metric: 'nhtsaFront', label: 'NHTSA front crash', icon: 'car-burst', cells: c => formatNhtsaStars(c.nhtsaFront) },
+    { key: 'nhtsaSide', metric: 'nhtsaSide', label: 'NHTSA side crash', icon: 'car-side', cells: c => formatNhtsaStars(c.nhtsaSide) },
+    { key: 'nhtsaRollover', metric: 'nhtsaRollover', label: 'NHTSA rollover', icon: 'rotate', cells: c => formatNhtsaStars(c.nhtsaRollover) },
+    { key: 'miles', metric: 'miles', label: 'Mileage', icon: 'gauge', cells: c => fmtMiles(c.miles) },
+    { key: 'price', metric: 'price', label: 'Price', icon: 'tag', cells: c => `<span class="xdc-price">${formatPrice(c.price)}</span>` },
+    { key: 'monthly', metric: 'monthly', label: 'Est. payment', icon: 'calendar-check', cells: c => `<span class="xdc-monthly">${formatPrice(c.monthly)}/mo</span> <span class="xdc-apr">${apr}% APR</span>` },
+    { key: 'year', metric: 'year', label: 'Year', icon: 'calendar', cells: c => c.year || '—' },
+    { key: 'value', metric: 'value', label: 'Value vs market', icon: 'arrow-trend-down', cells: c => `<span class="xdc-val xdc-val-${c.valueClass}">${escapeHtml(c.valueLabel)}</span>` },
+    { key: 'engine', label: 'Engine', icon: 'engine', cells: c => escapeHtml(c.engine) },
+    { key: 'hp', metric: 'hp', label: 'Horsepower', icon: 'gauge-high', cells: c => `${c.hp} hp` },
+    { key: 'zero', metric: 'zero', label: '0–60 mph', icon: 'stopwatch', cells: c => c.zero != null && c.zero > 0 ? `${c.zero} s` : '—' },
+    { key: 'drivetrain', label: 'Drivetrain', icon: 'snowflake', cells: c => escapeHtml(c.drivetrain) },
+    { key: 'mpg', metric: 'mpg', label: 'MPG (comb.)', icon: 'gas-pump', cells: c => c.mpg },
+  ];
+
+  const metricDir = { price: 'min', monthly: 'min', mpg: 'max', hp: 'max', zero: 'min', miles: 'min', year: 'max', value: 'max', nhtsaOverall: 'max', nhtsaFront: 'max', nhtsaSide: 'max', nhtsaRollover: 'max', safetyScore: 'max', crashScore: 'max' };
+
+  const headCells = cars.map(c => {
+    const href = c.vdpId ? `vdp.html?id=${c.vdpId}` : '#';
+    const photoBlock = favoritesMode && c.vdpId
+      ? `<div class="xdc-veh-photo-wrap">
+          <a class="xdc-veh-photo-link" href="${href}">
+            <div class="xdc-veh-photo"><img src="${escapeHtml(c.image)}" alt="${escapeHtml(c.displayName)}" loading="lazy"></div>
+          </a>
+          <button type="button" class="fav-unsave-btn" data-id="${c.vdpId}" title="Remove from saved" aria-label="Remove from saved">
+            <i class="fa-solid fa-heart"></i>
+          </button>
+        </div>`
+      : `<a class="xdc-veh-photo-link" href="${href}">
+          <div class="xdc-veh-photo"><img src="${escapeHtml(c.image)}" alt="${escapeHtml(c.displayName)}" loading="lazy"></div>
+        </a>`;
+    return `
+    <th data-veh="${escapeHtml(c.key)}">
+      ${photoBlock}
+      <div class="xdc-veh">${escapeHtml(c.displayName)}</div>
+      <div class="xdc-veh-trim">${escapeHtml(c.trimLabel)} · ${fmtMiles(c.miles)}</div>
+    </th>`;
+  }).join('');
+
+  const bodyRows = rows.map(row => {
+    const dir = row.metric ? metricDir[row.metric] : null;
+    const nums = row.metric ? cars.map(c => c[row.metric]) : [];
+    const bestIndices = row.metric && dir ? getBestMetricIndices(nums, dir) : [];
+    const differs = compareRowDiffers(cars, row);
+    const highlighted = favoritesMode && isFavRowHighlighted(row.key, activeFilter, differs);
+    const rowClasses = [
+      highlighted ? 'xdc-filter-highlight' : '',
+    ].filter(Boolean).join(' ');
+    const showBest = !favoritesMode || highlighted;
+    const tds = cars.map((c, i) => {
+      const isBest = showBest && bestIndices.includes(i);
+      const cls = isBest ? ' class="xdc-best"' : '';
+      return `<td${cls}>${row.cells(c)}</td>`;
+    }).join('');
+    const metricKey = row.metric || row.key;
+    return `<tr data-rowkey="${row.key}"${rowClasses ? ` class="${rowClasses}"` : ''}${metricKey ? ` data-metric="${metricKey}"` : ''}>
+      <td class="xdc-rowlabel"><i class="fa-solid fa-${row.icon}"></i> ${row.label}</td>${tds}</tr>`;
+  }).join('');
+
+  const ctaRow = cars.map(c => {
+    const href = c.vdpId ? `vdp.html?id=${c.vdpId}` : '#';
+    return `<td><a href="${href}" class="btn btn-outline btn-sm btn-block">View details</a></td>`;
+  }).join('');
+
+  table.classList.toggle('xdc-filter-mode', favoritesMode && activeFilter !== 'all');
+  table.innerHTML = `
+    <thead><tr><th class="xdc-rowlabel">Compare</th>${headCells}</tr></thead>
+    <tbody>${bodyRows}<tr class="xdc-cta-row"><td class="xdc-rowlabel"></td>${ctaRow}</tr></tbody>`;
+
+  if (favoritesMode) {
+    table.querySelectorAll('.fav-unsave-btn').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleSave(parseInt(btn.dataset.id, 10));
+      });
+    });
+  }
+
+  table.querySelectorAll('.xdc-dealer-link').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.preventDefault();
+      openDealerModal({
+        dealerLabel: btn.querySelector('strong')?.textContent || '',
+        lotCity: btn.dataset.lotCity || btn.dataset.dealerCity || '',
+        vdpId: btn.dataset.vdpId ? parseInt(btn.dataset.vdpId, 10) : null,
+      });
+    });
+  });
+}
+
+function dealerCityFromCar(c) {
+  if (c.dealerCity) return c.dealerCity;
+  if (c.lotCity) return String(c.lotCity).split(',')[0].trim();
+  if (!c.dealer) return '';
+  const m = String(c.dealer).match(/DriveClear\s*(?:·\s*)?(.+)/i);
+  return m ? m[1].split(',')[0].trim() : String(c.dealer).split(',')[0].trim();
+}
+
+function formatDealerCell(c) {
+  const city = dealerCityFromCar(c);
+  const lot = c.lotCity || (city ? `${city}` : '');
+  const vdpAttr = c.vdpId ? ` data-vdp-id="${c.vdpId}"` : '';
+  const lotAttr = lot ? ` data-lot-city="${escapeHtml(lot)}"` : '';
+  return `<button type="button" class="xdc-dealer-link" data-dealer-city="${escapeHtml(city)}"${lotAttr}${vdpAttr} aria-label="View ${escapeHtml(c.dealer)} contact info">
+    <strong>${escapeHtml(c.dealer)}</strong>
+    <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+  </button>`;
+}
+
+function ensureDealerModal() {
+  let modal = document.getElementById('dealer-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'dealer-modal';
+    modal.className = 'dealer-modal';
+    document.body.appendChild(modal);
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && modal.classList.contains('open')) closeDealerModal();
+    });
+  }
+  return modal;
+}
+
+function openDealerModal(opts = {}) {
+  const contact = (typeof Profile !== 'undefined' && Profile.dealershipContact)
+    ? Profile.dealershipContact(opts.dealerLabel, opts.lotCity)
+    : null;
+  if (!contact) return;
+
+  const modal = ensureDealerModal();
+  const phoneDigits = String(contact.phone || '').replace(/\D/g, '');
+  const mapsUrl = `https://maps.google.com/?q=${encodeURIComponent(contact.address)}`;
+  const tdHref = opts.vdpId ? `test-drive-confirmation.html?id=${opts.vdpId}` : null;
+
+  modal.innerHTML = `
+    <div class="dm-backdrop"></div>
+    <div class="dm-panel" role="dialog" aria-modal="true" aria-labelledby="dm-title">
+      <button class="dm-close" type="button" aria-label="Close">
+        <i class="fa-solid fa-times"></i>
+      </button>
+      <div class="dm-icon"><i class="fa-solid fa-store"></i></div>
+      <h2 class="dm-title" id="dm-title">${escapeHtml(contact.name)}</h2>
+      <p class="dm-sub">This vehicle is at this DriveClear location</p>
+      <ul class="dm-contact">
+        <li>
+          <i class="fa-solid fa-location-dot"></i>
+          <div>
+            <span class="dm-label">Address</span>
+            <span class="dm-value">${escapeHtml(contact.address)}</span>
+          </div>
+        </li>
+        <li>
+          <i class="fa-solid fa-phone"></i>
+          <div>
+            <span class="dm-label">Phone</span>
+            <a class="dm-value dm-link" href="tel:${phoneDigits}">${escapeHtml(contact.phone)}</a>
+          </div>
+        </li>
+        <li>
+          <i class="fa-solid fa-clock"></i>
+          <div>
+            <span class="dm-label">Hours</span>
+            <span class="dm-value">${escapeHtml(contact.hours)}</span>
+          </div>
+        </li>
+      </ul>
+      <div class="dm-actions">
+        <a href="${mapsUrl}" class="btn btn-primary btn-block" target="_blank" rel="noopener">Get directions</a>
+        ${tdHref ? `<a href="${tdHref}" class="btn btn-outline btn-block">Schedule test drive</a>` : ''}
+      </div>
+    </div>`;
+
+  modal.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  modal.querySelector('.dm-close')?.addEventListener('click', closeDealerModal);
+  modal.querySelector('.dm-backdrop')?.addEventListener('click', closeDealerModal);
+}
+
+function closeDealerModal() {
+  const modal = document.getElementById('dealer-modal');
+  if (modal) modal.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
 // ─── Compare page (reads Profile.compareCars) ───
 function initComparePage() {
   const table = document.querySelector('.xdc-table');
   if (!table || typeof Profile === 'undefined' || !Profile.compareCars) return;
 
   let cars = Profile.compareCars();
-  if (!cars.length) return;
+  let fromSaved = false;
 
-  if (typeof findVehicleForPick === 'function' && PARTICIPANT?.homepage?.picks) {
-    cars = cars.map(c => {
-      if (c.vdpId) return c;
-      const pick = PARTICIPANT.homepage.picks.find(p => p.key === c.key);
-      const v = pick ? findVehicleForPick(pick) : null;
-      return v ? Object.assign({}, c, { vdpId: v.id }) : c;
-    });
+  const urlIds = new URLSearchParams(window.location.search).get('ids');
+  if (urlIds && typeof getVehicleById === 'function') {
+    const ids = urlIds.split(',').map(s => parseInt(s.trim(), 10)).filter(Boolean);
+    const vehicles = ids.map(id => getVehicleById(id)).filter(Boolean);
+    if (vehicles.length >= 2) {
+      cars = vehicles.map((v, i) => vehicleToCompareCar(v, i));
+      fromSaved = true;
+    }
   }
 
-  window.COMPARE_CARS = cars;
+  if (!cars.length) return;
+
+  window.COMPARE_CARS = enrichCompareCars(cars);
 
   const meta = Profile.compareMeta();
   const titleEl = document.getElementById('xdc-title');
   const subEl = document.getElementById('xdc-sub');
   const footEl = document.getElementById('xdc-foot');
-  if (titleEl) titleEl.textContent = meta.title;
-  if (subEl) subEl.innerHTML = meta.subtitle;
-  if (footEl && meta.footDefault) {
-    footEl.innerHTML = `<i class="fa-solid fa-circle-info"></i> ${meta.footDefault}`;
+  if (titleEl) {
+    titleEl.textContent = fromSaved
+      ? `Comparing ${cars.length} saved vehicles`
+      : meta.title;
+  }
+  if (subEl) {
+    subEl.innerHTML = fromSaved
+      ? 'Side-by-side on price, mileage, features, value, and safety ratings for the cars you saved.'
+      : meta.subtitle;
+  }
+  if (footEl) {
+    if (fromSaved) {
+      footEl.innerHTML = '<i class="fa-solid fa-circle-info"></i> Comparing vehicles from your saved list. <a href="favorites.html">Back to saved</a>';
+    } else if (meta.footDefault) {
+      footEl.innerHTML = `<i class="fa-solid fa-circle-info"></i> ${meta.footDefault}`;
+    }
   }
 
-  const fmtMiles = m => {
-    if (!m) return '—';
-    return m >= 1000 ? `${Math.round(m / 100) / 10}k mi` : `${m} mi`;
-  };
-  const fmtDist = c => c.distMin === 0 ? 'At your dealer' : (c.distance || `${c.distMin} min away`);
-
-  const rows = [
-    { label: 'Dealer', icon: 'store', cells: c => escapeHtml(c.dealer) },
-    { metric: 'distMin', label: 'Distance', icon: 'route', cells: c => escapeHtml(fmtDist(c)) },
-    { label: 'Year', icon: 'calendar', cells: c => c.year || '—' },
-    { metric: 'miles', label: 'Mileage', icon: 'gauge', cells: c => fmtMiles(c.miles) },
-    { label: 'Engine', icon: 'engine', cells: c => escapeHtml(c.engine) },
-    { metric: 'hp', label: 'Horsepower', icon: 'gauge-high', cells: c => `${c.hp} hp` },
-    { metric: 'zero', label: '0–60 mph', icon: 'stopwatch', cells: c => `${c.zero} s` },
-    { label: 'Drivetrain', icon: 'snowflake', cells: c => escapeHtml(c.drivetrain) },
-    { metric: 'mpg', label: 'MPG (comb.)', icon: 'gas-pump', cells: c => c.mpg },
-    { metric: 'price', label: 'Price', icon: 'tag', cells: c => `<span class="xdc-price">${formatPrice(c.price)}</span>` },
-    { metric: 'value', label: 'Value', icon: 'arrow-trend-down', cells: c => `<span class="xdc-val xdc-val-${c.valueClass}">${escapeHtml(c.valueLabel)}</span>` },
-  ];
-
-  const metricDir = { price: 'min', mpg: 'max', hp: 'max', zero: 'min', miles: 'min', distMin: 'min', value: 'max' };
-
-  const headCells = cars.map(c => `
-    <th data-veh="${escapeHtml(c.key)}">
-      <div class="xdc-veh">${escapeHtml(c.displayName)}</div>
-      <div class="xdc-veh-trim">${escapeHtml(c.trimLabel)}</div>
-    </th>`).join('');
-
-  const bodyRows = rows.map(row => {
-    let bestIdx = -1;
-    if (row.metric) {
-      const dir = metricDir[row.metric];
-      const nums = cars.map(c => c[row.metric]);
-      const best = nums.slice().sort((a, b) => dir === 'min' ? a - b : b - a)[0];
-      bestIdx = nums.indexOf(best);
-    }
-    const tds = cars.map((c, i) => {
-      const cls = i === bestIdx && row.metric ? ' class="xdc-best"' : '';
-      return `<td${cls}>${row.cells(c)}</td>`;
-    }).join('');
-    const metricKey = row.metric === 'distMin' ? 'dist' : row.metric;
-    return `<tr${metricKey ? ` data-metric="${metricKey}"` : ''}>
-      <td class="xdc-rowlabel"><i class="fa-solid fa-${row.icon}"></i> ${row.label}</td>${tds}</tr>`;
-  }).join('');
-
-  const ctaRow = cars.map(c => {
-    const href = c.vdpId ? `vdp.html?id=${c.vdpId}` : '#';
-    return `<td><a href="${href}" class="btn btn-outline btn-sm btn-block">View</a></td>`;
-  }).join('');
-
-  table.innerHTML = `
-    <thead><tr><th class="xdc-rowlabel">Spec</th>${headCells}</tr></thead>
-    <tbody>${bodyRows}<tr class="xdc-cta-row"><td class="xdc-rowlabel"></td>${ctaRow}</tr></tbody>`;
+  renderCompareTable(table, cars);
 }
 
 function getVisitContext() {
@@ -415,7 +740,7 @@ function getVisitContext() {
 const MODEL_MAP = {
   Honda: ['Accord','CR-V','Civic','Pilot','Odyssey','HR-V'],
   Toyota: ['Camry','RAV4','Highlander','Corolla','Tacoma','4Runner'],
-  Ford: ['F-150','Escape','Explorer','Edge','Mustang','Bronco'],
+  Ford: ['F-150','Escape','Explorer','Edge','Mustang','Bronco','Bronco Sport'],
   Chevrolet: ['Equinox','Silverado','Malibu','Traverse','Blazer','Colorado'],
   Hyundai: ['Sonata','Tucson','Santa Fe','Elantra','Palisade','Kona'],
   Mazda: ['CX-5','Mazda3','CX-9','CX-30','MX-5 Miata'],
@@ -431,6 +756,13 @@ function updateHeroModels(make, modelSel) {
 }
 
 // ─── Card Rendering ───────────────────────────────────────
+function vehicleLocationLabel(v) {
+  if (typeof Profile !== 'undefined' && Profile.vehicleLocationLabel) {
+    return Profile.vehicleLocationLabel(v);
+  }
+  return v.location || 'In stock';
+}
+
 function renderCards(vehicles, container) {
   if (!vehicles.length) {
     container.innerHTML = `<div class="no-results">
@@ -472,6 +804,10 @@ function cardHTML(v) {
   const mktHtml = v.marketSavings > 0
     ? `<span class="v-mkt mkt-below">$${v.marketSavings.toLocaleString()} Below Market</span>`
     : '';
+  const safety = typeof getVehicleSafetyRatings === 'function' ? getVehicleSafetyRatings(v) : null;
+  const safetyHtml = safety && isFavoritesPage()
+    ? `<span class="v-flag flag-safety" title="Crash-test ratings"><i class="fa-solid fa-shield-halved"></i> ${escapeHtml(safety.iihs)} · NHTSA ${safety.nhtsaOverall}★</span>`
+    : '';
   return `
   <a class="v-card" href="vdp.html?id=${v.id}">
     <div class="v-img">
@@ -494,11 +830,12 @@ function cardHTML(v) {
         <span class="v-meta-item"><i class="fa-solid fa-gauge"></i> ${formatMileage(v.mileage)}</span>
         <span class="v-meta-item"><i class="fa-solid fa-car-side"></i> ${v.body}</span>
         <span class="v-meta-item"><i class="fa-solid fa-gear"></i> ${v.drivetrain}</span>
-        <span class="v-meta-item"><i class="fa-solid fa-location-dot"></i> ${v.location}</span>
+        <span class="v-meta-item"><i class="fa-solid fa-location-dot"></i> ${vehicleLocationLabel(v)}</span>
       </div>
       <div class="v-flags">
         ${v.owners === 1 ? '<span class="v-flag flag-owner"><i class="fa-solid fa-circle-check"></i> 1 Owner</span>' : ''}
         ${v.accidentFree ? '<span class="v-flag flag-clean"><i class="fa-solid fa-shield-halved"></i> Accident Free</span>' : ''}
+        ${safetyHtml}
         <span class="v-flag flag-carfax"><i class="fa-solid fa-file-shield"></i> Carfax</span>
       </div>
       <button class="v-compare" data-id="${v.id}" aria-pressed="false" type="button">
@@ -511,12 +848,854 @@ function cardHTML(v) {
 
 // ─── Saved / Favorites ───────────────────────────────────
 function getSaved() { return JSON.parse(localStorage.getItem('dc_saved') || '[]'); }
-function isSaved(id) { return getSaved().includes(id); }
+function isSaved(id) { return getSaved().includes(parseInt(id, 10)); }
 function toggleSave(id) {
+  id = parseInt(id, 10);
   const saved = getSaved();
   const idx = saved.indexOf(id);
   if (idx > -1) saved.splice(idx, 1); else saved.push(id);
   localStorage.setItem('dc_saved', JSON.stringify(saved));
+  refreshSavedBadge();
+  if (typeof window._refreshFavorites === 'function') window._refreshFavorites();
+}
+
+function refreshSavedBadge() {
+  const count = getSaved().length;
+  document.querySelectorAll('.nav-saved-count').forEach(el => {
+    el.textContent = count > 0 ? String(count) : '';
+    el.hidden = count === 0;
+  });
+  document.querySelectorAll('.nav-saved').forEach(el => {
+    el.classList.toggle('has-items', count > 0);
+    el.setAttribute('aria-label', count > 0 ? `${count} saved vehicles` : 'Saved vehicles');
+  });
+}
+
+function initNavSavedLink() {
+  const navLinks = document.querySelector('.nav-links');
+  if (navLinks && !navLinks.querySelector('[href="favorites.html"]')) {
+    const li = document.createElement('li');
+    li.innerHTML = '<a href="favorites.html">Saved</a>';
+    const sellLi = navLinks.querySelector('[href="sell-trade.html"]')?.closest('li');
+    if (sellLi) navLinks.insertBefore(li, sellLi);
+    else navLinks.appendChild(li);
+  }
+
+  document.querySelectorAll('.nav-right').forEach(navRight => {
+    if (navRight.querySelector('.nav-saved')) return;
+    const link = document.createElement('a');
+    link.href = 'favorites.html';
+    link.className = 'nav-saved';
+    link.setAttribute('aria-label', 'Saved vehicles');
+    link.innerHTML = '<i class="fa-regular fa-heart"></i><span class="nav-saved-count" hidden></span>';
+    const burger = navRight.querySelector('.nav-hamburger');
+    if (burger) navRight.insertBefore(link, burger);
+    else navRight.appendChild(link);
+  });
+
+  const mobileNav = document.querySelector('.mobile-nav');
+  if (mobileNav && !mobileNav.querySelector('[href="favorites.html"]')) {
+    const srpLink = mobileNav.querySelector('[href="srp.html"]');
+    const link = document.createElement('a');
+    link.href = 'favorites.html';
+    link.textContent = 'Saved';
+    if (srpLink && srpLink.nextSibling) mobileNav.insertBefore(link, srpLink.nextSibling);
+    else mobileNav.appendChild(link);
+  }
+
+  if (/favorites\.html/i.test(window.location.pathname)) {
+    document.querySelectorAll('.nav-links a[href="favorites.html"], .mobile-nav a[href="favorites.html"]')
+      .forEach(a => a.classList.add('active'));
+  }
+
+  refreshSavedBadge();
+}
+
+function vehicleToCompareCar(v, i) {
+  const apr = (typeof Profile !== 'undefined' && Profile.apr) ? Profile.apr() : 6.9;
+  const savings = v.marketSavings || 0;
+  const valueClass = savings >= 2000 ? 'great' : savings >= 500 ? 'good' : 'at';
+  const valueLabel = savings > 0 ? `${formatPrice(savings)} below market` : 'At market';
+  const distMiles = (typeof Profile !== 'undefined' && Profile.vehicleDistMiles)
+    ? Profile.vehicleDistMiles(v) : null;
+  const city = (v.location || 'In stock').split(',')[0].trim();
+  const safety = getVehicleSafetyRatings(v);
+
+  return {
+    key: `v-${v.id}`,
+    col: i + 1,
+    name: `${v.year} ${v.make} ${v.model}`,
+    displayName: `${v.year} ${v.make} ${v.model}`,
+    trim: v.trim,
+    trimLabel: `${v.trim} · ${v.extColor}`,
+    trimDesc: (typeof Profile !== 'undefined' && Profile.trimDescription) ? Profile.trimDescription(v) : '',
+    features: (v.features || []).slice(0, 3).join(' · ') || '—',
+    dealer: `DriveClear · ${city}`,
+    dealerCity: city,
+    lotCity: v.location || null,
+    distance: vehicleLocationLabel(v),
+    price: v.price,
+    monthly: calcMonthly(v.price, 0, apr, 60),
+    mpg: Math.round((v.mpgCity + v.mpgHwy) / 2),
+    hp: v.hp,
+    zero: null,
+    miles: v.mileage,
+    distMin: distMiles === 0 ? 0 : null,
+    distMiles,
+    value: savings,
+    year: v.year,
+    engine: v.engine,
+    drivetrain: v.drivetrain,
+    valueLabel,
+    valueClass,
+    vdpId: v.id,
+    image: v.images?.[0],
+    make: v.make,
+    model: v.model,
+    iihs: safety.iihs,
+    nhtsaOverall: safety.nhtsaOverall,
+    nhtsaFront: safety.nhtsaFront,
+    nhtsaSide: safety.nhtsaSide,
+    nhtsaRollover: safety.nhtsaRollover,
+    safetyScore: safetyCompareScore(safety),
+    crashScore: safetyCompareScore(safety),
+    familyScore: Math.min(10, vehicleSafetyScore(v) + Math.round(safetyCompareScore(safety) / 12)),
+  };
+}
+
+function initFavoritesPage() {
+  const empty = document.getElementById('fav-empty');
+  const actions = document.getElementById('fav-actions');
+  const countEl = document.getElementById('fav-count');
+  if (!document.getElementById('fav-compare-section') || typeof VEHICLES === 'undefined') return;
+
+  window._favActiveFilter = window._favActiveFilter || 'all';
+  initFavoritesChatPanel();
+
+  function render() {
+    const ids = getSaved();
+    const vehicles = ids.map(id => getVehicleById(id)).filter(Boolean);
+    window._favChatVehicles = vehicles;
+
+    if (actions) actions.hidden = vehicles.length < 1;
+    if (countEl) {
+      countEl.textContent = vehicles.length === 1
+        ? '1 saved vehicle'
+        : `${vehicles.length} saved vehicles`;
+    }
+
+    if (!vehicles.length) {
+      if (empty) empty.hidden = false;
+      document.getElementById('fav-compare-section').hidden = true;
+      document.getElementById('fav-compare-hint').hidden = true;
+      document.getElementById('fav-next-steps').hidden = true;
+      clearFavoritesChat();
+      return;
+    }
+
+    if (empty) empty.hidden = true;
+
+    if (vehicles.length === 1) {
+      document.getElementById('fav-compare-section').hidden = true;
+      document.getElementById('fav-compare-hint').hidden = false;
+      clearFavoritesChat();
+      renderFavoritesNextSteps(vehicles);
+      return;
+    }
+
+    document.getElementById('fav-compare-hint').hidden = true;
+    document.getElementById('fav-compare-section').hidden = false;
+    refreshFavoritesChat(vehicles);
+    renderFavoritesTable(vehicles, window._favActiveFilter);
+    renderFavoritesNextSteps(vehicles);
+  }
+
+  window._refreshFavorites = render;
+  render();
+}
+
+function pickFavoritesTopVehicle(vehicles) {
+  if (!vehicles.length) return null;
+  const scored = vehicles.map(v => ({
+    v,
+    score: (v.marketSavings || 0) / 100
+      + (v.year - 2018) * 8
+      - v.mileage / 1500
+      + (v.owners === 1 ? 8 : 0)
+      + (v.accidentFree ? 4 : -6)
+      + safetyCompareScore(getVehicleSafetyRatings(v)) / 5,
+  }));
+  return scored.sort((a, b) => b.score - a.score)[0].v;
+}
+
+function generateFavoritesNextSteps(vehicles) {
+  const apr = (typeof Profile !== 'undefined' && Profile.apr) ? Profile.apr() : 6.9;
+
+  if (vehicles.length === 1) {
+    const v = vehicles[0];
+    const monthly = calcMonthly(v.price, 0, apr);
+    return {
+      sub: `You saved the <strong>${v.year} ${v.make} ${v.model}</strong>. Save one more to compare side-by-side, or move forward on this one.`,
+      takeaway: 'Once you have two saved, I can highlight crash tests, trim differences, and price in the table above.',
+      steps: [
+        {
+          icon: 'car',
+          title: 'View vehicle details',
+          body: `${v.trim} · ${formatPrice(v.price)} · ${formatMileage(v.mileage)}`,
+          action: 'Open listing',
+          href: `vdp.html?id=${v.id}`,
+          primary: true,
+        },
+        {
+          icon: 'heart',
+          title: 'Save another to compare',
+          body: 'Heart a second SUV on inventory to unlock side-by-side compare and AI highlights.',
+          action: 'Browse inventory',
+          href: 'srp.html',
+        },
+        {
+          icon: 'calculator',
+          title: 'Estimate your payment',
+          body: `About ${formatPrice(monthly)}/mo at ${apr}% APR over 60 months.`,
+          action: 'See payment options',
+          href: `vdp.html?id=${v.id}#payment-calc`,
+        },
+        {
+          icon: 'calendar-check',
+          title: 'Schedule a test drive',
+          body: 'Walk the lot ready — bring your license and whoever helps you decide.',
+          action: 'View & schedule',
+          href: `vdp.html?id=${v.id}`,
+        },
+      ],
+    };
+  }
+
+  const top = pickFavoritesTopVehicle(vehicles);
+  const insights = generateAIInsights(vehicles);
+  const monthly = calcMonthly(top.price, 0, apr);
+  const cx5 = vehicles.find(v => /cx-5/i.test(v.model));
+  const bronco = vehicles.find(v => /bronco/i.test(v.model));
+  const safetyNote = cx5 && bronco
+    ? ' Ask me to highlight crash test results if you are deciding between the CX-5 and Bronco Sport.'
+    : '';
+
+  return {
+    sub: insights.topPick,
+    takeaway: `Start with a test drive on the <strong>${top.year} ${top.make} ${top.model}</strong>, then narrow payment and trim using the compare chat above.${safetyNote}`,
+    steps: [
+      {
+        icon: 'car',
+        title: `Test drive the ${top.make} ${top.model}`,
+        body: `Top pick on your list — ${top.trim}, ${formatPrice(top.price)}, ${formatMileage(top.mileage)}.`,
+        action: 'View & schedule',
+        href: `vdp.html?id=${top.id}`,
+        primary: true,
+      },
+      {
+        icon: 'calculator',
+        title: 'Compare monthly payments',
+        body: `Est. ${formatPrice(monthly)}/mo on the lead pick at ${apr}% APR — use Price & value in the chat to compare all saved.`,
+        action: 'Highlight payments',
+        filter: 'value',
+      },
+      {
+        icon: 'shield-halved',
+        title: 'Review crash test results',
+        body: 'IIHS and NHTSA scores side-by-side — teal marks the stronger rating in each row.',
+        action: 'Highlight safety',
+        filter: 'crash',
+      },
+      {
+        icon: 'layer-group',
+        title: 'Compare trim differences',
+        body: 'See how trims stack up on features, horsepower, and the must-haves you filtered for.',
+        action: 'Highlight trim',
+        filter: 'trim',
+      },
+    ],
+  };
+}
+
+function renderFavoritesNextSteps(vehicles) {
+  const section = document.getElementById('fav-next-steps');
+  const sub = document.getElementById('fav-next-sub');
+  const grid = document.getElementById('fav-next-grid');
+  const takeaway = document.getElementById('fav-next-takeaway');
+  if (!section || !grid) return;
+
+  if (!vehicles.length) {
+    section.hidden = true;
+    return;
+  }
+
+  const data = generateFavoritesNextSteps(vehicles);
+  section.hidden = false;
+  if (sub) sub.innerHTML = data.sub;
+  if (takeaway) {
+    takeaway.innerHTML = `<i class="fa-solid fa-lightbulb"></i><div><strong>My take:</strong> ${data.takeaway}</div>`;
+    takeaway.classList.add('fp-reveal-item');
+  }
+
+  grid.innerHTML = data.steps.map(step => {
+    const action = step.filter
+      ? `<button type="button" class="fav-next-action" data-filter="${step.filter}">${escapeHtml(step.action)} <i class="fa-solid fa-arrow-right"></i></button>`
+      : `<a class="fav-next-action btn-link" href="${step.href}">${escapeHtml(step.action)} <i class="fa-solid fa-arrow-right"></i></a>`;
+    return `
+      <div class="fav-next-card${step.primary ? ' fav-next-card-primary' : ''}">
+        <div class="fav-next-card-top">
+          <div class="fav-next-icon"><i class="fa-solid fa-${step.icon}"></i></div>
+          <div>
+            <div class="fav-next-card-title">${escapeHtml(step.title)}</div>
+            <p class="fav-next-card-body">${escapeHtml(step.body)}</p>
+          </div>
+        </div>
+        ${action}
+      </div>`;
+  }).join('');
+
+  grid.querySelectorAll('[data-filter]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const filterId = btn.dataset.filter;
+      const label = FAV_COMPARE_FILTERS.find(f => f.id === filterId)?.label || btn.textContent.trim();
+      applyFavoritesChatFilter(filterId, label);
+      document.getElementById('fav-compare-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+}
+
+function initFavoritesChatPanel() {
+  const panel = document.getElementById('fav-chat');
+  const form = document.getElementById('fav-chat-form');
+  const input = document.getElementById('fav-chat-input');
+  const chips = document.getElementById('fav-chat-chips');
+  if (!panel || panel._wired) return;
+  panel._wired = true;
+
+  form?.addEventListener('submit', e => {
+    e.preventDefault();
+    askFavoritesChat(input?.value);
+    if (input) input.value = '';
+  });
+  chips?.addEventListener('click', e => {
+    const chip = e.target.closest('.cmp-chip');
+    if (!chip) return;
+    const filterId = chip.dataset.filter;
+    if (filterId) applyFavoritesChatFilter(filterId, chip.textContent.trim());
+  });
+}
+
+function pushFavChatMsg(role, html) {
+  const log = document.getElementById('fav-chat-log');
+  if (!log) return;
+  const el = document.createElement('div');
+  el.className = `cmp-msg cmp-msg-${role}`;
+  el.innerHTML = html;
+  log.appendChild(el);
+  log.scrollTop = log.scrollHeight;
+}
+
+function clearFavoritesChat() {
+  const log = document.getElementById('fav-chat-log');
+  const chips = document.getElementById('fav-chat-chips');
+  if (log) log.innerHTML = '';
+  if (chips) chips.innerHTML = '';
+  window._favChatIntroShown = false;
+}
+
+function refreshFavoritesChatChips() {
+  const chips = document.getElementById('fav-chat-chips');
+  if (!chips) return;
+  chips.innerHTML = FAV_COMPARE_FILTERS.map(f =>
+    `<button type="button" class="cmp-chip${window._favActiveFilter === f.id ? ' active' : ''}" data-filter="${f.id}">${escapeHtml(f.label)}</button>`
+  ).join('');
+}
+
+function refreshFavoritesChat(vehicles) {
+  refreshFavoritesChatChips();
+  if (!window._favChatIntroShown && vehicles.length >= 2) {
+    pushFavChatMsg('ai', `<p>You're comparing <strong>${vehicles.length} saved vehicles</strong>. Tap a topic below or ask me to highlight <strong>key differences</strong>, <strong>crash test results</strong>, <strong>trim & features</strong>, or <strong>price & value</strong> in the table.</p>`);
+    window._favChatIntroShown = true;
+  }
+}
+
+function matchFavoritesFilterQuery(q) {
+  const t = (q || '').toLowerCase();
+  const byLabel = FAV_COMPARE_FILTERS.find(f => t.includes(f.label.toLowerCase()));
+  if (byLabel) return byLabel.id;
+  if (/crash|iihs|nhtsa|safety test|crash test/.test(t)) return 'crash';
+  if (/trim|feature|must.have|must-have/.test(t)) return 'trim';
+  if (/price|payment|value|mileage|cost|afford|monthly|deal/.test(t)) return 'value';
+  if (/difference|compare|key|different|overview|highlight/.test(t)) return 'all';
+  return null;
+}
+
+function applyFavoritesChatFilter(filterId, userLabel) {
+  const vehicles = window._favChatVehicles || [];
+  if (vehicles.length < 2) return;
+
+  window._favActiveFilter = filterId || 'all';
+  if (userLabel) pushFavChatMsg('user', escapeHtml(userLabel));
+
+  const msg = FAV_FILTER_MESSAGES[filterId] || FAV_FILTER_MESSAGES.all;
+  pushFavChatMsg('ai', `<p>${msg}</p>`);
+
+  refreshFavoritesChatChips();
+  renderFavoritesTable(vehicles, window._favActiveFilter);
+
+  requestAnimationFrame(() => {
+    const row = document.querySelector('#fav-compare-table tr.xdc-filter-highlight');
+    row?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
+}
+
+function askFavoritesChat(text) {
+  const q = (text || '').trim();
+  if (!q) return;
+  const filterId = matchFavoritesFilterQuery(q);
+  if (!filterId) {
+    pushFavChatMsg('user', escapeHtml(q));
+    pushFavChatMsg('ai', '<p>Try asking about <strong>key differences</strong>, <strong>crash test results</strong>, <strong>trim & features</strong>, or <strong>price & value</strong> — or tap a chip below.</p>');
+    return;
+  }
+  applyFavoritesChatFilter(filterId, q);
+}
+
+function renderFavoritesTable(vehicles, activeFilter) {
+  const table = document.getElementById('fav-compare-table');
+  if (!table || !vehicles.length) return;
+  const cars = vehicles.map((v, i) => vehicleToCompareCar(v, i));
+  renderCompareTable(table, cars, { favoritesMode: true, activeFilter: activeFilter || 'all' });
+}
+
+function vehicleShortName(v) {
+  return `${v.year} ${v.make} ${v.model}`;
+}
+
+function vehicleSafetyScore(v) {
+  const feats = (v.features || []).join(' ').toLowerCase();
+  let score = 0;
+  if (/blind spot|blis|blindspot/.test(feats)) score += 2;
+  if (/co-pilot|i-activsense|sensing|safety sense|360|surround view/.test(feats)) score += 2;
+  if (/adaptive cruise|lane keep|lane departure|forward collision|pre-collision/.test(feats)) score += 1;
+  if (/backup camera|rear camera|rearview camera/.test(feats)) score += 1;
+  if (v.accidentFree) score += 1;
+  if (v.owners === 1) score += 1;
+  return score;
+}
+
+function initFavoritesAiPanel() {
+  const panel = document.getElementById('fav-ai');
+  const form = document.getElementById('fav-ai-form');
+  const input = document.getElementById('fav-ai-input');
+  const chips = document.getElementById('fav-ai-chips');
+  if (!panel || panel._wired) return;
+  panel._wired = true;
+
+  form?.addEventListener('submit', e => {
+    e.preventDefault();
+    askFavoritesAi(input?.value);
+    if (input) input.value = '';
+  });
+  chips?.addEventListener('click', e => {
+    const chip = e.target.closest('.cmp-chip');
+    if (chip) askFavoritesAi(chip.dataset.q || chip.textContent);
+  });
+}
+
+function refreshFavoritesAiChips(vehicles) {
+  const chips = document.getElementById('fav-ai-chips');
+  if (!chips) return;
+
+  const items = [
+    { q: 'Show me the key differences', label: 'Key differences' },
+    { q: 'Which performs better in crash tests?', label: 'Better in crash tests?' },
+    { q: 'Compare safety ratings', label: 'Safety ratings' },
+    { q: 'Compare trim and features', label: 'Trim & features' },
+    { q: 'Which is safer for families?', label: 'Safer for families?' },
+    { q: 'Which has the lower monthly payment?', label: 'Lower payment?' },
+  ];
+
+  if (vehicles.length === 2) {
+    const a = vehicles[0].make;
+    const b = vehicles[1].make;
+    if (a !== b) {
+      items.unshift({
+        q: `What's different between the ${a} and ${b}?`,
+        label: `${a} vs ${b}`,
+      });
+    }
+  }
+
+  chips.innerHTML = items.map(item =>
+    `<button type="button" class="cmp-chip" data-q="${escapeHtml(item.q)}">${escapeHtml(item.label)}</button>`
+  ).join('');
+}
+
+function favoritesDiffTakeaways(vehicles) {
+  const apr = (typeof Profile !== 'undefined' && Profile.apr) ? Profile.apr() : 6.9;
+  const bullets = [];
+  const byPrice = vehicles.slice().sort((a, b) => a.price - b.price);
+  const byMiles = vehicles.slice().sort((a, b) => a.mileage - b.mileage);
+  const byYear = vehicles.slice().sort((a, b) => b.year - a.year);
+  const byHp = vehicles.slice().sort((a, b) => b.hp - a.hp);
+
+  if (byPrice[0] !== byPrice[byPrice.length - 1]) {
+    const diff = byPrice[byPrice.length - 1].price - byPrice[0].price;
+    bullets.push(`<strong>${escapeHtml(vehicleShortName(byPrice[0]))}</strong> is ${formatPrice(diff)} less than the ${escapeHtml(vehicleShortName(byPrice[byPrice.length - 1]))}.`);
+  }
+  if (byMiles[0] !== byMiles[byMiles.length - 1]) {
+    bullets.push(`Lowest miles: <strong>${escapeHtml(vehicleShortName(byMiles[0]))}</strong> (${formatMileage(byMiles[0].mileage)}).`);
+  }
+  if (byYear[0].year !== byYear[byYear.length - 1].year) {
+    bullets.push(`Newest year: <strong>${escapeHtml(vehicleShortName(byYear[0]))}</strong> (${byYear[0].year}).`);
+  }
+  if (byHp[0].hp !== byHp[byHp.length - 1].hp) {
+    bullets.push(`Most power: <strong>${escapeHtml(vehicleShortName(byHp[0]))}</strong> (${byHp[0].hp} hp vs ${byHp[byHp.length - 1].hp} hp).`);
+  }
+
+  const drives = [...new Set(vehicles.map(v => v.drivetrain))];
+  if (drives.length > 1) {
+    bullets.push(`Drivetrain split: ${vehicles.map(v => `<strong>${escapeHtml(v.make)}</strong> ${escapeHtml(v.drivetrain)}`).join(' · ')}.`);
+  }
+
+  if (vehicles.length === 2) {
+    const [a, b] = vehicles;
+    const onlyA = a.features.filter(f => !b.features.includes(f)).slice(0, 2);
+    const onlyB = b.features.filter(f => !a.features.includes(f)).slice(0, 2);
+    if (onlyA.length) {
+      bullets.push(`Only on the ${escapeHtml(a.make)}: ${onlyA.map(f => escapeHtml(f)).join(', ')}.`);
+    }
+    if (onlyB.length) {
+      bullets.push(`Only on the ${escapeHtml(b.make)}: ${onlyB.map(f => escapeHtml(f)).join(', ')}.`);
+    }
+  }
+
+  if (vehicles.length === 2) {
+    const ratingsA = getVehicleSafetyRatings(vehicles[0]);
+    const ratingsB = getVehicleSafetyRatings(vehicles[1]);
+    if (ratingsA.iihs !== ratingsB.iihs || ratingsA.nhtsaOverall !== ratingsB.nhtsaOverall) {
+      const better = safetyCompareScore(ratingsA) >= safetyCompareScore(ratingsB) ? vehicles[0] : vehicles[1];
+      const betterR = getVehicleSafetyRatings(better);
+      bullets.push(`Top safety scores: <strong>${escapeHtml(vehicleShortName(better))}</strong> (${escapeHtml(betterR.iihs)}, NHTSA ${betterR.nhtsaOverall}★).`);
+    }
+  }
+
+  const payDiff = calcMonthly(byPrice[byPrice.length - 1].price, 0, apr) - calcMonthly(byPrice[0].price, 0, apr);
+  if (payDiff > 25) {
+    bullets.push(`Monthly gap at ${apr}% APR: about ${formatPrice(payDiff)}/mo between cheapest and priciest.`);
+  }
+
+  return bullets.slice(0, 5);
+}
+
+function favoritesCrashTestHtml(vehicles) {
+  const ranked = vehicles.slice().sort((a, b) =>
+    safetyCompareScore(getVehicleSafetyRatings(b)) - safetyCompareScore(getVehicleSafetyRatings(a))
+  );
+  const winner = ranked[0];
+  const winnerR = getVehicleSafetyRatings(winner);
+  const cx5 = vehicles.find(v => /cx-5/i.test(v.model));
+  const bronco = vehicles.find(v => /bronco/i.test(v.model));
+
+  const bestIdx = (vals, dir = 'max') => {
+    if (vals.every(n => n === vals[0])) return -1;
+    const best = dir === 'min' ? Math.min(...vals) : Math.max(...vals);
+    return vals.indexOf(best);
+  };
+  const cell = (vals, i, best) => {
+    const cls = i === best && best >= 0 ? ' class="fav-ai-best"' : '';
+    return `<td${cls}>${vals[i]}</td>`;
+  };
+
+  const ratings = vehicles.map(v => getVehicleSafetyRatings(v));
+  const nums = {
+    safety: ratings.map(r => safetyCompareScore(r)),
+    nhtsa: ratings.map(r => r.nhtsaOverall),
+    front: ratings.map(r => r.nhtsaFront),
+    side: ratings.map(r => r.nhtsaSide),
+    rollover: ratings.map(r => r.nhtsaRollover),
+  };
+
+  const rows = [
+    { label: 'IIHS', vals: ratings.map(r => escapeHtml(r.iihs)), best: bestIdx(nums.safety, 'max') },
+    { label: 'NHTSA overall', vals: ratings.map(r => `${r.nhtsaOverall}/5`), best: bestIdx(nums.nhtsa, 'max') },
+    { label: 'Front crash', vals: ratings.map(r => `${r.nhtsaFront}/5`), best: bestIdx(nums.front, 'max') },
+    { label: 'Side crash', vals: ratings.map(r => `${r.nhtsaSide}/5`), best: bestIdx(nums.side, 'max') },
+    { label: 'Rollover', vals: ratings.map(r => `${r.nhtsaRollover}/5`), best: bestIdx(nums.rollover, 'max') },
+  ];
+
+  const head = vehicles.map(v =>
+    `<th>${escapeHtml(vehicleShortName(v))}<br><span style="font-weight:500;opacity:0.7;font-size:11px">${escapeHtml(v.trim)}</span></th>`
+  ).join('');
+  const body = rows.map(row =>
+    `<tr><th>${row.label}</th>${row.vals.map((val, i) => cell(row.vals, i, row.best)).join('')}</tr>`
+  ).join('');
+
+  let verdict = '';
+  if (vehicles.length >= 2) {
+    const topScore = safetyCompareScore(getVehicleSafetyRatings(ranked[0]));
+    const tied = ranked.filter(v => safetyCompareScore(getVehicleSafetyRatings(v)) === topScore);
+    if (tied.length === 1) {
+      const loser = ranked.find(v => v !== winner);
+      const loserR = getVehicleSafetyRatings(loser);
+      verdict = `<p><strong>${escapeHtml(vehicleShortName(winner))}</strong> performs better in crash tests — ${escapeHtml(winnerR.iihs)} (IIHS) and NHTSA ${winnerR.nhtsaOverall}★ overall, vs ${escapeHtml(vehicleShortName(loser))} (${escapeHtml(loserR.iihs)}, NHTSA ${loserR.nhtsaOverall}★).</p>`;
+    } else {
+      verdict = `<p>These ${tied.length} vehicles tie on combined crash-test scores — all are strong picks.</p>`;
+    }
+  } else {
+    verdict = `<p><strong>${escapeHtml(vehicleShortName(winner))}</strong> — ${escapeHtml(winnerR.iihs)}, NHTSA ${winnerR.nhtsaOverall}★ overall.</p>`;
+  }
+
+  if (cx5 && bronco) {
+    const cx5R = getVehicleSafetyRatings(cx5);
+    const broncoR = getVehicleSafetyRatings(bronco);
+    const cx5Wins = safetyCompareScore(cx5R) > safetyCompareScore(broncoR);
+    verdict += `<p>In a <strong>CX-5 vs Bronco Sport</strong> crash-test comparison, the <strong>Mazda CX-5</strong> ${cx5Wins ? 'edges ahead' : 'trails slightly'}: IIHS <strong>Top Safety Pick+</strong> vs the Bronco Sport's <strong>Top Safety Pick</strong>, and NHTSA <strong>${cx5R.nhtsaOverall}★</strong> overall vs <strong>${broncoR.nhtsaOverall}★</strong>. The biggest split is usually <strong>rollover resistance</strong> — CX-5 ${cx5R.nhtsaRollover}★ vs Bronco Sport ${broncoR.nhtsaRollover}★.</p>`;
+  }
+
+  return `${verdict}
+    <div class="fav-ai-diff">
+      <div class="fav-ai-diff-title">Crash-test breakdown</div>
+      <table>
+        <thead><tr><th></th>${head}</tr></thead>
+        <tbody>${body}</tbody>
+      </table>
+    </div>`;
+}
+
+function favoritesDiffHtml(vehicles, opts = {}) {
+  const apr = (typeof Profile !== 'undefined' && Profile.apr) ? Profile.apr() : 6.9;
+  const title = opts.title || 'Key differences';
+  const nums = {
+    price: vehicles.map(v => v.price),
+    miles: vehicles.map(v => v.mileage),
+    year: vehicles.map(v => v.year),
+    hp: vehicles.map(v => v.hp),
+    mpg: vehicles.map(v => v.mpgHwy),
+    monthly: vehicles.map(v => calcMonthly(v.price, 0, apr, 60)),
+    nhtsa: vehicles.map(v => getVehicleSafetyRatings(v).nhtsaOverall),
+    nhtsaFront: vehicles.map(v => getVehicleSafetyRatings(v).nhtsaFront),
+    nhtsaSide: vehicles.map(v => getVehicleSafetyRatings(v).nhtsaSide),
+    nhtsaRollover: vehicles.map(v => getVehicleSafetyRatings(v).nhtsaRollover),
+    safety: vehicles.map(v => safetyCompareScore(getVehicleSafetyRatings(v))),
+  };
+  const bestIdx = (arr, dir = 'min') => {
+    if (arr.every(n => n === arr[0])) return -1;
+    const best = dir === 'min' ? Math.min(...arr) : Math.max(...arr);
+    return arr.indexOf(best);
+  };
+  const cell = (vals, i, best) => {
+    const cls = i === best && best >= 0 ? ' class="fav-ai-best"' : '';
+    return `<td${cls}>${vals[i]}</td>`;
+  };
+
+  const rows = [
+    { label: 'Price', vals: vehicles.map(v => formatPrice(v.price)), best: bestIdx(nums.price, 'min') },
+    { label: 'Est. payment', vals: vehicles.map(v => formatPrice(calcMonthly(v.price, 0, apr)) + '/mo'), best: bestIdx(nums.monthly, 'min') },
+    { label: 'Year', vals: vehicles.map(v => String(v.year)), best: bestIdx(nums.year, 'max') },
+    { label: 'Mileage', vals: vehicles.map(v => formatMileage(v.mileage)), best: bestIdx(nums.miles, 'min') },
+    { label: 'Trim', vals: vehicles.map(v => escapeHtml(v.trim)) },
+    { label: 'IIHS rating', vals: vehicles.map(v => escapeHtml(getVehicleSafetyRatings(v).iihs)), best: bestIdx(nums.safety, 'max') },
+    { label: 'NHTSA overall', vals: vehicles.map(v => `${getVehicleSafetyRatings(v).nhtsaOverall}/5`), best: bestIdx(nums.nhtsa, 'max') },
+    { label: 'NHTSA front', vals: vehicles.map(v => `${getVehicleSafetyRatings(v).nhtsaFront}/5`), best: bestIdx(nums.nhtsaFront, 'max') },
+    { label: 'NHTSA side', vals: vehicles.map(v => `${getVehicleSafetyRatings(v).nhtsaSide}/5`), best: bestIdx(nums.nhtsaSide, 'max') },
+    { label: 'NHTSA rollover', vals: vehicles.map(v => `${getVehicleSafetyRatings(v).nhtsaRollover}/5`), best: bestIdx(nums.nhtsaRollover, 'max') },
+    { label: 'Engine', vals: vehicles.map(v => escapeHtml(v.engine)) },
+    { label: 'Horsepower', vals: vehicles.map(v => `${v.hp} hp`), best: bestIdx(nums.hp, 'max') },
+    { label: 'Drivetrain', vals: vehicles.map(v => escapeHtml(v.drivetrain)) },
+    { label: 'MPG (hwy)', vals: vehicles.map(v => String(v.mpgHwy)), best: bestIdx(nums.mpg, 'max') },
+    { label: 'Must-haves', vals: vehicles.map(v => {
+      const hits = (v.features || []).filter(f => /leather|sunroof|moonroof|heated|blind spot|co-pilot|i-activsense|360/i.test(f));
+      return escapeHtml(hits.slice(0, 3).join(' · ') || '—');
+    }) },
+  ];
+
+  const head = vehicles.map(v =>
+    `<th>${escapeHtml(vehicleShortName(v))}<br><span style="font-weight:500;opacity:0.7;font-size:11px">${escapeHtml(v.trim)}</span></th>`
+  ).join('');
+
+  const body = rows.map(row =>
+    `<tr><th>${row.label}</th>${row.vals.map((val, i) => cell(row.vals, i, row.best)).join('')}</tr>`
+  ).join('');
+
+  const takeaways = favoritesDiffTakeaways(vehicles);
+  const takeawayHtml = takeaways.length
+    ? `<ul class="fav-ai-takeaways">${takeaways.map(t => `<li>${t}</li>`).join('')}</ul>`
+    : '';
+
+  const intro = opts.intro
+    ? `<p>${opts.intro}</p>`
+    : `<p>Here's a quick side-by-side on the ${vehicles.length} cars you saved — highlights in <span class="fav-ai-best">teal</span> are the strongest in each row.</p>`;
+
+  return `${intro}
+    <div class="fav-ai-diff">
+      <div class="fav-ai-diff-title">${escapeHtml(title)}</div>
+      <table>
+        <thead><tr><th></th>${head}</tr></thead>
+        <tbody>${body}</tbody>
+      </table>
+      ${takeawayHtml}
+    </div>`;
+}
+
+function refreshFavoritesAi(vehicles) {
+  const panel = document.getElementById('fav-ai');
+  const log = document.getElementById('fav-ai-log');
+  if (!panel || !log) return;
+
+  initFavoritesAiPanel();
+  window._favAiVehicles = vehicles;
+  refreshFavoritesAiChips(vehicles);
+
+  if (vehicles.length < 2) {
+    panel.hidden = true;
+    log.innerHTML = '';
+    return;
+  }
+
+  panel.hidden = false;
+  log.innerHTML = '';
+  pushFavAiMsg('ai', favoritesDiffHtml(vehicles, {
+    title: 'Your saved cars at a glance',
+    intro: `You saved <strong>${vehicles.length} vehicles</strong>. Here are the biggest differences — tap a quick prompt below or ask about crash tests, safety, payments, or trim.`,
+  }));
+}
+
+function pushFavAiMsg(role, html) {
+  const log = document.getElementById('fav-ai-log');
+  if (!log) return;
+  const el = document.createElement('div');
+  el.className = `cmp-msg cmp-msg-${role}`;
+  el.innerHTML = html;
+  log.appendChild(el);
+  log.scrollTop = log.scrollHeight;
+}
+
+function askFavoritesAi(text) {
+  const q = (text || '').trim();
+  if (!q) return;
+  const vehicles = window._favAiVehicles || [];
+  if (vehicles.length < 2) return;
+
+  pushFavAiMsg('user', escapeHtml(q));
+  const typing = document.createElement('div');
+  typing.className = 'cmp-msg cmp-msg-ai';
+  typing.innerHTML = '<span class="pa-typing-dots"><span></span><span></span><span></span></span>';
+  const log = document.getElementById('fav-ai-log');
+  log?.appendChild(typing);
+  log.scrollTop = log.scrollHeight;
+
+  setTimeout(() => {
+    typing.remove();
+    pushFavAiMsg('ai', generateFavoritesAnswer(vehicles, q));
+  }, 650);
+}
+
+function generateFavoritesAnswer(vehicles, q) {
+  const t = (q || '').toLowerCase();
+  const cx5 = vehicles.find(v => /cx-5/i.test(v.model));
+  const bronco = vehicles.find(v => /bronco/i.test(v.model));
+  const apr = (typeof Profile !== 'undefined' && Profile.apr) ? Profile.apr() : 6.9;
+  const byPrice = vehicles.slice().sort((a, b) => a.price - b.price);
+  const byMiles = vehicles.slice().sort((a, b) => a.mileage - b.mileage);
+  const bySafety = vehicles.slice().sort((a, b) => vehicleSafetyScore(b) - vehicleSafetyScore(a));
+  const cheapest = byPrice[0];
+  const safest = bySafety[0];
+
+  const safetyList = v => {
+    const hits = (v.features || []).filter(f =>
+      /blind spot|co-pilot|i-activsense|360|adaptive cruise|lane keep|backup camera|safety/i.test(f)
+    );
+    return hits.slice(0, 4).map(f => escapeHtml(f)).join(', ') || 'standard backup camera and stability control';
+  };
+
+  if (/diff|compare|versus|vs\.?|side.by.side|what'?s different|how do they|break down|spec|trim|feature/.test(t)) {
+    return favoritesDiffHtml(vehicles, {
+      title: 'Side-by-side comparison',
+      intro: vehicles.length === 2
+        ? `Comparing your two saved vehicles — <strong>${escapeHtml(vehicleShortName(vehicles[0]))}</strong> vs <strong>${escapeHtml(vehicleShortName(vehicles[1]))}</strong>:`
+        : `Comparing all ${vehicles.length} vehicles on your saved list:`,
+    });
+  }
+
+  if (/perform.*crash|crash.test|crash test|which.*better.*crash|better in crash|crash performance|crash-test/.test(t)) {
+    return favoritesCrashTestHtml(vehicles);
+  }
+
+  if (/safety rating|iihs|nhtsa/.test(t)) {
+    const ranked = vehicles.slice().sort((a, b) => safetyCompareScore(getVehicleSafetyRatings(b)) - safetyCompareScore(getVehicleSafetyRatings(a)));
+    const top = ranked[0];
+    const topR = getVehicleSafetyRatings(top);
+    return favoritesDiffHtml(vehicles, {
+      title: 'Safety ratings',
+      intro: `Crash-test summary for your saved list. <strong>${escapeHtml(vehicleShortName(top))}</strong> leads on combined IIHS + NHTSA scores (${escapeHtml(topR.iihs)}, NHTSA ${topR.nhtsaOverall}★ overall).`,
+    });
+  }
+
+  if (/safe|safety|protect|family|families|kids|child|car seat|children/.test(t)) {
+    if (cx5 && bronco) {
+      const cx5Score = vehicleSafetyScore(cx5);
+      const broncoScore = vehicleSafetyScore(bronco);
+      const lean = cx5Score >= broncoScore ? cx5 : bronco;
+      const other = lean === cx5 ? bronco : cx5;
+      const cx5R = getVehicleSafetyRatings(cx5);
+      const broncoR = getVehicleSafetyRatings(bronco);
+      const crashLeader = safetyCompareScore(cx5R) >= safetyCompareScore(broncoR) ? cx5 : bronco;
+      return `<p>Both the <strong>${escapeHtml(vehicleShortName(cx5))}</strong> and <strong>${escapeHtml(vehicleShortName(bronco))}</strong> are modern SUVs with solid safety tech. For everyday family driving, the <strong>Mazda CX-5</strong> tends to win on ride comfort, quiet cabin, and fuel economy — nice for school runs and highway trips.</p>
+        <p>The <strong>Ford Bronco Sport</strong> adds higher ground clearance and 4WD confidence in rain or snow, with Ford Co-Pilot360 on your saved trim.</p>
+        <p>On crash tests specifically, the <strong>${escapeHtml(vehicleShortName(crashLeader))}</strong> scores higher — ${escapeHtml(getVehicleSafetyRatings(crashLeader).iihs)}, NHTSA ${getVehicleSafetyRatings(crashLeader).nhtsaOverall}★ overall. Ask <strong>"Which performs better in crash tests?"</strong> for the full breakdown.</p>
+        <p>For day-to-day family safety, I'd lean <strong>${escapeHtml(vehicleShortName(lean))}</strong> — ${safetyList(lean)}. The ${escapeHtml(vehicleShortName(other))} is still a safe pick if you prioritize ${other === bronco ? 'all-weather capability' : 'refinement and efficiency'}.</p>`;
+    }
+    return `<p>For <strong>family safety</strong>, I'd start with the <strong>${escapeHtml(vehicleShortName(safest))}</strong> — ${safetyList(safest)}, ${safest.accidentFree ? 'accident-free history' : 'clean history on file'}, and ${safest.owners} owner${safest.owners > 1 ? 's' : ''}.</p>
+      <p>All your saved SUVs have modern driver-assist features; the CX-5 class is often praised for crash-test results and cabin quality, while the Bronco Sport adds rugged 4WD peace of mind.</p>`;
+  }
+
+  if (/car seat|kids|child|family of|cargo|stroller|space|room|back seat/.test(t)) {
+    if (cx5 && bronco) {
+      return `<p>For <strong>families with kids</strong>, both fit two car seats comfortably in the rear. The <strong>Mazda CX-5</strong> usually feels a bit more refined in the back seat — softer ride, easier ingress, and a wider rear opening for loading strollers.</p>
+        <p>The <strong>Bronco Sport</strong> has a boxier shape and higher step-in; great if you want SUV toughness, but the CX-5 is often the smoother daily family hauler. Your saved CX-5${cx5.trim ? ' (' + escapeHtml(cx5.trim) + ')' : ''} has ${cx5.features.some(f => /leather|sunroof|heated/i.test(f)) ? 'leather and comfort features you asked for' : 'solid comfort features'}.</p>`;
+    }
+    const pick = vehicles.find(v => /cx-5/i.test(v.model)) || byMiles[0];
+    return `<p>For kids and car seats, the <strong>${escapeHtml(vehicleShortName(pick))}</strong> is the stronger family pick on your list — ${pick.body} proportions, ${formatMileage(pick.mileage)}, and ${safetyList(pick)}.</p>`;
+  }
+
+  if (/monthly|payment|afford|budget|payment|\/mo/.test(t)) {
+    const sorted = vehicles.slice().sort((a, b) => calcMonthly(a.price, 0, apr) - calcMonthly(b.price, 0, apr));
+    const best = sorted[0];
+    return `<p>At ${apr}% APR over 60 months, the lowest payment on your saved list is the <strong>${escapeHtml(vehicleShortName(best))}</strong> at about <strong>${formatPrice(calcMonthly(best.price, 0, apr))}/mo</strong> (${formatPrice(best.price)} out the door).</p>
+      ${sorted[1] ? `<p>The ${escapeHtml(vehicleShortName(sorted[1]))} runs about ${formatPrice(calcMonthly(sorted[1].price, 0, apr))}/mo — ${formatPrice(sorted[1].price - best.price)} more upfront.</p>` : ''}`;
+  }
+
+  if (/value|deal|worth|cheaper|price|save money/.test(t)) {
+    const best = byPrice[0];
+    const savings = best.marketSavings || 0;
+    return `<p>For <strong>best value</strong>, the <strong>${escapeHtml(vehicleShortName(best))}</strong> is lowest at ${formatPrice(best.price)}${savings > 0 ? ` — about ${formatPrice(savings)} below market` : ''}.</p>
+      <p>${vehicles.length > 1 ? `If you want newer/lowest miles instead, the ${escapeHtml(vehicleShortName(byMiles[0]))} has ${formatMileage(byMiles[0].mileage)}.` : ''}</p>`;
+  }
+
+  if (/better|which one|should i|pick|choose|recommend/.test(t)) {
+    if (cx5 && bronco) {
+      return favoritesDiffHtml(vehicles, {
+        title: 'Mazda CX-5 vs Ford Bronco Sport',
+        intro: `<p>It depends what matters most — here's how your saved <strong>CX-5</strong> and <strong>Bronco Sport</strong> stack up:</p>`,
+      });
+    }
+    return favoritesDiffHtml(vehicles, {
+      title: 'Which fits you better?',
+      intro: `<p>Here's how your saved vehicles compare — use price, miles, and features to narrow it down:</p>`,
+    });
+  }
+
+  const list = vehicles.map(v => `<strong>${escapeHtml(vehicleShortName(v))}</strong> (${formatPrice(v.price)}, ${formatMileage(v.mileage)})`).join('; ');
+  return favoritesDiffHtml(vehicles, {
+    title: 'Your saved list',
+    intro: `<p>Here's a quick comparison of ${list}. Ask about <strong>differences</strong>, <strong>family safety</strong>, or <strong>monthly payments</strong> at ${apr}% APR.</p>`,
+  });
+}
+
+function isFavoritesPage() {
+  return !!document.getElementById('fav-compare-section');
 }
 
 // ─── SRP ─────────────────────────────────────────────────
@@ -529,6 +1708,30 @@ const BODY_LABELS = {
   Minivan: 'Minivan',
 };
 const BODY_ORDER = ['SUV', 'Sedan', 'Truck', 'Coupe', 'Hatchback', 'Minivan'];
+
+const FEATURE_LABELS = {
+  carplay: 'Apple CarPlay',
+  sunroof: 'Sunroof',
+  heated: 'Heated Seats',
+  camera: 'Backup Camera',
+  blindspot: 'Blind Spot Monitor',
+  leather: 'Leather Seats',
+  nav: 'Navigation',
+};
+
+function vehicleHasFeature(v, featKey) {
+  const feats = (v.features || []).join(' ').toLowerCase();
+  switch (featKey) {
+    case 'leather': return /leather|nappa/.test(feats);
+    case 'sunroof': return /sunroof|moonroof|panoramic/.test(feats);
+    case 'carplay': return /carplay/.test(feats);
+    case 'heated': return /heated/.test(feats);
+    case 'camera': return /backup camera|rearview camera|rear camera|360°|surround view/.test(feats);
+    case 'blindspot': return /blind spot|blis/.test(feats);
+    case 'nav': return /navigation|nav /.test(feats);
+    default: return false;
+  }
+}
 
 function renderBodyFilters() {
   if (typeof VEHICLES === 'undefined') return;
@@ -556,6 +1759,27 @@ function renderMakeFilters() {
   VEHICLES.forEach(v => { counts[v.make] = (counts[v.make] || 0) + 1; });
   container.innerHTML = Object.keys(counts).sort().map(m =>
     `<label class="fp-opt"><input type="checkbox" class="fp-make" value="${m}"> ${m} <span class="fp-opt-count">${counts[m]}</span></label>`
+  ).join('');
+}
+
+function renderModelFilters() {
+  if (typeof VEHICLES === 'undefined') return;
+  const container = document.getElementById('fp-model-opts');
+  if (!container) return;
+  const selectedMakes = [...document.querySelectorAll('.fp-make:checked')].map(c => c.value);
+  const pool = selectedMakes.length
+    ? VEHICLES.filter(v => selectedMakes.includes(v.make))
+    : VEHICLES;
+  const checkedModels = new Set([...document.querySelectorAll('.fp-model:checked')].map(c => c.value));
+  const counts = {};
+  pool.forEach(v => { counts[v.model] = (counts[v.model] || 0) + 1; });
+  const models = Object.keys(counts).sort();
+  if (!models.length) {
+    container.innerHTML = '<p class="fp-empty-hint" style="font-size:12px;color:var(--text-light);margin:0">Select a make to see models</p>';
+    return;
+  }
+  container.innerHTML = models.map(m =>
+    `<label class="fp-opt"><input type="checkbox" class="fp-model" value="${m}"${checkedModels.has(m) ? ' checked' : ''}> ${m} <span class="fp-opt-count">${counts[m]}</span></label>`
   ).join('');
 }
 
@@ -589,8 +1813,10 @@ function initSRP() {
   const urlP = new URLSearchParams(window.location.search);
   const state = {
     make: urlP.getAll('make'),
+    model: urlP.getAll('model'),
     body: urlP.getAll('body'),
     drive: urlP.getAll('drive'),
+    features: urlP.getAll('feat'),
     minYear: parseInt(urlP.get('minYear')) || 2010,
     maxYear: parseInt(urlP.get('maxYear')) || 2024,
     minPrice: parseInt(urlP.get('minPrice')) || 0,
@@ -608,11 +1834,19 @@ function initSRP() {
 
   renderMakeFilters();
   renderBodyFilters();
+  renderModelFilters();
 
   // Pre-check filter checkboxes from URL params
   if (state.make.length) {
     state.make.forEach(m => {
       const cb = document.querySelector(`.fp-make[value="${m}"]`);
+      if (cb) cb.checked = true;
+    });
+  }
+  renderModelFilters();
+  if (state.model.length) {
+    state.model.forEach(m => {
+      const cb = document.querySelector(`.fp-model[value="${m}"]`);
       if (cb) cb.checked = true;
     });
   }
@@ -625,6 +1859,12 @@ function initSRP() {
   if (state.drive.length) {
     state.drive.forEach(d => {
       const cb = document.querySelector(`.fp-drive[value="${d}"]`);
+      if (cb) cb.checked = true;
+    });
+  }
+  if (state.features.length) {
+    state.features.forEach(f => {
+      const cb = document.querySelector(`.fp-feature[value="${f}"]`);
       if (cb) cb.checked = true;
     });
   }
@@ -641,29 +1881,64 @@ function initSRP() {
   if (minYearIn && urlP.get('minYear')) minYearIn.value = state.minYear;
   if (maxYearIn && urlP.get('maxYear')) maxYearIn.value = state.maxYear;
 
-  // Seed from the participant profile when the page wasn't opened with explicit filters.
-  const URL_FILTER_KEYS = ['make', 'body', 'drive', 'minYear', 'maxYear', 'minPrice', 'maxPrice', 'maxMiles', 'minMpg', 'maxDist', 'q'];
-  if (typeof Profile !== 'undefined' && Profile.toParams && !URL_FILTER_KEYS.some(k => urlP.has(k))) {
+  // Seed from participant profile — fill any filter the URL didn't set explicitly.
+  function urlHasFilter(key) {
+    if (key === 'make' || key === 'body' || key === 'drive' || key === 'model' || key === 'feat') {
+      return urlP.getAll(key).length > 0;
+    }
+    return urlP.has(key);
+  }
+  if (typeof Profile !== 'undefined' && Profile.toParams) {
     const pp = Profile.toParams();
-    [].concat(pp.make || []).forEach(m => { const cb = document.querySelector(`.fp-make[value="${m}"]`); if (cb) cb.checked = true; });
-    if (pp.body) { const cb = document.querySelector(`.fp-body[value="${pp.body}"]`); if (cb) cb.checked = true; }
-    if (pp.drive) { (Array.isArray(pp.drive) ? pp.drive : [pp.drive]).forEach(d => { const cb = document.querySelector(`.fp-drive[value="${d}"]`); if (cb) cb.checked = true; }); }
-    if (pp.maxPrice && maxPriceIn) maxPriceIn.value = pp.maxPrice;
-    if (pp.maxMiles && maxMilesIn) maxMilesIn.value = pp.maxMiles;
-    if (pp.minYear && minYearIn) minYearIn.value = pp.minYear;
-    state.minMpg = pp.minMpg || 0;
-    state.maxDist = pp.maxDist || 0;
+    if (!urlHasFilter('make') && pp.make) {
+      [].concat(pp.make).forEach(m => {
+        const cb = document.querySelector(`.fp-make[value="${m}"]`);
+        if (cb) cb.checked = true;
+      });
+    }
+    renderModelFilters();
+    if (!urlHasFilter('model') && pp.model) {
+      [].concat(pp.model).forEach(m => {
+        const cb = document.querySelector(`.fp-model[value="${m}"]`);
+        if (cb) cb.checked = true;
+      });
+    }
+    if (!urlHasFilter('body') && pp.body) {
+      const cb = document.querySelector(`.fp-body[value="${pp.body}"]`);
+      if (cb) cb.checked = true;
+    }
+    if (!urlHasFilter('drive') && pp.drive) {
+      (Array.isArray(pp.drive) ? pp.drive : [pp.drive]).forEach(d => {
+        const cb = document.querySelector(`.fp-drive[value="${d}"]`);
+        if (cb) cb.checked = true;
+      });
+    }
+    if (!urlHasFilter('feat') && pp.feat) {
+      pp.feat.forEach(f => {
+        const cb = document.querySelector(`.fp-feature[value="${f}"]`);
+        if (cb) cb.checked = true;
+      });
+    }
+    if (!urlHasFilter('maxPrice') && pp.maxPrice && maxPriceIn) maxPriceIn.value = pp.maxPrice;
+    if (!urlHasFilter('maxMiles') && pp.maxMiles && maxMilesIn) maxMilesIn.value = pp.maxMiles;
+    if (!urlHasFilter('minYear') && pp.minYear && minYearIn) minYearIn.value = pp.minYear;
+    if (!urlHasFilter('maxYear') && pp.maxYear && maxYearIn) maxYearIn.value = pp.maxYear;
+    if (!urlHasFilter('maxDist') && pp.maxDist) state.maxDist = pp.maxDist;
+    if (!urlHasFilter('q') && pp.q && searchInput) searchInput.value = pp.q;
+    if (!urlHasFilter('minMpg') && pp.minMpg) state.minMpg = pp.minMpg;
   }
 
   function readFilters() {
     state.make = [...document.querySelectorAll('.fp-make:checked')].map(c => c.value);
+    state.model = [...document.querySelectorAll('.fp-model:checked')].map(c => c.value);
     state.body = [...document.querySelectorAll('.fp-body:checked')].map(c => c.value);
     state.drive = [...document.querySelectorAll('.fp-drive:checked')].map(c => c.value);
+    state.features = [...document.querySelectorAll('.fp-feature:checked')].map(c => c.value);
     state.minPrice = parseInt(minPriceIn?.value) || 0;
     state.maxPrice = parseInt(maxPriceIn?.value) || 50000;
     state.maxMiles = parseInt(maxMilesIn?.value) || 100000;
-    state.minYear = parseInt(minYearIn?.value) || 2010;
-    state.maxYear = parseInt(maxYearIn?.value) || 2024;
+    state.minYear = minYearIn?.value ? parseInt(minYearIn.value) : 2010;
+    state.maxYear = maxYearIn?.value ? parseInt(maxYearIn.value) : 2024;
     state.query = searchInput?.value.trim().toLowerCase() || '';
     state.sort = sortSel?.value || 'recommended';
   }
@@ -672,8 +1947,10 @@ function initSRP() {
     readFilters();
     let results = VEHICLES.filter(v => {
       if (state.make.length && !state.make.includes(v.make)) return false;
+      if (state.model.length && !state.model.includes(v.model)) return false;
       if (state.body.length && !state.body.includes(v.body)) return false;
       if (state.drive.length && !state.drive.includes(v.drivetrain)) return false;
+      if (state.features.length && !state.features.every(f => vehicleHasFeature(v, f))) return false;
       if (v.price < state.minPrice || v.price > state.maxPrice) return false;
       if (v.mileage > state.maxMiles) return false;
       if (v.year < state.minYear || v.year > state.maxYear) return false;
@@ -712,24 +1989,30 @@ function initSRP() {
     });
   });
 
-  // Filter change listeners
-  document.querySelectorAll('.fp-make, .fp-body, .fp-drive').forEach(cb => {
-    cb.addEventListener('change', applyAndRender);
-  });
+  // Filter change listeners (delegated — model list re-renders on make change)
+  if (filterPanel) {
+    filterPanel.addEventListener('change', (e) => {
+      const t = e.target;
+      if (!t || t.tagName !== 'INPUT') return;
+      if (t.classList.contains('fp-make')) { renderModelFilters(); applyAndRender(); }
+      else if (t.matches('.fp-body, .fp-drive, .fp-model, .fp-feature')) applyAndRender();
+    });
+  }
   [minPriceIn, maxPriceIn, maxMilesIn, minYearIn, maxYearIn].forEach(inp => {
     if (inp) inp.addEventListener('input', debounce(applyAndRender, 400));
   });
   if (searchInput) searchInput.addEventListener('input', debounce(applyAndRender, 300));
   if (sortSel) sortSel.addEventListener('change', applyAndRender);
   if (clearBtn) clearBtn.addEventListener('click', () => {
-    document.querySelectorAll('.fp-make, .fp-body, .fp-drive').forEach(cb => cb.checked = false);
+    document.querySelectorAll('.fp-make, .fp-body, .fp-drive, .fp-model, .fp-feature').forEach(cb => cb.checked = false);
     if (minPriceIn) minPriceIn.value = '';
     if (maxPriceIn) maxPriceIn.value = '';
     if (maxMilesIn) maxMilesIn.value = '';
-    if (minYearIn) minYearIn.value = 2018;
-    if (maxYearIn) maxYearIn.value = 2024;
+    if (minYearIn) minYearIn.value = '';
+    if (maxYearIn) maxYearIn.value = '';
     if (searchInput) searchInput.value = '';
-    state.make = []; state.body = []; state.drive = [];
+    renderModelFilters();
+    state.make = []; state.model = []; state.body = []; state.drive = []; state.features = [];
     state.minPrice = 0; state.maxPrice = 50000; state.maxMiles = 100000;
     state.minYear = 2010; state.maxYear = 2024; state.minMpg = 0; state.maxDist = 0; state.query = '';
     applyAndRender();
@@ -896,10 +2179,41 @@ function initSRP() {
 function renderActiveTags(container, state) {
   if (!container) return;
   const tags = [];
-  state.make.forEach(m => tags.push({ label: m, remove: () => { const cb = document.querySelector(`.fp-make[value="${m}"]`); if(cb) cb.checked=false; } }));
+  state.make.forEach(m => tags.push({ label: m, remove: () => { const cb = document.querySelector(`.fp-make[value="${m}"]`); if(cb) cb.checked=false; renderModelFilters(); } }));
+  state.model.forEach(m => tags.push({ label: m, remove: () => { const cb = document.querySelector(`.fp-model[value="${m}"]`); if(cb) cb.checked=false; } }));
   state.body.forEach(b => tags.push({ label: b, remove: () => { const cb = document.querySelector(`.fp-body[value="${b}"]`); if(cb) cb.checked=false; } }));
   if (state.maxPrice < 50000) tags.push({ label: `Under ${formatPrice(state.maxPrice)}`, remove: () => { document.getElementById('fp-max-price').value=''; } });
   if (state.maxMiles < 100000) tags.push({ label: `Under ${state.maxMiles.toLocaleString()} mi`, remove: () => { document.getElementById('fp-max-miles').value=''; } });
+  const minYEl = document.getElementById('fp-min-year');
+  const maxYEl = document.getElementById('fp-max-year');
+  const minSet = minYEl?.value !== '';
+  const maxSet = maxYEl?.value !== '';
+  if (minSet || maxSet) {
+    const yrLabel = minSet && maxSet ? `${state.minYear}–${state.maxYear}`
+      : minSet ? `${state.minYear}+`
+      : `Through ${state.maxYear}`;
+    tags.push({
+      label: yrLabel,
+      remove: () => {
+        const minY = document.getElementById('fp-min-year');
+        const maxY = document.getElementById('fp-max-year');
+        if (minY) minY.value = '';
+        if (maxY) maxY.value = '';
+      },
+    });
+  }
+  state.features.forEach(f => tags.push({
+    label: FEATURE_LABELS[f] || f,
+    remove: () => { const cb = document.querySelector(`.fp-feature[value="${f}"]`); if (cb) cb.checked = false; },
+  }));
+  if (state.query) tags.push({ label: `"${state.query}"`, remove: () => { const si = document.getElementById('srp-search-input'); if (si) si.value = ''; } });
+  if (state.maxDist) {
+    const zip = (typeof Profile !== 'undefined' && Profile.marketZip) ? Profile.marketZip() : null;
+    tags.push({
+      label: zip ? `Within ${state.maxDist} mi of ${zip}` : `Within ${state.maxDist} mi`,
+      remove: () => { state.maxDist = 0; },
+    });
+  }
 
   container.innerHTML = tags.map((t,i) =>
     `<span class="a-tag">${t.label}<button data-idx="${i}" aria-label="Remove filter">&times;</button></span>`
@@ -985,6 +2299,21 @@ function populateVDP(v) {
   set('vdp-year', v.year);
   set('vdp-make-model', `${v.make} ${v.model}`);
   set('vdp-trim', `${v.trim} · ${v.extColor}`);
+
+  const trimDesc = (typeof Profile !== 'undefined' && Profile.trimDescription)
+    ? Profile.trimDescription(v) : '';
+  const trimOverview = document.getElementById('vdp-trim-overview');
+  const trimDescEl = document.getElementById('vdp-trim-desc');
+  if (trimOverview && trimDescEl) {
+    if (trimDesc) {
+      trimOverview.hidden = false;
+      trimDescEl.textContent = trimDesc;
+    } else {
+      trimOverview.hidden = true;
+      trimDescEl.textContent = '';
+    }
+  }
+
   set('vdp-price', formatPrice(v.price));
   set('vdp-monthly', `Est. <a href="#payment-calc">${formatPrice(monthly)}/mo</a> · <a href="#payment-calc">Payment Options</a> <button type="button" class="pa-trigger" id="pa-trigger" aria-label="What does this mean? Ask the assistant" aria-expanded="false"><i class="fa-solid fa-circle-question"></i></button>`);
   initPaymentAssistant();
@@ -1012,7 +2341,7 @@ function populateVDP(v) {
       ${v.owners===1?'<span class="vdp-flag flag-owner"><i class="fa-solid fa-circle-check"></i> 1 Owner</span>':''}
       ${v.accidentFree?'<span class="vdp-flag flag-clean"><i class="fa-solid fa-shield-halved"></i> Accident Free</span>':''}
       <span class="vdp-flag flag-carfax"><i class="fa-solid fa-file-shield"></i> Carfax Available</span>
-      <span class="vdp-flag" style="background:#f5f3ff;color:#6d28d9"><i class="fa-solid fa-map-marker-alt"></i> ${v.location}</span>
+      <span class="vdp-flag" style="background:#f5f3ff;color:#6d28d9"><i class="fa-solid fa-map-marker-alt"></i> ${vehicleLocationLabel(v)}</span>
     `;
   }
 
@@ -1026,7 +2355,7 @@ function populateVDP(v) {
       ['Drivetrain', v.drivetrain], ['Ext. Color', v.extColor], ['Int. Color', v.intColor],
       ['Fuel Economy', `${v.mpgCity} City / ${v.mpgHwy} Hwy`], ['Owners', `${v.owners} Owner${v.owners>1?'s':''}`],
       ['Stock #', v.stockNum], ['VIN', v.vin.substring(0,10)+'...'],
-      ['Location', v.location], ['Title', 'Clean Title'],
+      ['Location', vehicleLocationLabel(v)], ['Title', 'Clean Title'],
     ];
     specsEl.innerHTML = specs.map(([l,val]) => `
       <div class="spec-item">
@@ -1273,7 +2602,7 @@ function initVDPAiMode(v) {
         if (/owner/i.test(txt)) return { key: 'owner', title: 'Ownership history', text: 'A single previous owner usually means more consistent maintenance and fewer surprises.', chips: ['Was it a personal car?', 'How does this affect value?'] };
         if (/accident/i.test(txt)) return { key: 'accident', title: 'Accident-free', text: 'No accidents or structural damage are reported on this vehicle’s history record.', chips: ['How do you verify this?', 'Can I see the report?'] };
         if (/carfax/i.test(txt)) return { key: 'carfax', title: 'Vehicle history report', text: 'A full history report is available — ownership, service records, title status, and more.', chips: ['What’s in the report?', 'Is it free?'] };
-        return { key: 'location', title: 'Where this car is', text: `This vehicle is located at ${v.location}. We can arrange delivery or a transfer.`, chips: ['Can it be delivered?', 'How far is it?'] };
+        return { key: 'location', title: 'Where this car is', text: `This vehicle is ${vehicleLocationLabel(v).toLowerCase().replace(/^at /, 'at ')}. We can arrange delivery or a transfer.`, chips: ['Can it be delivered?', 'How far is it?'] };
       }
       case 'history': {
         const title = T('.hist-title'), sub = T('.hist-sub');
@@ -1586,12 +2915,12 @@ function toggleCompare(id) {
   }
   setCompareList(list);
   refreshCompareButtons();
-  renderCompareTray();
+  if (!isFavoritesPage()) renderCompareTray();
 }
 function clearCompare() {
   setCompareList([]);
   refreshCompareButtons();
-  renderCompareTray();
+  if (!isFavoritesPage()) renderCompareTray();
 }
 
 function refreshCompareButtons() {
@@ -1622,6 +2951,15 @@ function showCompareToast(msg) {
 }
 
 // ─── Compare Tray ──────────────────────────────────────
+function isCompareTrayPage() {
+  return !!document.getElementById('srp-grid')
+    || /srp\.html/i.test(window.location.pathname);
+}
+
+function isSrpPage() {
+  return isCompareTrayPage();
+}
+
 function ensureCompareTray() {
   let tray = document.getElementById('compare-tray');
   if (!tray) {
@@ -1635,6 +2973,11 @@ function ensureCompareTray() {
 
 function renderCompareTray() {
   const tray = ensureCompareTray();
+  if (!isCompareTrayPage()) {
+    tray.classList.remove('open');
+    tray.innerHTML = '';
+    return;
+  }
   const list = getCompareList();
   if (list.length === 0) {
     tray.classList.remove('open');
@@ -1908,7 +3251,7 @@ function compareRows(vehicles) {
 
     { label: 'Exterior', values: vehicles.map(v => ({ html: v.extColor, highlight: false })) },
     { label: 'Interior', values: vehicles.map(v => ({ html: v.intColor, highlight: false })) },
-    { label: 'Location', values: vehicles.map(v => ({ html: `<i class="fa-solid fa-location-dot" style="color:var(--text-light)"></i> ${v.location}`, highlight: false })) },
+    { label: 'Location', values: vehicles.map(v => ({ html: `<i class="fa-solid fa-location-dot" style="color:var(--text-light)"></i> ${vehicleLocationLabel(v)}`, highlight: false })) },
 
     { label: 'Key Features', values: vehicles.map(v => ({
       html: `<ul class="cm-feat-list">
@@ -2525,7 +3868,7 @@ function initTestDriveConfirmation() {
           <div class="td-detail-row"><span>Vehicle</span><strong>${title}</strong></div>
           <div class="td-detail-row"><span>Stock #</span><strong>${v.stockNum}</strong></div>
           <div class="td-detail-row"><span>Price</span><strong>${formatPrice(v.price)}</strong></div>
-          <div class="td-detail-row"><span>Location</span><strong>${v.location}</strong></div>
+          <div class="td-detail-row"><span>Location</span><strong>${vehicleLocationLabel(v)}</strong></div>
           <div class="td-detail-row"><span>When</span><strong>${escapeHtml(visit.when)}</strong></div>
           <div class="td-detail-row"><span>Where</span><strong>${escapeHtml(visit.where)}</strong></div>`;
       }
@@ -3115,13 +4458,19 @@ function parseSearchParams(q) {
   return P;
 }
 
-// Deterministic synthetic distance (miles) per vehicle — stable across the app.
+// Deterministic distance (miles) from participant zip — stable across the app.
 function vehicleDistance(v) {
-  return ((v.id * 7) % 12) * 9 + 6; // ~6–105 miles
+  if (typeof Profile !== 'undefined' && Profile.vehicleDistMiles) {
+    return Profile.vehicleDistMiles(v);
+  }
+  return ((v.id * 7) % 12) * 9 + 6;
 }
 
 function paramMatches(v, P) {
-  if (P.make && v.make !== P.make) return false;
+  if (P.make) {
+    const makes = Array.isArray(P.make) ? P.make : [P.make];
+    if (!makes.includes(v.make)) return false;
+  }
   if (P.body && v.body !== P.body) return false;
   if (P.drive && v.drivetrain !== P.drive) return false;
   if (P.maxPrice && v.price > P.maxPrice) return false;
@@ -3131,6 +4480,17 @@ function paramMatches(v, P) {
   if (P.maxYear && v.year > P.maxYear) return false;
   if (P.minMpg && v.mpgHwy < P.minMpg) return false;
   if (P.maxDist && vehicleDistance(v) > P.maxDist) return false;
+  if (P.q) {
+    const hay = `${v.year} ${v.make} ${v.model} ${v.trim}`.toLowerCase();
+    if (!hay.includes(String(P.q).toLowerCase())) return false;
+  }
+  if (P.model) {
+    const models = Array.isArray(P.model) ? P.model : [P.model];
+    if (!models.includes(v.model)) return false;
+  }
+  if (P.feat && P.feat.length) {
+    if (!P.feat.every(f => vehicleHasFeature(v, f))) return false;
+  }
   return true;
 }
 
@@ -3169,6 +4529,13 @@ function paramHref(P) {
   if (P.maxYear) u.set('maxYear', P.maxYear);
   if (P.minMpg) u.set('minMpg', P.minMpg);
   if (P.maxDist) u.set('maxDist', P.maxDist);
+  if (P.model) u.set('model', Array.isArray(P.model) ? P.model[0] : P.model);
+  if (Array.isArray(P.model) && P.model.length > 1) {
+    u.delete('model');
+    P.model.forEach(m => u.append('model', m));
+  }
+  if (P.q) u.set('q', P.q);
+  if (P.feat && P.feat.length) P.feat.forEach(f => u.append('feat', f));
   if (P.sort) u.set('sort', P.sort);
   return 'srp.html?' + u.toString();
 }

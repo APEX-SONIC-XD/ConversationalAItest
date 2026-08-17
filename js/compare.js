@@ -13,8 +13,11 @@ document.addEventListener('DOMContentLoaded', () => {
     || (typeof Profile !== 'undefined' && Profile.compareCars ? Profile.compareCars() : []);
   const CARS = rawCars.map(c => Object.assign({}, c, {
     dist: c.distMin != null ? c.distMin : (c.dist || 0),
+    distMiles: c.distMiles != null ? c.distMiles : 0,
   }));
   if (!CARS.length) return;
+
+  const zip = (typeof Profile !== 'undefined' && Profile.marketZip) ? Profile.marketZip() : null;
 
   // dir: 'min' = lower is better, 'max' = higher is better
   const METRICS = {
@@ -23,7 +26,8 @@ document.addEventListener('DOMContentLoaded', () => {
     hp:    { dir: 'max', label: 'most horsepower',    phrase: c => c.hp + ' hp' },
     zero:  { dir: 'min', label: 'quickest 0–60',      phrase: c => c.zero + 's 0–60' },
     miles: { dir: 'min', label: 'lowest mileage',     phrase: c => c.miles.toLocaleString() + ' mi' },
-    dist:  { dir: 'min', label: 'closest dealer',     phrase: c => (c.dist === 0 ? 'at your dealer' : c.dist + ' min away') },
+    dist:  { dir: 'min', label: 'closest to zip',     phrase: c => c.distance || (c.distMiles === 0 ? `at ${zip || 'your zip'}` : `${c.distMiles} mi from ${zip || 'zip'}`) },
+    monthly: { dir: 'min', label: 'lowest monthly payment', phrase: c => (typeof formatPrice === 'function' ? formatPrice(c.monthly) : '$' + c.monthly) + '/mo' },
     value: { dir: 'max', label: 'best value vs market', phrase: c => (c.value ? '$' + c.value.toLocaleString() + ' below market' : 'at market') },
   };
 
@@ -45,6 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const add = m => { if (!found.includes(m)) found.push(m); };
 
     if (/cheap|cheapest|price|budget|afford|inexpensive|low cost|save money|lowest/.test(t)) add('price');
+    if (/monthly|payment|per month|\/mo/.test(t)) add('monthly');
     if (/mpg|fuel|economy|efficien|gas mileage|eco|green/.test(t)) add('mpg');
     if (/horsepower|\bhp\b|power|powerful|strong engine/.test(t)) add('hp');
     if (/0-60|0–60|accelerat|quick|fastest|\bfast\b|sporty|fun to drive|performance/.test(t)) add('zero');

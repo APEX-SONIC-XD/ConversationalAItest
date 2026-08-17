@@ -2,6 +2,52 @@
 // reveals the actual body type during participant interviews.
 const SKETCH_IMG = 'https://plus.unsplash.com/premium_vector-1733984597729-fad43b660da0?fm=jpg&q=60&w=900&auto=format&fit=crop';
 
+// Model-level crash-test ratings (IIHS + NHTSA) for compare and saved views.
+const MODEL_SAFETY_RATINGS = {
+  'mazda|cx-5': { iihs: 'Top Safety Pick+', nhtsaOverall: 5, nhtsaFront: 5, nhtsaSide: 5, nhtsaRollover: 4 },
+  'ford|bronco sport': { iihs: 'Top Safety Pick', nhtsaOverall: 4, nhtsaFront: 5, nhtsaSide: 5, nhtsaRollover: 3 },
+  'honda|cr-v': { iihs: 'Top Safety Pick+', nhtsaOverall: 5, nhtsaFront: 5, nhtsaSide: 5, nhtsaRollover: 4 },
+  'honda|accord': { iihs: 'Top Safety Pick+', nhtsaOverall: 5, nhtsaFront: 5, nhtsaSide: 5, nhtsaRollover: 4 },
+  'toyota|rav4': { iihs: 'Top Safety Pick+', nhtsaOverall: 5, nhtsaFront: 5, nhtsaSide: 5, nhtsaRollover: 4 },
+  'toyota|camry': { iihs: 'Top Safety Pick+', nhtsaOverall: 5, nhtsaFront: 5, nhtsaSide: 5, nhtsaRollover: 4 },
+  'toyota|highlander': { iihs: 'Top Safety Pick+', nhtsaOverall: 5, nhtsaFront: 5, nhtsaSide: 5, nhtsaRollover: 4 },
+  'subaru|forester': { iihs: 'Top Safety Pick+', nhtsaOverall: 5, nhtsaFront: 5, nhtsaSide: 5, nhtsaRollover: 4 },
+  'hyundai|tucson': { iihs: 'Top Safety Pick', nhtsaOverall: 5, nhtsaFront: 5, nhtsaSide: 5, nhtsaRollover: 4 },
+  'kia|sportage': { iihs: 'Top Safety Pick', nhtsaOverall: 5, nhtsaFront: 5, nhtsaSide: 5, nhtsaRollover: 4 },
+  'volvo|xc60': { iihs: 'Top Safety Pick+', nhtsaOverall: 5, nhtsaFront: 5, nhtsaSide: 5, nhtsaRollover: 5 },
+  'acura|rdx': { iihs: 'Top Safety Pick+', nhtsaOverall: 5, nhtsaFront: 5, nhtsaSide: 5, nhtsaRollover: 4 },
+  'lexus|nx': { iihs: 'Top Safety Pick+', nhtsaOverall: 5, nhtsaFront: 5, nhtsaSide: 5, nhtsaRollover: 4 },
+  'chevrolet|equinox': { iihs: 'Top Safety Pick', nhtsaOverall: 5, nhtsaFront: 5, nhtsaSide: 5, nhtsaRollover: 4 },
+  'nissan|altima': { iihs: 'Top Safety Pick', nhtsaOverall: 5, nhtsaFront: 5, nhtsaSide: 5, nhtsaRollover: 4 },
+  'nissan|rogue': { iihs: 'Top Safety Pick', nhtsaOverall: 5, nhtsaFront: 5, nhtsaSide: 5, nhtsaRollover: 4 },
+};
+
+function safetyModelKey(make, model) {
+  return `${String(make || '').toLowerCase()}|${String(model || '').toLowerCase()}`;
+}
+
+function getVehicleSafetyRatings(v) {
+  if (!v) return null;
+  const key = safetyModelKey(v.make, v.model);
+  return MODEL_SAFETY_RATINGS[key] || {
+    iihs: 'Good',
+    nhtsaOverall: 4,
+    nhtsaFront: 4,
+    nhtsaSide: 4,
+    nhtsaRollover: 4,
+  };
+}
+
+function safetyCompareScore(ratings) {
+  if (!ratings) return 0;
+  const iihsScore = {
+    'Top Safety Pick+': 50,
+    'Top Safety Pick': 40,
+    Good: 25,
+  }[ratings.iihs] || 20;
+  return iihsScore + (ratings.nhtsaOverall || 0) * 10;
+}
+
 const BASE_VEHICLES = [
   {
     id: 1, stockNum: 'DC10001', vin: '1HGCV1F34MA001234',
@@ -626,6 +672,166 @@ const BASE_VEHICLES = [
     images: [SKETCH_IMG, SKETCH_IMG, SKETCH_IMG],
     description: 'Standout safety scores and a calm, upscale cabin. The mild-hybrid B5 AWD is smooth, efficient, and quietly quick — lowest price on many shortlists.',
     location: 'Fort Collins, CO'
+  },
+  {
+    id: 40, stockNum: 'DC10040', vin: '5TDGZRAH4MS012345',
+    year: 2021, make: 'Toyota', model: 'Highlander', trim: 'XLE',
+    body: 'SUV', extColor: 'Magnetic Gray Metallic', intColor: 'Black',
+    price: 42488, mileage: 28400, mpgCity: 20, mpgHwy: 27,
+    engine: '3.5L V6', hp: 295,
+    transmission: '8-Speed Automatic', drivetrain: 'AWD',
+    owners: 1, accidentFree: true,
+    dealBadge: 'great-deal', dealLabel: 'Great Deal', marketSavings: 1900,
+    features: ['Toyota Safety Sense 2.5+','Apple CarPlay / Android Auto','Power Liftgate',
+      'Heated Front Seats','Leather-Trimmed Seats','Third-Row Seating',
+      'Blind Spot Monitor','Rear Cross-Traffic Alert','LED Headlamps','All-Wheel Drive'],
+    images: [SKETCH_IMG, SKETCH_IMG, SKETCH_IMG],
+    description: 'This one-owner 2021 Toyota Highlander XLE AWD combines third-row flexibility with Toyota reliability. Smooth V6 power, Toyota Safety Sense, and priced below market — a strong match for buyers stepping up to a medium-large SUV.',
+    location: 'Denver, CO'
+  },
+  {
+    id: 41, stockNum: 'DC10041', vin: 'JM3KFBDM8P0456789',
+    year: 2023, make: 'Mazda', model: 'CX-5', trim: 'Grand Touring',
+    body: 'SUV', extColor: 'Deep Crystal Blue Mica', intColor: 'Parchment',
+    price: 31990, mileage: 21800, mpgCity: 24, mpgHwy: 30,
+    engine: '2.5L Turbocharged 4-Cyl', hp: 256,
+    transmission: '6-Speed Automatic', drivetrain: 'AWD',
+    owners: 1, accidentFree: true,
+    dealBadge: 'great-deal', dealLabel: 'Great Deal', marketSavings: 2200,
+    features: ['10.25" Mazda Connect','Apple CarPlay / Android Auto','Bose 10-Speaker Audio',
+      'Heated & Ventilated Leather Seats','Heated Rear Seats','Power Sunroof',
+      'Head-Up Display','360° View Monitor','Driver Attention Alert','i-ACTIVSENSE Safety Suite'],
+    images: [SKETCH_IMG, SKETCH_IMG, SKETCH_IMG],
+    description: 'This one-owner 2023 Mazda CX-5 Grand Touring AWD pairs leather, a power sunroof, and turbo performance with low miles — a strong fit for buyers who want a newer CX-5 without stepping up to a new model year price.',
+    location: 'Denver, CO'
+  },
+  {
+    id: 42, stockNum: 'DC10042', vin: '7FARS4H74PE123456',
+    year: 2023, make: 'Honda', model: 'CR-V', trim: 'EX-L',
+    body: 'SUV', extColor: 'Radiant Red Metallic', intColor: 'Black',
+    price: 28988, mileage: 26400, mpgCity: 28, mpgHwy: 34,
+    engine: '1.5L Turbocharged 4-Cyl', hp: 190,
+    transmission: 'CVT Automatic', drivetrain: 'AWD',
+    owners: 1, accidentFree: true,
+    dealBadge: 'great-deal', dealLabel: 'Great Deal', marketSavings: 900,
+    features: ['Honda Sensing Suite','Apple CarPlay / Android Auto','Leather-Trimmed Seats',
+      'Heated Front Seats','Power Moonroof','Hands-Free Power Tailgate',
+      'Wireless Phone Charger','Heated Steering Wheel','Multi-Angle Rearview Camera','All-Wheel Drive'],
+    images: [SKETCH_IMG, SKETCH_IMG, SKETCH_IMG],
+    description: 'A well-equipped 2023 Honda CR-V EX-L AWD with leather, a power moonroof, and one-owner history — newer model year with the comfort features buyers want in this segment.',
+    location: 'Littleton, CO'
+  },
+  {
+    id: 43, stockNum: 'DC10043', vin: 'JM3KFBCM8N0123456',
+    year: 2022, make: 'Mazda', model: 'CX-5', trim: '2.5 S Premium Plus',
+    body: 'SUV', extColor: 'Polymetal Gray Metallic', intColor: 'Black',
+    price: 27990, mileage: 31900, mpgCity: 25, mpgHwy: 31,
+    engine: '2.5L 4-Cylinder', hp: 187,
+    transmission: '6-Speed Automatic', drivetrain: 'AWD',
+    owners: 1, accidentFree: true,
+    dealBadge: 'great-deal', dealLabel: 'Great Deal', marketSavings: 1500,
+    features: ['8.8" Mazda Connect','Apple CarPlay / Android Auto','Leather Seat Trim',
+      'Heated Front Seats','Power Sunroof','Power Liftgate',
+      'Blind Spot Monitoring','Rear Cross-Traffic Alert','i-ACTIVSENSE Safety Suite','All-Wheel Drive'],
+    images: [SKETCH_IMG, SKETCH_IMG, SKETCH_IMG],
+    description: 'A well-equipped 2022 Mazda CX-5 2.5 S Premium Plus AWD with leather, a power sunroof, and one-owner history — the value sweet spot for buyers who want CX-5 comfort without turbo pricing.',
+    location: 'Denver, CO'
+  },
+  {
+    id: 44, stockNum: 'DC10044', vin: 'JM3KFBDM8N0456789',
+    year: 2022, make: 'Mazda', model: 'CX-5', trim: 'Turbo Signature',
+    body: 'SUV', extColor: 'Machine Gray Metallic', intColor: 'Parchment',
+    price: 29990, mileage: 28600, mpgCity: 23, mpgHwy: 29,
+    engine: '2.5L Turbocharged 4-Cyl', hp: 256,
+    transmission: '6-Speed Automatic', drivetrain: 'AWD',
+    owners: 1, accidentFree: true,
+    dealBadge: 'great-deal', dealLabel: 'Great Deal', marketSavings: 2100,
+    features: ['10.25" Mazda Connect','Apple CarPlay / Android Auto','Nappa Leather Seat Trim',
+      'Heated & Ventilated Front Seats','Power Sunroof','Bose 10-Speaker Audio',
+      '360° View Monitor','Adaptive Headlights','Driver Attention Alert','All-Wheel Drive'],
+    images: [SKETCH_IMG, SKETCH_IMG, SKETCH_IMG],
+    description: 'This one-owner 2022 Mazda CX-5 Turbo Signature AWD pairs Nappa leather, a power sunroof, and turbo performance — top-trim CX-5 for buyers open to stepping up from base leather + sunroof.',
+    location: 'Denver, CO'
+  },
+  {
+    id: 45, stockNum: 'DC10045', vin: 'JM3KFBDM9R0789012',
+    year: 2024, make: 'Mazda', model: 'CX-5', trim: 'Grand Touring',
+    body: 'SUV', extColor: 'Rhodium White Premium', intColor: 'Black',
+    price: 32490, mileage: 12400, mpgCity: 24, mpgHwy: 30,
+    engine: '2.5L Turbocharged 4-Cyl', hp: 256,
+    transmission: '6-Speed Automatic', drivetrain: 'AWD',
+    owners: 1, accidentFree: true,
+    dealBadge: 'low-miles', dealLabel: 'Low Miles', marketSavings: 1800,
+    features: ['10.25" Mazda Connect','Apple CarPlay / Android Auto','Leather Seat Trim',
+      'Heated & Ventilated Front Seats','Power Sunroof','Bose 10-Speaker Audio',
+      'Head-Up Display','360° View Monitor','i-ACTIVSENSE Safety Suite','All-Wheel Drive'],
+    images: [SKETCH_IMG, SKETCH_IMG, SKETCH_IMG],
+    description: 'Nearly new 2024 Mazda CX-5 Grand Touring AWD with turbo power, leather, power sunroof, and under 13k miles — the newest CX-5 in stock for buyers who want the latest model year.',
+    location: 'Denver, CO'
+  },
+  {
+    id: 46, stockNum: 'DC10046', vin: 'JM3KFBCM9P0234567',
+    year: 2023, make: 'Mazda', model: 'CX-5', trim: '2.5 S Carbon Edition',
+    body: 'SUV', extColor: 'Polymetal Gray Metallic', intColor: 'Black',
+    price: 29488, mileage: 33500, mpgCity: 25, mpgHwy: 31,
+    engine: '2.5L 4-Cylinder', hp: 187,
+    transmission: '6-Speed Automatic', drivetrain: 'AWD',
+    owners: 1, accidentFree: true,
+    dealBadge: 'great-deal', dealLabel: 'Great Deal', marketSavings: 1200,
+    features: ['8.8" Mazda Connect','Apple CarPlay / Android Auto','Leather Seat Trim',
+      'Heated Front Seats','Power Sunroof','Carbon Edition Styling Package',
+      'Blind Spot Monitoring','Rear Cross-Traffic Alert','i-ACTIVSENSE Safety Suite','All-Wheel Drive'],
+    images: [SKETCH_IMG, SKETCH_IMG, SKETCH_IMG],
+    description: 'Sportier 2023 Mazda CX-5 2.5 S Carbon Edition AWD with leather, power sunroof, and distinctive black accents — middle ground between Premium Plus and Grand Touring.',
+    location: 'Denver, CO'
+  },
+  {
+    id: 47, stockNum: 'DC10047', vin: '3FMCR9B63RRE12345',
+    year: 2023, make: 'Ford', model: 'Bronco Sport', trim: 'Big Bend',
+    body: 'SUV', extColor: 'Eruption Green Metallic', intColor: 'Ebony',
+    price: 27990, mileage: 28400, mpgCity: 25, mpgHwy: 30,
+    engine: '1.5L EcoBoost Turbo', hp: 181,
+    transmission: '8-Speed Automatic', drivetrain: '4WD',
+    owners: 1, accidentFree: true,
+    dealBadge: 'great-deal', dealLabel: 'Great Deal', marketSavings: 1400,
+    features: ['SYNC 4 Infotainment','Apple CarPlay / Android Auto','Leather-Trimmed Seats',
+      'Heated Front Seats','Power Sunroof','Power Liftgate','Ford Co-Pilot360',
+      'Blind Spot Information System','Rear Parking Sensors','Roof Rails','4WD'],
+    images: [SKETCH_IMG, SKETCH_IMG, SKETCH_IMG],
+    description: 'Capable 2023 Ford Bronco Sport Big Bend 4WD with turbo power and Ford Co-Pilot360 — a compact SUV with real off-road hardware and one-owner history.',
+    location: 'Denver, CO'
+  },
+  {
+    id: 48, stockNum: 'DC10048', vin: '3FMCR9B64SRE23456',
+    year: 2024, make: 'Ford', model: 'Bronco Sport', trim: 'Outer Banks',
+    body: 'SUV', extColor: 'Oxford White', intColor: 'Navy Pier',
+    price: 29490, mileage: 18600, mpgCity: 25, mpgHwy: 30,
+    engine: '1.5L EcoBoost Turbo', hp: 181,
+    transmission: '8-Speed Automatic', drivetrain: '4WD',
+    owners: 1, accidentFree: true,
+    dealBadge: 'low-miles', dealLabel: 'Low Miles', marketSavings: 1700,
+    features: ['SYNC 4 Infotainment','Apple CarPlay / Android Auto','Premium Leather-Trimmed Seats',
+      'Heated Front Seats','Panoramic Fixed-Glass Roof','Power Liftgate',
+      '360-Degree Camera','Adaptive Cruise Control','Blind Spot Monitor','4WD'],
+    images: [SKETCH_IMG, SKETCH_IMG, SKETCH_IMG],
+    description: 'Well-equipped 2024 Ford Bronco Sport Outer Banks 4WD with leather, panoramic roof, and low miles — the comfort-focused Bronco Sport trim.',
+    location: 'Denver, CO'
+  },
+  {
+    id: 49, stockNum: 'DC10049', vin: '3FMCR9B65TRE34567',
+    year: 2025, make: 'Ford', model: 'Bronco Sport', trim: 'Badlands',
+    body: 'SUV', extColor: 'Shadow Black', intColor: 'Ebony',
+    price: 29990, mileage: 9200, mpgCity: 25, mpgHwy: 30,
+    engine: '2.0L EcoBoost Turbo', hp: 250,
+    transmission: '8-Speed Automatic', drivetrain: '4WD',
+    owners: 1, accidentFree: true,
+    dealBadge: 'low-miles', dealLabel: 'Low Miles', marketSavings: 1900,
+    features: ['SYNC 4 Infotainment','Apple CarPlay / Android Auto','Leather-Trimmed Seats',
+      'Heated Front Seats','Power Sunroof','Off-Road Suspension',
+      'Trail Control','360-Degree Camera','Ford Co-Pilot360 Assist+','4WD'],
+    images: [SKETCH_IMG, SKETCH_IMG, SKETCH_IMG],
+    description: 'Nearly new 2025 Ford Bronco Sport Badlands 4WD with the 250 hp 2.0L turbo, leather, sunroof, and trail-ready hardware — lowest miles on the lot.',
+    location: 'Denver, CO'
   }
 ];
 
@@ -667,6 +873,19 @@ const VEHICLES = expandInventory(BASE_VEHICLES, COPIES_PER_VEHICLE);
 
 function getVehicleById(id) {
   return VEHICLES.find(v => v.id === parseInt(id));
+}
+
+function getSafetyRatingsFromLabel(name) {
+  const m = String(name || '').match(/^(\d{4})\s+(\S+)\s+(.+)$/);
+  if (!m) return getVehicleSafetyRatings({ make: '', model: '' });
+  const make = m[2];
+  const rest = m[3];
+  let model = rest;
+  if (/^cx-5/i.test(rest)) model = 'CX-5';
+  else if (/^bronco sport/i.test(rest)) model = 'Bronco Sport';
+  else if (/^cr-v/i.test(rest)) model = 'CR-V';
+  else model = rest.split(/\s+/).slice(0, 2).join(' ');
+  return getVehicleSafetyRatings({ make, model });
 }
 
 // Resolve a homepage pick to an inventory row for VDP linking only.
