@@ -27,6 +27,16 @@ Constraints: match DriveClear, fake data, no backend, fast
 - Static HTML first; no backend/APIs/real credit checks
 - Fake data only; assigned credit tiers (great 4.9%, good 6.9%, fair 9.9%, poor ~12%+)
 
+## Inventory check (automatic — mandatory)
+
+Whenever **`js/profile.js`** is edited (participant intent, homepage picks, market, appointment):
+
+1. **Hook runs automatically** — `.cursor/hooks/check-inventory-after-profile.sh` executes `node scripts/check-inventory.mjs`
+2. **Agent MUST include** the hook's PASS/FAIL + SRP count in the reply — never skip or bury it
+3. **If FAIL** — fix profile or inventory links before telling the facilitator to refresh; do not hand off a broken SRP
+
+Do not ask the facilitator to verify inventory manually unless the hook passed but they report a browser mismatch.
+
 ## AI UI options (pick one)
 
 1. VDP in-flow: `#pa-popover` / `initPaymentAssistant()` in `js/app.js`
@@ -43,3 +53,5 @@ Constraints: match DriveClear, fake data, no backend, fast
 ## After each change
 
 State: what changed, URL to refresh (`localhost:8000/...`), one sentence on what to show the participant.
+
+**If `js/profile.js` changed:** inventory check results (PASS/FAIL + SRP count) are required in the same reply — injected automatically by hook.

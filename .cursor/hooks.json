@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "hooks": {
+    "postToolUse": [
+      {
+        "command": ".cursor/hooks/check-inventory-after-profile.sh",
+        "matcher": "Write|StrReplace|EditNotebook"
+      }
+    ],
+    "afterFileEdit": [
+      {
+        "command": ".cursor/hooks/check-inventory-after-profile.sh"
+      }
+    ]
+  }
+}

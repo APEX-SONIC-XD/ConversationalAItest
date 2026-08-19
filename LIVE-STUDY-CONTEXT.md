@@ -116,6 +116,8 @@ Don't edit HTML or app.js.
 
 **Between sessions:** replace `PARTICIPANT` in `profile.js` with `js/profile.blank.js`, then fill for the next participant.
 
+**After every `profile.js` edit:** inventory check runs automatically (`.cursor/hooks.json` → `scripts/check-inventory.mjs`). Agent must report PASS/FAIL + SRP count before facilitator refresh.
+
 ## VDP assistant (in-flow AI)
 
 | Element | ID / location |
