@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Compare Cars Across Dealers — DriveClear</title>
+  <title>My Favorites — DriveClear</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
@@ -24,7 +24,7 @@
     </form>
     <ul class="nav-links">
       <li><a href="srp.html">Used Cars</a></li>
-      <li><a href="favorites.html">Favorites</a></li>
+      <li><a href="favorites.html" class="active">Favorites</a></li>
       <li><a href="sell-trade.html">Sell / Trade</a></li>
       <li><a href="financing.html">Financing</a></li>
     </ul>
@@ -50,50 +50,16 @@
     <div class="bc-inner">
       <a href="index.html">Home</a>
       <i class="fa-solid fa-chevron-right"></i>
-      <a href="srp.html">Used Cars</a>
-      <i class="fa-solid fa-chevron-right"></i>
-      <span>Compare</span>
+      <span>Favorites</span>
     </div>
   </div>
 </div>
 
-<!-- ═══════════════════════ COMPARE PAGE ═══════════════════════ -->
-<div class="container" style="padding-top:40px;padding-bottom:24px">
-  <section class="xdc" aria-label="Compare new cars across dealers">
-    <div class="xdc-head">
-      <div class="xdc-head-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
-      <div>
-        <div class="xdc-eyebrow">DriveClear Assistant · Cross-dealer compare</div>
-        <h2 class="xdc-title" id="xdc-title">Your shortlist — compared on what matters</h2>
-        <p class="xdc-sub" id="xdc-sub">Side-by-side on price, performance, mileage, and value for your shortlisted vehicles.</p>
-      </div>
-    </div>
-
-    <!-- Conversational analysis -->
-    <div class="cmp-chat" id="cmp-chat">
-      <div class="cmp-chat-log" id="cmp-chat-log" aria-live="polite"></div>
-      <div class="cmp-chat-chips">
-        <button class="cmp-chip" type="button">I care most about price</button>
-        <button class="cmp-chip" type="button">Best fuel economy</button>
-        <button class="cmp-chip" type="button">Most fun to drive</button>
-        <button class="cmp-chip" type="button">Closest to me</button>
-        <button class="cmp-chip" type="button">Best overall value</button>
-      </div>
-      <form class="cmp-chat-form" id="cmp-chat-form">
-        <input type="text" id="cmp-chat-input" placeholder="Tell the assistant what matters most — e.g. “I want the cheapest with good mpg”" autocomplete="off" aria-label="Tell the assistant what matters most">
-        <button type="submit" aria-label="Send message"><i class="fa-solid fa-arrow-up"></i></button>
-      </form>
-    </div>
-
-    <div class="xdc-table-wrap">
-      <table class="xdc-table">
-        <!-- Rendered by initComparePage() in app.js from profile.js picks -->
-      </table>
-    </div>
-    <div class="xdc-foot" id="xdc-foot">
-      <i class="fa-solid fa-circle-info"></i> Rankings update when you tell the assistant what matters most.
-    </div>
-  </section>
+<div class="container" style="padding-top:40px;padding-bottom:64px">
+  <div class="section-row" style="margin-bottom:24px">
+    <h1 class="section-title" id="favorites-title"><i class="fa-solid fa-heart" style="color:var(--red);margin-right:10px"></i>My Favorites</h1>
+  </div>
+  <div class="v-grid" id="favorites-grid" style="grid-template-columns:repeat(3,1fr)"></div>
 </div>
 
 <!-- ═══════════════════════ FOOTER ═══════════════════════ -->
@@ -106,20 +72,13 @@
           Drive<span class="accent">Clear</span>
         </a>
         <p>DriveClear is the smarter way to buy a used car. Transparent pricing, zero dealer fees, and a 7-day return guarantee.</p>
-        <div class="footer-social">
-          <a href="#" aria-label="Facebook"><i class="fa-brands fa-facebook-f"></i></a>
-          <a href="#" aria-label="Instagram"><i class="fa-brands fa-instagram"></i></a>
-          <a href="#" aria-label="Twitter"><i class="fa-brands fa-x-twitter"></i></a>
-          <a href="#" aria-label="YouTube"><i class="fa-brands fa-youtube"></i></a>
-        </div>
       </div>
       <div>
         <div class="footer-col-title">Shop</div>
         <ul class="footer-links">
           <li><a href="srp.html">All Used Cars</a></li>
-          <li><a href="srp.html?body=SUV">SUVs</a></li>
-          <li><a href="srp.html?body=Sedan">Sedans</a></li>
-          <li><a href="srp.html?body=Truck">Trucks</a></li>
+          <li><a href="favorites.html">My Favorites</a></li>
+          <li><a href="compare.html">Compare</a></li>
         </ul>
       </div>
       <div>
@@ -127,7 +86,6 @@
         <ul class="footer-links">
           <li><a href="#">About DriveClear</a></li>
           <li><a href="#">How It Works</a></li>
-          <li><a href="#">Careers</a></li>
           <li><a href="#">Contact Us</a></li>
         </ul>
       </div>
@@ -136,17 +94,12 @@
         <ul class="footer-links">
           <li><a href="financing.html">Financing</a></li>
           <li><a href="sell-trade.html">Sell / Trade In</a></li>
-          <li><a href="#">Find a Location</a></li>
           <li><a href="#">FAQ</a></li>
         </ul>
       </div>
     </div>
     <div class="footer-bottom">
       <p>© 2024 DriveClear Automotive, Inc. All rights reserved.</p>
-      <p>
-        <a href="#" style="color:rgba(255,255,255,0.4);margin-right:16px">Privacy Policy</a>
-        <a href="#" style="color:rgba(255,255,255,0.4)">Terms of Use</a>
-      </p>
     </div>
   </div>
 </footer>
@@ -154,6 +107,5 @@
 <script src="js/inventory.js"></script>
 <script src="js/profile.js"></script>
 <script src="js/app.js"></script>
-<script src="js/compare.js"></script>
 </body>
 </html>

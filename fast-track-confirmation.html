@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Test Drive Scheduled — DriveClear</title>
+  <title>Fast Track Purchase Started — DriveClear</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
@@ -23,7 +23,7 @@
       <input type="text" name="q" placeholder="Search make, model, year…" aria-label="Search vehicles" autocomplete="off">
     </form>
     <ul class="nav-links">
-      <li><a href="srp.html" class="active">Used Cars</a></li>
+      <li><a href="srp.html">Used Cars</a></li>
       <li><a href="favorites.html">Favorites</a></li>
       <li><a href="sell-trade.html">Sell / Trade</a></li>
       <li><a href="financing.html">Financing</a></li>
@@ -45,22 +45,22 @@
 </nav>
 
 <!-- ═══════════════════════ CONFIRMATION ═══════════════════════ -->
-<div class="container" id="td-confirm-root">
+<div class="container" id="ft-confirm-root">
   <div style="max-width:620px;margin:64px auto 88px">
     <div class="info-card" style="text-align:center;padding:48px 32px">
-      <i class="fa-solid fa-circle-check" style="font-size:60px;color:var(--teal);margin-bottom:20px"></i>
-      <h1 style="font-size:clamp(26px,3.5vw,34px);font-weight:800;letter-spacing:-0.5px;color:var(--text-dark);margin-bottom:12px">Test Drive Scheduled!</h1>
+      <i class="fa-solid fa-bolt" style="font-size:60px;color:var(--teal);margin-bottom:20px"></i>
+      <h1 style="font-size:clamp(26px,3.5vw,34px);font-weight:800;letter-spacing:-0.5px;color:var(--text-dark);margin-bottom:12px">Fast Track Purchase Started!</h1>
       <p style="font-size:16px;color:var(--text-mid);line-height:1.65;max-width:480px;margin:0 auto 8px">
-        You're all set to drive the <strong id="td-vehicle" style="color:var(--text-dark)">vehicle</strong>. We've sent a confirmation to your email with directions and what to bring.
+        You're set to finish the <strong id="ft-vehicle" style="color:var(--text-dark)">vehicle</strong> in about <strong id="ft-eta" style="color:var(--text-dark)">45</strong> minutes in store — we've pre-filled your profile so you're not waiting at the finance desk.
       </p>
       <p style="font-size:16px;color:var(--text-mid);line-height:1.65;max-width:480px;margin:0 auto">
-        Your specialist will have the keys ready — <strong style="color:var(--text-dark)">no pressure, no haggle</strong>, just a chance to see if it's the right fit.
+        Your locked price and application are ready — <strong style="color:var(--text-dark)">just sign and drive</strong>.
       </p>
 
-      <div class="info-card td-details-card" id="td-details" style="margin-top:28px;text-align:left;padding:20px 22px"></div>
+      <div class="info-card td-details-card" id="ft-details" style="margin-top:28px;text-align:left;padding:20px 22px"></div>
 
       <div style="display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:28px">
-        <a href="vdp.html?id=1" class="btn btn-outline btn-lg" id="td-vdp-link">
+        <a href="vdp.html?id=411" class="btn btn-outline btn-lg" id="ft-vdp-link">
           <i class="fa-solid fa-car"></i> View Vehicle Details
         </a>
         <a href="srp.html" class="btn btn-primary btn-lg">
@@ -70,66 +70,48 @@
     </div>
 
     <p style="text-align:center;font-size:13px;color:var(--text-light);margin-top:18px">
-      Questions before your visit? Call us at <strong style="color:var(--text-mid)">(800) 555-1234</strong>.
+      Need to reschedule? Call us at <strong style="color:var(--text-mid)">(800) 555-1234</strong>.
     </p>
   </div>
 </div>
 
-<!-- ═══════════════════════ AI TEST DRIVE PREP ═══════════════════════ -->
+<!-- ═══════════════════════ AI FAST TRACK PREP ═══════════════════════ -->
 <div class="container">
-  <section class="fin-prep" id="td-prep" aria-label="AI test drive prep">
+  <section class="fin-prep" id="ft-prep" aria-label="AI Fast Track purchase prep">
     <div class="fin-prep-head">
-      <div class="section-tag"><i class="fa-solid fa-wand-magic-sparkles"></i> AI Test Drive Prep</div>
-      <h2 class="section-title">Walk in ready — know what to bring, what to check, and what's optional</h2>
-      <p class="section-sub" id="td-prep-sub">Personalized for your upcoming test drive.</p>
+      <div class="section-tag"><i class="fa-solid fa-wand-magic-sparkles"></i> AI Fast Track Prep</div>
+      <h2 class="section-title">Walk in ready — finish in ~45 minutes, not hours</h2>
+      <p class="section-sub" id="ft-prep-sub">Personalized for your upcoming purchase visit.</p>
     </div>
 
-    <div class="info-card fp-card td-prep-tabs-card">
-      <div class="td-prep-tabs" role="tablist" aria-label="Test drive prep">
-        <button type="button" class="td-prep-tab active" role="tab" id="td-tab-visit" aria-selected="true" aria-controls="td-panel-visit" data-tab="visit">
-          <i class="fa-solid fa-clipboard-check"></i> Bring &amp; expect
-        </button>
-        <button type="button" class="td-prep-tab" role="tab" id="td-tab-tips" aria-selected="false" aria-controls="td-panel-tips" data-tab="tips">
-          <i class="fa-solid fa-magnifying-glass"></i> On the drive
-        </button>
-        <button type="button" class="td-prep-tab" role="tab" id="td-tab-plans" aria-selected="false" aria-controls="td-panel-plans" data-tab="plans" aria-label="Protection plans">
-          <i class="fa-solid fa-shield-halved"></i> Protection
-        </button>
-        <button type="button" class="td-prep-tab" role="tab" id="td-tab-ask" aria-selected="false" aria-controls="td-panel-ask" data-tab="ask" aria-label="Ask before you go">
-          <i class="fa-solid fa-comments"></i> Ask first
-        </button>
-      </div>
+    <div class="info-card fp-card">
+      <h3 class="fin-prep-card-title"><i class="fa-solid fa-circle-check"></i> What's already done for you</h3>
+      <div class="fp-ai-byline" id="ft-done-byline"></div>
+      <div id="ft-done-body"></div>
+    </div>
 
-      <div class="td-prep-panel active" id="td-panel-visit" role="tabpanel" aria-labelledby="td-tab-visit">
-        <h3 class="fin-prep-card-title"><i class="fa-solid fa-clipboard-check"></i> What to bring &amp; expect</h3>
-        <div class="fp-ai-byline" id="td-visit-byline"></div>
-        <div id="td-visit-body"></div>
-      </div>
+    <div class="info-card fp-card">
+      <h3 class="fin-prep-card-title"><i class="fa-solid fa-stopwatch"></i> Your in-store timeline</h3>
+      <div class="fp-ai-byline" id="ft-timeline-byline"></div>
+      <div id="ft-timeline-body"></div>
+      <div class="fp-takeaway" id="ft-timeline-takeaway" hidden></div>
+    </div>
 
-      <div class="td-prep-panel" id="td-panel-tips" role="tabpanel" aria-labelledby="td-tab-tips" hidden>
-        <h3 class="fin-prep-card-title"><i class="fa-solid fa-magnifying-glass"></i> What to look for on this drive</h3>
-        <div class="fp-ai-byline" id="td-tips-byline"></div>
-        <div id="td-tips-body"></div>
-        <button type="button" class="fp-more-btn" id="td-more-tips"><i class="fa-solid fa-wand-magic-sparkles"></i> Generate more tips for this car</button>
-      </div>
+    <div class="info-card fp-card">
+      <h3 class="fin-prep-card-title"><i class="fa-solid fa-clipboard-list"></i> What to bring</h3>
+      <div class="fp-ai-byline" id="ft-bring-byline"></div>
+      <div id="ft-bring-body"></div>
+    </div>
 
-      <div class="td-prep-panel" id="td-panel-plans" role="tabpanel" aria-labelledby="td-tab-plans" hidden>
-        <h3 class="fin-prep-card-title"><i class="fa-solid fa-shield-halved"></i> Protection plans worth knowing</h3>
-        <div class="fp-ai-byline" id="td-plans-byline"></div>
-        <div id="td-plans-body"></div>
-        <div class="fp-takeaway" id="td-plans-takeaway" hidden></div>
-      </div>
-
-      <div class="td-prep-panel" id="td-panel-ask" role="tabpanel" aria-labelledby="td-tab-ask" hidden>
-        <h3 class="fin-prep-card-title"><i class="fa-solid fa-comments"></i> Ask before you go</h3>
-        <p class="form-card-sub" id="td-ask-intro" style="margin-bottom:16px">You're putting a new driver on the road — I'll help you ask the questions that get straight answers, so you can tell when a dealership is being transparent.</p>
-        <div class="fp-chat-body" id="td-chat-body"></div>
-        <div class="fp-chips" id="td-chat-chips"></div>
-        <form class="fp-chat-form" id="td-chat-form">
-          <input type="text" class="fp-chat-input" id="td-chat-input" placeholder="Ask what builds trust at the dealership…" autocomplete="off" aria-label="Ask what builds trust at the dealership">
-          <button type="submit" class="fp-chat-send" aria-label="Send"><i class="fa-solid fa-arrow-up"></i></button>
-        </form>
-      </div>
+    <div class="info-card fp-chat-card">
+      <h3 class="fin-prep-card-title"><i class="fa-solid fa-comments"></i> Ask before you walk in</h3>
+      <p class="form-card-sub" id="ft-ask-intro" style="margin-bottom:16px">You're putting a new driver on the road — I'll help you ask the questions that get straight answers, so you can tell when a dealership is being transparent.</p>
+      <div class="fp-chat-body" id="ft-chat-body"></div>
+      <div class="fp-chips" id="ft-chat-chips"></div>
+      <form class="fp-chat-form" id="ft-chat-form">
+        <input type="text" class="fp-chat-input" id="ft-chat-input" placeholder="Ask what builds trust at the dealership…" autocomplete="off" aria-label="Ask what builds trust at the dealership">
+        <button type="submit" class="fp-chat-send" aria-label="Send"><i class="fa-solid fa-arrow-up"></i></button>
+      </form>
     </div>
   </section>
 </div>

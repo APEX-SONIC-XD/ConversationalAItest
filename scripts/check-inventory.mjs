@@ -27,10 +27,19 @@ function loadDriveClear() {
 }
 
 function vehicleDistance(v) {
+  if (typeof Profile !== 'undefined' && Profile.milesFromZip && v.location) {
+    const miles = Profile.milesFromZip(v.location);
+    if (miles != null) return miles;
+  }
   return ((v.id * 7) % 12) * 9 + 6;
 }
 
+function vehicleHasBlindSpot(v) {
+  return (v.features || []).some(f => /blind\s*spot|lane change alert|\bblis\b/i.test(f));
+}
+
 function srpStateFromProfile(Profile) {
+  if (Profile?.srpFilters) return Profile.srpFilters();
   const pp = Profile.toParams();
   return {
     make: [].concat(pp.make || []),
@@ -43,6 +52,9 @@ function srpStateFromProfile(Profile) {
     maxYear: pp.maxYear || 2024,
     minMpg: pp.minMpg || 0,
     maxDist: pp.maxDist || 0,
+    accidentFree: pp.accidentFree === true,
+    cleanTitle: pp.cleanTitle === true,
+    blindSpot: pp.blindSpot === true,
     query: '',
   };
 }
@@ -57,6 +69,9 @@ function filterSRP(VEHICLES, state) {
     if (v.year < state.minYear || v.year > state.maxYear) return false;
     if (state.minMpg && v.mpgHwy < state.minMpg) return false;
     if (state.maxDist && vehicleDistance(v) > state.maxDist) return false;
+    if (state.accidentFree && !v.accidentFree) return false;
+    if (state.cleanTitle && !v.accidentFree) return false;
+    if (state.blindSpot && !vehicleHasBlindSpot(v)) return false;
     if (state.query) {
       const haystack = `${v.year} ${v.make} ${v.model} ${v.trim} ${v.body} ${v.extColor}`.toLowerCase();
       if (!haystack.includes(state.query)) return false;
@@ -76,6 +91,9 @@ function buildSrpUrl(state) {
   if (state.maxYear < 2024) u.set('maxYear', state.maxYear);
   if (state.minMpg) u.set('minMpg', state.minMpg);
   if (state.maxDist) u.set('maxDist', state.maxDist);
+  if (state.accidentFree) u.set('accidentFree', '1');
+  if (state.cleanTitle) u.set('cleanTitle', '1');
+  if (state.blindSpot) u.set('blindSpot', '1');
   const qs = u.toString();
   return qs ? `srp.html?${qs}` : 'srp.html';
 }

@@ -24,6 +24,7 @@
     </form>
     <ul class="nav-links">
       <li><a href="srp.html" class="active">Used Cars</a></li>
+      <li><a href="favorites.html">Favorites</a></li>
       <li><a href="sell-trade.html">Sell / Trade</a></li>
       <li><a href="financing.html">Financing</a></li>
     </ul>
@@ -38,6 +39,7 @@
 <nav class="mobile-nav">
   <a href="index.html">Home</a>
   <a href="srp.html">Used Cars</a>
+  <a href="favorites.html">Favorites</a>
   <a href="sell-trade.html">Sell / Trade</a>
   <a href="financing.html">Financing</a>
 </nav>
@@ -204,6 +206,8 @@
 
         <div class="vdp-price" id="vdp-price">—</div>
         <div class="vdp-mo" id="vdp-monthly"></div>
+        <div class="vdp-insurance" id="vdp-insurance"></div>
+        <div class="vdp-total-mo" id="vdp-total-mo"></div>
 
         <!-- Payment Options AI Assistant Popover -->
         <div class="pa-popover" id="pa-popover" hidden role="dialog" aria-label="Payment options assistant">
@@ -235,6 +239,7 @@
           <div class="pa-chips" id="pa-chips" aria-label="Suggested questions">
             <button type="button" class="pa-chip" data-q="How does APR affect my monthly payment?">How does APR affect my payment?</button>
             <button type="button" class="pa-chip" data-q="What down payment do you recommend?">What down payment should I put down?</button>
+            <button type="button" class="pa-chip" data-q="What will insurance cost for a teen driver?">What about insurance?</button>
             <button type="button" class="pa-chip" data-q="Can I trade in my current vehicle?">Can I trade in my current car?</button>
           </div>
 
@@ -269,6 +274,17 @@
             <div class="vdp-stat-v" id="vdp-drivetrain-stat">—</div>
             <div class="vdp-stat-l">Drivetrain</div>
           </div>
+        </div>
+
+        <!-- Fast Track Purchase (shown for profile-configured vehicle) -->
+        <div class="vdp-card vdp-fast-track" id="vdp-fast-track" hidden>
+          <div class="ft-badge"><i class="fa-solid fa-bolt"></i> Fast Track Purchase</div>
+          <h3 class="ft-title">Save time in store — finish in ~45 minutes</h3>
+          <p class="ft-copy" id="vdp-fast-track-copy"></p>
+          <ul class="ft-checklist" id="vdp-fast-track-checklist"></ul>
+          <a href="#" class="btn btn-primary btn-block" id="vdp-fast-track-btn">
+            <i class="fa-solid fa-bolt"></i> Start Fast Track Purchase
+          </a>
         </div>
 
         <!-- CTAs -->

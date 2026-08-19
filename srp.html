@@ -24,6 +24,7 @@
     </form>
     <ul class="nav-links">
       <li><a href="srp.html" class="active">Used Cars</a></li>
+      <li><a href="favorites.html">Favorites</a></li>
       <li><a href="sell-trade.html">Sell / Trade</a></li>
       <li><a href="financing.html">Financing</a></li>
     </ul>
@@ -38,6 +39,7 @@
 <nav class="mobile-nav">
   <a href="index.html">Home</a>
   <a href="srp.html">Used Cars</a>
+  <a href="favorites.html">Favorites</a>
   <a href="sell-trade.html">Sell / Trade</a>
   <a href="financing.html">Financing</a>
 </nav>
@@ -137,6 +139,7 @@
           <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
             <button class="btn btn-ghost btn-sm price-preset" data-max="20000">Under $20k</button>
             <button class="btn btn-ghost btn-sm price-preset" data-max="25000">Under $25k</button>
+            <button class="btn btn-ghost btn-sm price-preset" data-max="26000">Under $26k</button>
             <button class="btn btn-ghost btn-sm price-preset" data-max="30000">Under $30k</button>
           </div>
         </div>
@@ -149,7 +152,7 @@
         </div>
         <div class="fp-range">
           <div class="fp-range-row">
-            <input class="fp-range-input" id="fp-min-year" type="number" placeholder="From" value="2018" min="2010" max="2024" aria-label="Minimum year">
+            <input class="fp-range-input" id="fp-min-year" type="number" placeholder="From" min="2010" max="2024" aria-label="Minimum year">
             <input class="fp-range-input" id="fp-max-year" type="number" placeholder="To" value="2024" min="2010" max="2024" aria-label="Maximum year">
           </div>
         </div>
@@ -163,6 +166,7 @@
         <div class="fp-range">
           <input class="fp-range-input" id="fp-max-miles" type="number" placeholder="e.g. 50000" min="0" step="5000" style="width:100%" aria-label="Maximum mileage">
           <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+            <button class="btn btn-ghost btn-sm miles-preset" data-max="20000">20k</button>
             <button class="btn btn-ghost btn-sm miles-preset" data-max="25000">25k</button>
             <button class="btn btn-ghost btn-sm miles-preset" data-max="50000">50k</button>
             <button class="btn btn-ghost btn-sm miles-preset" data-max="75000">75k</button>
@@ -182,19 +186,30 @@
         </div>
       </div>
 
+      <!-- Vehicle history -->
+      <div class="fp-section">
+        <div class="fp-title" role="button" tabindex="0" aria-expanded="true">
+          Vehicle History <i class="fa-solid fa-chevron-down"></i>
+        </div>
+        <div class="fp-opts">
+          <label class="fp-opt"><input type="checkbox" class="fp-history" id="fp-accident-free" value="accidentFree"> Accident-free</label>
+          <label class="fp-opt"><input type="checkbox" class="fp-history" id="fp-clean-title" value="cleanTitle"> Clean title</label>
+        </div>
+      </div>
+
       <!-- Features -->
       <div class="fp-section">
         <div class="fp-title" role="button" tabindex="0" aria-expanded="true">
           Features <i class="fa-solid fa-chevron-down"></i>
         </div>
         <div class="fp-opts">
-          <label class="fp-opt"><input type="checkbox"> Apple CarPlay</label>
-          <label class="fp-opt"><input type="checkbox"> Sunroof / Moonroof</label>
-          <label class="fp-opt"><input type="checkbox"> Heated Seats</label>
-          <label class="fp-opt"><input type="checkbox"> Backup Camera</label>
-          <label class="fp-opt"><input type="checkbox"> Blind Spot Monitor</label>
-          <label class="fp-opt"><input type="checkbox"> Leather Seats</label>
-          <label class="fp-opt"><input type="checkbox"> Navigation</label>
+          <label class="fp-opt"><input type="checkbox" class="fp-feature" id="fp-blind-spot" value="blindSpot"> Blind Spot Monitor</label>
+          <label class="fp-opt"><input type="checkbox" disabled> Apple CarPlay</label>
+          <label class="fp-opt"><input type="checkbox" disabled> Sunroof / Moonroof</label>
+          <label class="fp-opt"><input type="checkbox" disabled> Heated Seats</label>
+          <label class="fp-opt"><input type="checkbox" disabled> Backup Camera</label>
+          <label class="fp-opt"><input type="checkbox" disabled> Leather Seats</label>
+          <label class="fp-opt"><input type="checkbox" disabled> Navigation</label>
         </div>
       </div>
       </div>
@@ -204,6 +219,7 @@
 
     <!-- ─── Results ─── -->
     <div class="srp-results">
+      <div id="srp-stores" class="store-strip-wrap" hidden></div>
       <div class="active-tags" id="active-tags"></div>
       <div class="v-grid" id="srp-grid" style="grid-template-columns:repeat(3,1fr)">
         <!-- Rendered by app.js -->

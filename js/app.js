@@ -57,6 +57,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // SRP init
   if (document.getElementById('srp-grid')) initSRP();
 
+  // Favorites page
+  if (document.getElementById('favorites-grid')) initFavorites();
+
   // VDP init
   if (document.getElementById('vdp-root')) initVDP();
 
@@ -71,15 +74,59 @@ document.addEventListener('DOMContentLoaded', () => {
   if (document.getElementById('fin-prep')) initFinancePrep();
   if (document.getElementById('trade-prep')) initTradePrep();
   if (document.getElementById('td-confirm-root') || document.getElementById('td-prep')) initTestDriveConfirmation();
+  if (document.getElementById('ft-confirm-root') || document.getElementById('ft-prep')) initFastTrackConfirmation();
 });
 
 // ─── Homepage AI recommendations (reads PARTICIPANT.homepage) ───
+function inventoryFallbackPicks(limit = 3) {
+  if (typeof VEHICLES === 'undefined' || !VEHICLES.length) return [];
+  const P = (typeof Profile !== 'undefined' && Profile.toParams) ? Profile.toParams() : {};
+  const pool = (typeof paramMatches === 'function')
+    ? VEHICLES.filter(v => paramMatches(v, P))
+    : VEHICLES;
+  const source = pool.length ? pool : VEHICLES;
+  return source.slice(0, limit).map(v => ({
+    key: 'inv-' + v.id,
+    vdpId: v.id,
+    year: v.year,
+    make: v.make,
+    model: v.model,
+    name: `${v.year} ${v.make} ${v.model}`,
+    trimLabel: v.trim,
+    price: typeof formatPrice === 'function' ? formatPrice(v.price) : ('$' + v.price),
+    match: 'In stock',
+    location: v.location,
+    specs: [
+      { icon: 'road', text: typeof formatMileage === 'function' ? formatMileage(v.mileage) : (v.mileage + ' mi') },
+      { icon: 'gas-pump', text: `${v.mpgCity}/${v.mpgHwy} MPG` },
+    ],
+    expert: `In stock at ${v.location}.`,
+    ownersRating: '4.6/5',
+    ownersText: 'Owners generally rate this model well for everyday driving.',
+    drawer: {
+      dealer: (typeof PARTICIPANT !== 'undefined' && PARTICIPANT.homepage && PARTICIPANT.homepage.titleAccent) || 'DriveClear',
+      distance: v.location,
+      intro: `Here's what's on the lot for the <strong>${v.year} ${v.make} ${v.model}</strong>.`,
+      specs: [
+        ['Year', String(v.year)],
+        ['Mileage', typeof formatMileage === 'function' ? formatMileage(v.mileage) : String(v.mileage)],
+        ['Drivetrain', v.drivetrain],
+        ['Price', typeof formatPrice === 'function' ? formatPrice(v.price) : String(v.price)],
+      ],
+      fit: `Available near you in ${v.location}.`,
+      watch: 'Share budget and must-haves and I can tighten this shortlist.',
+      chips: ['Is the price fair?', 'How reliable is it?'],
+    },
+  }));
+}
+
 function initHomepageRec() {
   const grid = document.getElementById('ai-rec-grid');
   if (!grid || typeof PARTICIPANT === 'undefined') return;
 
-  const hp = PARTICIPANT.homepage;
-  if (!hp || !hp.picks || !hp.picks.length) return;
+  const hp = PARTICIPANT.homepage || {};
+  const picks = (hp.picks && hp.picks.length) ? hp.picks : inventoryFallbackPicks();
+  if (!picks.length) return;
 
   const titleEl = document.getElementById('ai-rec-title');
   if (titleEl) {
@@ -105,7 +152,7 @@ function initHomepageRec() {
   const sketch = 'https://plus.unsplash.com/premium_vector-1733984597729-fad43b660da0?fm=jpg&q=60&w=900&auto=format&fit=crop';
   const drawerCars = {};
 
-  grid.innerHTML = hp.picks.map(pick => {
+  grid.innerHTML = picks.map(pick => {
     const v = typeof findVehicleForPick === 'function' ? findVehicleForPick(pick) : null;
     const img = pick.imageUrl || v?.images?.[0] || sketch;
     const name = pick.name || (v ? `${v.year} ${v.make} ${v.model}` : 'Vehicle');
@@ -118,6 +165,7 @@ function initHomepageRec() {
     const specsHtml = (pick.specs || []).map(s =>
       `<span><i class="fa-solid fa-${escapeHtml(s.icon)}"></i> ${escapeHtml(s.text)}</span>`
     ).join('');
+    const insHtml = v ? insuranceHTML(v) : '';
 
     const d = pick.drawer || {};
     drawerCars[pick.key] = {
@@ -150,6 +198,7 @@ function initHomepageRec() {
           <span class="ai-rec-price">${escapeHtml(price)}</span>
           ${pick.warrantyBadge ? `<span class="ai-rec-warranty"><i class="fa-solid fa-shield-halved"></i> ${escapeHtml(pick.warrantyBadge)}</span>` : ''}
         </div>
+        ${insHtml}
         ${specsHtml ? `<div class="ai-rec-specs">${specsHtml}</div>` : ''}
         ${pick.expert ? `<div class="ai-rec-insight ai-rec-expert">
           <div class="ai-rec-insight-label"><i class="fa-solid fa-user-tie"></i> Expert take</div>
@@ -172,6 +221,7 @@ function initHomepageRec() {
       window.location.href = `vdp.html?id=${card.dataset.vdpId}`;
     });
   });
+
 }
 
 function initHomeDetailModal(CARS) {
@@ -316,14 +366,76 @@ function initFeaturedGrid() {
   renderCards(vehicles.length ? vehicles : VEHICLES.slice(0, 6), featGrid);
 }
 
-// ─── Compare page (reads Profile.compareCars) ───
-function initComparePage() {
-  const table = document.querySelector('.xdc-table');
-  if (!table || typeof Profile === 'undefined' || !Profile.compareCars) return;
+// ─── Compare page (user selection or Profile.compareCars fallback) ───
+function vehicleToCompareCar(v, index) {
+  const mpg = Math.round((v.mpgCity + v.mpgHwy) / 2);
+  const zero = Math.round(Math.max(6.5, Math.min(10, 8 + (170 - v.hp) / 80)) * 10) / 10;
+  const store = (typeof Profile !== 'undefined' && Profile.storeForCity) ? Profile.storeForCity(v.location) : null;
+  const dealer = store ? store.name : (v.location || 'DriveClear');
+  const distance = (typeof Profile !== 'undefined' && Profile.locationLabel)
+    ? Profile.locationLabel(v.location)
+    : (v.location || 'In stock');
+  const distMin = (typeof Profile !== 'undefined' && Profile.milesFromZip)
+    ? (Profile.milesFromZip(v.location) ?? vehicleDistance(v))
+    : vehicleDistance(v);
+  const est = (typeof Profile !== 'undefined' && Profile.insuranceEstimate)
+    ? Profile.insuranceEstimate(v)
+    : null;
+  const valueClass = v.marketSavings > 1000 ? 'great' : v.marketSavings > 0 ? 'good' : 'at';
+  const valueLabel = v.marketSavings > 0
+    ? `$${v.marketSavings.toLocaleString()} below market`
+    : 'At market';
+  return {
+    key: 'veh-' + v.id,
+    col: index + 1,
+    name: `${v.make} ${v.model}`,
+    displayName: `${v.year} ${v.make} ${v.model} ${v.trim}`,
+    trimLabel: `${v.trim} · ${v.extColor}`,
+    dealer,
+    distance,
+    price: v.price,
+    mpg,
+    hp: v.hp,
+    zero,
+    miles: v.mileage,
+    distMin,
+    value: v.marketSavings || 0,
+    year: v.year,
+    engine: v.engine,
+    drivetrain: v.drivetrain,
+    valueLabel,
+    valueClass,
+    vdpId: v.id,
+    insuranceMonthly: est ? est.monthly : null,
+    insuranceRange: est ? est.range : null,
+  };
+}
+
+function getComparePageCars() {
+  const params = new URLSearchParams(window.location.search);
+  let ids = [];
+  if (params.has('ids')) {
+    ids = params.get('ids').split(',').map(s => parseInt(s, 10)).filter(id => id > 0);
+  } else if (typeof getCompareList === 'function') {
+    ids = getCompareList();
+  }
+
+  if (ids.length && typeof getVehicleById === 'function') {
+    const vehicles = ids.map(id => getVehicleById(id)).filter(Boolean);
+    if (vehicles.length) {
+      if (typeof setCompareList === 'function') setCompareList(vehicles.map(v => v.id));
+      return {
+        cars: vehicles.map(vehicleToCompareCar),
+        fromSelection: true,
+      };
+    }
+  }
+
+  if (typeof Profile === 'undefined' || !Profile.compareCars) {
+    return { cars: [], fromSelection: false };
+  }
 
   let cars = Profile.compareCars();
-  if (!cars.length) return;
-
   if (typeof findVehicleForPick === 'function' && PARTICIPANT?.homepage?.picks) {
     cars = cars.map(c => {
       if (c.vdpId) return c;
@@ -332,10 +444,25 @@ function initComparePage() {
       return v ? Object.assign({}, c, { vdpId: v.id }) : c;
     });
   }
+  return { cars, fromSelection: false };
+}
+
+function initComparePage() {
+  const table = document.querySelector('.xdc-table');
+  if (!table) return;
+
+  const { cars, fromSelection } = getComparePageCars();
+  if (!cars.length) return;
 
   window.COMPARE_CARS = cars;
 
-  const meta = Profile.compareMeta();
+  const meta = fromSelection
+    ? {
+      title: `Comparing ${cars.length} vehicle${cars.length === 1 ? '' : 's'}`,
+      subtitle: 'Side-by-side on price, mileage, insurance, and value for the cars you selected.',
+      footDefault: 'Tell the assistant what matters most to re-rank these — e.g. “cheapest with good mpg.”',
+    }
+    : Profile.compareMeta();
   const titleEl = document.getElementById('xdc-title');
   const subEl = document.getElementById('xdc-sub');
   const footEl = document.getElementById('xdc-foot');
@@ -362,6 +489,7 @@ function initComparePage() {
     { label: 'Drivetrain', icon: 'snowflake', cells: c => escapeHtml(c.drivetrain) },
     { metric: 'mpg', label: 'MPG (comb.)', icon: 'gas-pump', cells: c => c.mpg },
     { metric: 'price', label: 'Price', icon: 'tag', cells: c => `<span class="xdc-price">${formatPrice(c.price)}</span>` },
+    { label: 'Est. insurance', icon: 'shield-halved', cells: c => escapeHtml(c.insuranceRange || '—') },
     { metric: 'value', label: 'Value', icon: 'arrow-trend-down', cells: c => `<span class="xdc-val xdc-val-${c.valueClass}">${escapeHtml(c.valueLabel)}</span>` },
   ];
 
@@ -431,9 +559,46 @@ function updateHeroModels(make, modelSel) {
 }
 
 // ─── Card Rendering ───────────────────────────────────────
-function renderCards(vehicles, container) {
+function renderStoreStrip(containerId) {
+  const el = document.getElementById(containerId);
+  if (!el || typeof Profile === 'undefined' || !Profile.storesNearZip) return;
+  const zip = Profile.zipCode && Profile.zipCode();
+  const stores = Profile.storesNearZip();
+  if (!zip || !stores.length) {
+    el.innerHTML = '';
+    el.hidden = true;
+    return;
+  }
+  el.hidden = false;
+  el.innerHTML = `
+    <div class="store-strip">
+      <div class="store-strip-head"><i class="fa-solid fa-location-dot"></i> DriveClear stores near <strong>${escapeHtml(zip)}</strong></div>
+      <div class="store-strip-list">${stores.map(s => `
+        <div class="store-strip-item">
+          <span class="store-strip-name">${escapeHtml(s.name)}</span>
+          <span class="store-strip-meta"><strong>${s.miles} mi</strong> · ${escapeHtml(s.city.split(',')[0])}</span>
+        </div>`).join('')}</div>
+    </div>`;
+}
+
+function vehicleLocationLabel(v) {
+  if (typeof Profile !== 'undefined' && Profile.locationLabel && v.location) {
+    return Profile.locationLabel(v.location);
+  }
+  return v.location || 'In stock';
+}
+
+function insuranceHTML(v) {
+  if (typeof Profile === 'undefined' || !Profile.insuranceEstimate) return '';
+  const est = Profile.insuranceEstimate(v);
+  if (!est) return '';
+  return `<div class="v-insurance"><i class="fa-solid fa-shield-halved"></i> Est. insurance <b>${est.range}</b><span class="v-ins-note"> · ${est.note}</span></div>`;
+}
+
+function renderCards(vehicles, container, opts) {
+  opts = opts || {};
   if (!vehicles.length) {
-    container.innerHTML = `<div class="no-results">
+    container.innerHTML = opts.emptyHtml || `<div class="no-results">
       <i class="fa-regular fa-face-frown"></i>
       <p>No vehicles match your filters.</p>
       <p style="margin-top:8px;font-size:14px;">Try adjusting your search criteria.</p>
@@ -453,6 +618,7 @@ function renderCards(vehicles, container) {
       const saved = isSaved(id);
       btn.classList.toggle('saved', saved);
       btn.innerHTML = saved ? '<i class="fa-solid fa-heart"></i>' : '<i class="fa-regular fa-heart"></i>';
+      if (typeof opts.onSaveToggle === 'function') opts.onSaveToggle(id, saved);
     });
   });
   container.querySelectorAll('.v-compare').forEach(btn => {
@@ -467,8 +633,11 @@ function renderCards(vehicles, container) {
 
 function cardHTML(v) {
   const apr = (typeof Profile !== 'undefined' && Profile.apr) ? Profile.apr() : 6.9;
-  const monthly = calcMonthly(v.price, 0, apr);
+  const monthly = calcMonthly(v.price, 0, apr || 6.9);
   const badgeClass = v.dealBadge ? `badge-${v.dealBadge}` : '';
+  const payLine = isPayingCash()
+    ? `<div class="v-monthly">Cash buyer · <b>${formatPrice(v.price)}</b> + tax &amp; title</div>`
+    : `<div class="v-monthly">Est. <b>${formatPrice(monthly)}/mo</b> · ${apr}% APR, 60 mo</div>`;
   const mktHtml = v.marketSavings > 0
     ? `<span class="v-mkt mkt-below">$${v.marketSavings.toLocaleString()} Below Market</span>`
     : '';
@@ -489,12 +658,13 @@ function cardHTML(v) {
         <span class="v-price">${formatPrice(v.price)}</span>
         ${mktHtml}
       </div>
-      <div class="v-monthly">Est. <b>${formatPrice(monthly)}/mo</b> · ${apr}% APR, 60 mo</div>
+      ${payLine}
+      ${insuranceHTML(v)}
       <div class="v-meta">
         <span class="v-meta-item"><i class="fa-solid fa-gauge"></i> ${formatMileage(v.mileage)}</span>
         <span class="v-meta-item"><i class="fa-solid fa-car-side"></i> ${v.body}</span>
         <span class="v-meta-item"><i class="fa-solid fa-gear"></i> ${v.drivetrain}</span>
-        <span class="v-meta-item"><i class="fa-solid fa-location-dot"></i> ${v.location}</span>
+        <span class="v-meta-item"><i class="fa-solid fa-location-dot"></i> ${vehicleLocationLabel(v)}</span>
       </div>
       <div class="v-flags">
         ${v.owners === 1 ? '<span class="v-flag flag-owner"><i class="fa-solid fa-circle-check"></i> 1 Owner</span>' : ''}
@@ -517,6 +687,30 @@ function toggleSave(id) {
   const idx = saved.indexOf(id);
   if (idx > -1) saved.splice(idx, 1); else saved.push(id);
   localStorage.setItem('dc_saved', JSON.stringify(saved));
+}
+
+function initFavorites() {
+  const grid = document.getElementById('favorites-grid');
+  const titleEl = document.getElementById('favorites-title');
+  if (!grid) return;
+
+  if (titleEl && typeof Profile !== 'undefined' && Profile.favoritesTitle) {
+    titleEl.innerHTML = `<i class="fa-solid fa-heart" style="color:var(--red);margin-right:10px"></i>${escapeHtml(Profile.favoritesTitle())}`;
+  }
+
+  const browseHref = (typeof Profile !== 'undefined' && Profile.srpHref) ? Profile.srpHref() : 'srp.html';
+  const vehicles = getSaved()
+    .map(id => getVehicleById(id))
+    .filter(Boolean);
+
+  renderCards(vehicles, grid, {
+    emptyHtml: `<div class="no-results">
+      <i class="fa-regular fa-heart"></i>
+      <p>No favorites yet.</p>
+      <p style="margin-top:8px;font-size:14px;"><a href="${escapeHtml(browseHref)}" style="color:var(--teal);font-weight:600">Browse cars →</a> and tap the heart to save one.</p>
+    </div>`,
+    onSaveToggle: () => initFavorites(),
+  });
 }
 
 // ─── SRP ─────────────────────────────────────────────────
@@ -587,20 +781,10 @@ function initSRP() {
   const activeTagsEl = document.getElementById('active-tags');
 
   const urlP = new URLSearchParams(window.location.search);
-  const state = {
-    make: urlP.getAll('make'),
-    body: urlP.getAll('body'),
-    drive: urlP.getAll('drive'),
-    minYear: parseInt(urlP.get('minYear')) || 2010,
-    maxYear: parseInt(urlP.get('maxYear')) || 2024,
-    minPrice: parseInt(urlP.get('minPrice')) || 0,
-    maxPrice: parseInt(urlP.get('maxPrice')) || 50000,
-    maxMiles: parseInt(urlP.get('maxMiles')) || 100000,
-    minMpg: parseInt(urlP.get('minMpg')) || 0,
-    maxDist: parseInt(urlP.get('maxDist')) || 0,
-    sort: urlP.get('sort') || 'recommended',
-    query: urlP.get('q') || '',
-  };
+  const profileDefaults = (typeof Profile !== 'undefined' && Profile.srpFilters)
+    ? Profile.srpFilters()
+    : {};
+  const state = buildSrpStateFromUrl(urlP, profileDefaults);
 
   // Pre-fill search input
   if (searchInput) searchInput.value = state.query;
@@ -608,26 +792,7 @@ function initSRP() {
 
   renderMakeFilters();
   renderBodyFilters();
-
-  // Pre-check filter checkboxes from URL params
-  if (state.make.length) {
-    state.make.forEach(m => {
-      const cb = document.querySelector(`.fp-make[value="${m}"]`);
-      if (cb) cb.checked = true;
-    });
-  }
-  if (state.body.length) {
-    state.body.forEach(b => {
-      const cb = document.querySelector(`.fp-body[value="${b}"]`);
-      if (cb) cb.checked = true;
-    });
-  }
-  if (state.drive.length) {
-    state.drive.forEach(d => {
-      const cb = document.querySelector(`.fp-drive[value="${d}"]`);
-      if (cb) cb.checked = true;
-    });
-  }
+  syncSrpFormFromState(state);
 
   // Price inputs
   const minPriceIn = document.getElementById('fp-min-price');
@@ -635,25 +800,9 @@ function initSRP() {
   const maxMilesIn = document.getElementById('fp-max-miles');
   const minYearIn = document.getElementById('fp-min-year');
   const maxYearIn = document.getElementById('fp-max-year');
-  if (minPriceIn) minPriceIn.value = state.minPrice || '';
-  if (maxPriceIn) maxPriceIn.value = state.maxPrice < 50000 ? state.maxPrice : '';
-  if (maxMilesIn) maxMilesIn.value = state.maxMiles < 100000 ? state.maxMiles : '';
-  if (minYearIn && urlP.get('minYear')) minYearIn.value = state.minYear;
-  if (maxYearIn && urlP.get('maxYear')) maxYearIn.value = state.maxYear;
-
-  // Seed from the participant profile when the page wasn't opened with explicit filters.
-  const URL_FILTER_KEYS = ['make', 'body', 'drive', 'minYear', 'maxYear', 'minPrice', 'maxPrice', 'maxMiles', 'minMpg', 'maxDist', 'q'];
-  if (typeof Profile !== 'undefined' && Profile.toParams && !URL_FILTER_KEYS.some(k => urlP.has(k))) {
-    const pp = Profile.toParams();
-    [].concat(pp.make || []).forEach(m => { const cb = document.querySelector(`.fp-make[value="${m}"]`); if (cb) cb.checked = true; });
-    if (pp.body) { const cb = document.querySelector(`.fp-body[value="${pp.body}"]`); if (cb) cb.checked = true; }
-    if (pp.drive) { (Array.isArray(pp.drive) ? pp.drive : [pp.drive]).forEach(d => { const cb = document.querySelector(`.fp-drive[value="${d}"]`); if (cb) cb.checked = true; }); }
-    if (pp.maxPrice && maxPriceIn) maxPriceIn.value = pp.maxPrice;
-    if (pp.maxMiles && maxMilesIn) maxMilesIn.value = pp.maxMiles;
-    if (pp.minYear && minYearIn) minYearIn.value = pp.minYear;
-    state.minMpg = pp.minMpg || 0;
-    state.maxDist = pp.maxDist || 0;
-  }
+  const accidentFreeIn = document.getElementById('fp-accident-free');
+  const cleanTitleIn = document.getElementById('fp-clean-title');
+  const blindSpotIn = document.getElementById('fp-blind-spot');
 
   function readFilters() {
     state.make = [...document.querySelectorAll('.fp-make:checked')].map(c => c.value);
@@ -664,37 +813,17 @@ function initSRP() {
     state.maxMiles = parseInt(maxMilesIn?.value) || 100000;
     state.minYear = parseInt(minYearIn?.value) || 2010;
     state.maxYear = parseInt(maxYearIn?.value) || 2024;
+    state.accidentFree = !!accidentFreeIn?.checked;
+    state.cleanTitle = !!cleanTitleIn?.checked;
+    state.blindSpot = !!blindSpotIn?.checked;
     state.query = searchInput?.value.trim().toLowerCase() || '';
     state.sort = sortSel?.value || 'recommended';
   }
 
   function applyAndRender() {
     readFilters();
-    let results = VEHICLES.filter(v => {
-      if (state.make.length && !state.make.includes(v.make)) return false;
-      if (state.body.length && !state.body.includes(v.body)) return false;
-      if (state.drive.length && !state.drive.includes(v.drivetrain)) return false;
-      if (v.price < state.minPrice || v.price > state.maxPrice) return false;
-      if (v.mileage > state.maxMiles) return false;
-      if (v.year < state.minYear || v.year > state.maxYear) return false;
-      if (state.minMpg && v.mpgHwy < state.minMpg) return false;
-      if (state.maxDist && vehicleDistance(v) > state.maxDist) return false;
-      if (state.query) {
-        const q = state.query;
-        const haystack = `${v.year} ${v.make} ${v.model} ${v.trim} ${v.body} ${v.extColor}`.toLowerCase();
-        if (!haystack.includes(q)) return false;
-      }
-      return true;
-    });
-
-    // Sort
-    switch (state.sort) {
-      case 'price-asc': results.sort((a,b) => a.price - b.price); break;
-      case 'price-desc': results.sort((a,b) => b.price - a.price); break;
-      case 'year-desc': results.sort((a,b) => b.year - a.year); break;
-      case 'miles-asc': results.sort((a,b) => a.mileage - b.mileage); break;
-      default: results.sort((a,b) => (b.marketSavings||0) - (a.marketSavings||0));
-    }
+    let results = filterSrpVehicles(VEHICLES, state);
+    sortSrpResults(results, state.sort);
 
     if (countEl) countEl.innerHTML = `Showing <strong>${results.length}</strong> vehicles`;
     renderCards(results, grid);
@@ -713,7 +842,7 @@ function initSRP() {
   });
 
   // Filter change listeners
-  document.querySelectorAll('.fp-make, .fp-body, .fp-drive').forEach(cb => {
+  document.querySelectorAll('.fp-make, .fp-body, .fp-drive, .fp-history, .fp-feature').forEach(cb => {
     cb.addEventListener('change', applyAndRender);
   });
   [minPriceIn, maxPriceIn, maxMilesIn, minYearIn, maxYearIn].forEach(inp => {
@@ -722,16 +851,17 @@ function initSRP() {
   if (searchInput) searchInput.addEventListener('input', debounce(applyAndRender, 300));
   if (sortSel) sortSel.addEventListener('change', applyAndRender);
   if (clearBtn) clearBtn.addEventListener('click', () => {
-    document.querySelectorAll('.fp-make, .fp-body, .fp-drive').forEach(cb => cb.checked = false);
-    if (minPriceIn) minPriceIn.value = '';
-    if (maxPriceIn) maxPriceIn.value = '';
-    if (maxMilesIn) maxMilesIn.value = '';
-    if (minYearIn) minYearIn.value = 2018;
-    if (maxYearIn) maxYearIn.value = 2024;
+    const defaults = (typeof Profile !== 'undefined' && Profile.srpFilters)
+      ? Profile.srpFilters()
+      : {
+        make: [], body: [], drive: [], minPrice: 0, maxPrice: 50000, maxMiles: 100000,
+        minYear: 2010, maxYear: 2024, minMpg: 0, maxDist: 0,
+        accidentFree: false, cleanTitle: false, blindSpot: false, query: '',
+      };
+    Object.assign(state, defaults, { sort: 'recommended' });
+    syncSrpFormFromState(state);
     if (searchInput) searchInput.value = '';
-    state.make = []; state.body = []; state.drive = [];
-    state.minPrice = 0; state.maxPrice = 50000; state.maxMiles = 100000;
-    state.minYear = 2010; state.maxYear = 2024; state.minMpg = 0; state.maxDist = 0; state.query = '';
+    if (sortSel) sortSel.value = 'recommended';
     applyAndRender();
   });
 
@@ -760,10 +890,12 @@ function initSRP() {
     });
   }
 
-  // Body style quick-filter from URL
-  if (urlP.get('body')) {
-    const cb = document.querySelector(`.fp-body[value="${urlP.get('body')}"]`);
-    if (cb) cb.checked = true;
+  // Body style quick-filter from URL (sync after dynamic make/body opts render)
+  if (state.body.length) {
+    state.body.forEach(b => {
+      const cb = document.querySelector(`.fp-body[value="${b}"]`);
+      if (cb) cb.checked = true;
+    });
   }
 
   // ─── AI shopping chat (client-side intent parser, no backend) ───
@@ -896,10 +1028,14 @@ function initSRP() {
 function renderActiveTags(container, state) {
   if (!container) return;
   const tags = [];
-  state.make.forEach(m => tags.push({ label: m, remove: () => { const cb = document.querySelector(`.fp-make[value="${m}"]`); if(cb) cb.checked=false; } }));
-  state.body.forEach(b => tags.push({ label: b, remove: () => { const cb = document.querySelector(`.fp-body[value="${b}"]`); if(cb) cb.checked=false; } }));
-  if (state.maxPrice < 50000) tags.push({ label: `Under ${formatPrice(state.maxPrice)}`, remove: () => { document.getElementById('fp-max-price').value=''; } });
-  if (state.maxMiles < 100000) tags.push({ label: `Under ${state.maxMiles.toLocaleString()} mi`, remove: () => { document.getElementById('fp-max-miles').value=''; } });
+  state.make.forEach(m => tags.push({ label: m, remove: () => { const cb = document.querySelector(`.fp-make[value="${m}"]`); if (cb) cb.checked = false; } }));
+  state.body.forEach(b => tags.push({ label: b, remove: () => { const cb = document.querySelector(`.fp-body[value="${b}"]`); if (cb) cb.checked = false; } }));
+  if (state.minYear > 2010) tags.push({ label: `${state.minYear}+`, remove: () => { const el = document.getElementById('fp-min-year'); if (el) el.value = ''; } });
+  if (state.maxPrice < 50000) tags.push({ label: `Under ${formatPrice(state.maxPrice)}`, remove: () => { document.getElementById('fp-max-price').value = ''; } });
+  if (state.maxMiles < 100000) tags.push({ label: `Under ${state.maxMiles.toLocaleString()} mi`, remove: () => { document.getElementById('fp-max-miles').value = ''; } });
+  if (state.accidentFree) tags.push({ label: 'Accident-free', remove: () => { const el = document.getElementById('fp-accident-free'); if (el) el.checked = false; } });
+  if (state.cleanTitle) tags.push({ label: 'Clean title', remove: () => { const el = document.getElementById('fp-clean-title'); if (el) el.checked = false; } });
+  if (state.blindSpot) tags.push({ label: 'Blind spot monitoring', remove: () => { const el = document.getElementById('fp-blind-spot'); if (el) el.checked = false; } });
 
   container.innerHTML = tags.map((t,i) =>
     `<span class="a-tag">${t.label}<button data-idx="${i}" aria-label="Remove filter">&times;</button></span>`
@@ -958,10 +1094,13 @@ function initVDP() {
   renderSimilar(v);
   updateVDPSaveBtn(v.id);
   initVDPAiMode(v);
+  if (isPayingCash()) applyVdpCashMode(v);
+  initPaymentAssistant();
 
   const tdUrl = `test-drive-confirmation.html?id=${v.id}`;
   document.getElementById('vdp-test-drive-btn')?.setAttribute('href', tdUrl);
   document.getElementById('vdp-test-drive-mobile')?.setAttribute('href', tdUrl);
+  initVDPFastTrack(v);
 
   // Breadcrumb
   const bc = document.getElementById('bc-vehicle');
@@ -972,22 +1111,43 @@ function initVDP() {
   const fcMo = document.getElementById('fc-mo');
   if (fcPrice) fcPrice.textContent = formatPrice(v.price);
   if (fcMo) {
-    const fcApr = (typeof Profile !== 'undefined' && Profile.apr) ? Profile.apr() : 6.9;
-    fcMo.textContent = `Est. ${formatPrice(calcMonthly(v.price, 0, fcApr))}/mo`;
+    if (isPayingCash()) {
+      const otd = estimateOutTheDoor(v.price);
+      fcMo.textContent = `Est. ${formatPrice(otd.total)} out-the-door`;
+    } else {
+      const fcApr = (typeof Profile !== 'undefined' && Profile.apr) ? Profile.apr() : 6.9;
+      fcMo.textContent = `Est. ${formatPrice(calcMonthly(v.price, 0, fcApr || 6.9))}/mo`;
+    }
   }
 }
 
 function populateVDP(v) {
   const apr = (typeof Profile !== 'undefined' && Profile.apr) ? Profile.apr() : 6.9;
-  const monthly = calcMonthly(v.price, 0, apr);
+  const monthly = calcMonthly(v.price, 0, apr || 6.9);
+  const otd = estimateOutTheDoor(v.price);
   const set = (id, val) => { const el = document.getElementById(id); if(el) el.innerHTML = val; };
 
   set('vdp-year', v.year);
   set('vdp-make-model', `${v.make} ${v.model}`);
   set('vdp-trim', `${v.trim} · ${v.extColor}`);
   set('vdp-price', formatPrice(v.price));
-  set('vdp-monthly', `Est. <a href="#payment-calc">${formatPrice(monthly)}/mo</a> · <a href="#payment-calc">Payment Options</a> <button type="button" class="pa-trigger" id="pa-trigger" aria-label="What does this mean? Ask the assistant" aria-expanded="false"><i class="fa-solid fa-circle-question"></i></button>`);
-  initPaymentAssistant();
+  if (isPayingCash()) {
+    set('vdp-monthly', `Paying <strong>cash</strong> · <a href="#payment-calc">Est. ${formatPrice(otd.total)} out-the-door</a> <button type="button" class="pa-trigger" id="pa-trigger" aria-label="What does this mean? Ask the assistant" aria-expanded="false"><i class="fa-solid fa-circle-question"></i></button>`);
+  } else {
+    set('vdp-monthly', `Est. <a href="#payment-calc">${formatPrice(monthly)}/mo</a> · <a href="#payment-calc">Payment Options</a> <button type="button" class="pa-trigger" id="pa-trigger" aria-label="What does this mean? Ask the assistant" aria-expanded="false"><i class="fa-solid fa-circle-question"></i></button>`);
+  }
+  const ins = (typeof Profile !== 'undefined' && Profile.insuranceEstimate) ? Profile.insuranceEstimate(v) : null;
+  if (ins) {
+    set('vdp-insurance', `Est. insurance <b>${ins.range}</b><span class="v-ins-note"> · ${ins.note}</span>`);
+    if (isPayingCash()) {
+      set('vdp-total-mo', `~${formatPrice(otd.total)} at purchase + ${ins.range} insurance ongoing`);
+    } else {
+      set('vdp-total-mo', `~${formatPrice(monthly + ins.monthly)}/mo combined · loan payment + insurance`);
+    }
+  } else {
+    set('vdp-insurance', '');
+    set('vdp-total-mo', isPayingCash() ? `Est. ${formatPrice(otd.total)} out-the-door · paying cash` : '');
+  }
   set('vdp-mileage-stat', formatMileage(v.mileage));
   set('vdp-engine-stat', v.engine);
   set('vdp-mpg-stat', `${v.mpgCity} / ${v.mpgHwy}`);
@@ -1012,7 +1172,7 @@ function populateVDP(v) {
       ${v.owners===1?'<span class="vdp-flag flag-owner"><i class="fa-solid fa-circle-check"></i> 1 Owner</span>':''}
       ${v.accidentFree?'<span class="vdp-flag flag-clean"><i class="fa-solid fa-shield-halved"></i> Accident Free</span>':''}
       <span class="vdp-flag flag-carfax"><i class="fa-solid fa-file-shield"></i> Carfax Available</span>
-      <span class="vdp-flag" style="background:#f5f3ff;color:#6d28d9"><i class="fa-solid fa-map-marker-alt"></i> ${v.location}</span>
+      <span class="vdp-flag" style="background:#f5f3ff;color:#6d28d9"><i class="fa-solid fa-map-marker-alt"></i> ${vehicleLocationLabel(v)}</span>
     `;
   }
 
@@ -1026,7 +1186,7 @@ function populateVDP(v) {
       ['Drivetrain', v.drivetrain], ['Ext. Color', v.extColor], ['Int. Color', v.intColor],
       ['Fuel Economy', `${v.mpgCity} City / ${v.mpgHwy} Hwy`], ['Owners', `${v.owners} Owner${v.owners>1?'s':''}`],
       ['Stock #', v.stockNum], ['VIN', v.vin.substring(0,10)+'...'],
-      ['Location', v.location], ['Title', 'Clean Title'],
+      ['Location', vehicleLocationLabel(v)], ['Title', 'Clean Title'],
     ];
     specsEl.innerHTML = specs.map(([l,val]) => `
       <div class="spec-item">
@@ -1051,6 +1211,55 @@ function populateVDP(v) {
   document.title = `${v.year} ${v.make} ${v.model} ${v.trim} — DriveClear`;
 }
 
+function applyVdpCashMode(v) {
+  const calcSec = document.getElementById('payment-calc');
+  if (calcSec) {
+    const title = calcSec.querySelector('.vdp-sec-title');
+    if (title) title.textContent = 'Estimated Out-the-Door Total';
+    calcSec.querySelectorAll('.calc-row, .calc-inp-row, .calc-inp-row + div').forEach(el => { el.hidden = true; });
+    const note = calcSec.querySelector('.calc-note');
+    if (note) {
+      note.textContent = '* Estimated out-the-door for illustration. Georgia tax and title/reg shown; zero DriveClear dealer fees. Your specialist will confirm the exact cash total before you sign.';
+    }
+    const preBtn = calcSec.querySelector('a.btn-primary');
+    if (preBtn) {
+      preBtn.removeAttribute('href');
+      preBtn.className = 'btn btn-ghost btn-block btn-lg';
+      preBtn.style.cursor = 'default';
+      preBtn.innerHTML = '<i class="fa-solid fa-money-bill-wave"></i> Paying Cash — No Financing Needed';
+    }
+  }
+
+  const paStatus = document.querySelector('.pa-status');
+  if (paStatus) paStatus.innerHTML = '<span class="pa-dot"></span> Ask about cash purchase';
+
+  const paChips = document.getElementById('pa-chips');
+  if (paChips) {
+    paChips.innerHTML = `
+      <button type="button" class="pa-chip" data-q="What's included in the out-the-door price?">What's in the total?</button>
+      <button type="button" class="pa-chip" data-q="How do I pay cash at the dealership?">How do I pay cash?</button>
+      <button type="button" class="pa-chip" data-q="What will insurance cost for a teen driver?">What about insurance?</button>
+      <button type="button" class="pa-chip" data-q="Are add-ons optional if I pay cash?">Are add-ons optional?</button>`;
+  }
+
+  const introBubble = document.querySelector('#pa-body .pa-msg-bot .pa-msg-bubble p');
+  if (introBubble) {
+    introBubble.innerHTML = `You're paying <strong>cash</strong> — the number that matters is the <strong>out-the-door total</strong> (vehicle + tax + title/reg). No loan, no APR, no monthly payment.`;
+  }
+
+  const primaryCta = document.querySelector('.vdp-ctas .btn-primary');
+  if (primaryCta) {
+    primaryCta.href = '#payment-calc';
+    primaryCta.innerHTML = '<i class="fa-solid fa-money-bill-wave"></i> See Out-the-Door Total';
+  }
+
+  const floatPrimary = document.querySelector('.floating-cta .btn-primary');
+  if (floatPrimary) {
+    floatPrimary.href = '#payment-calc';
+    floatPrimary.innerHTML = 'Out-the-Door Total';
+  }
+}
+
 // ─── Payment Options AI Assistant ────────────────────────
 function initPaymentAssistant() {
   const trigger = document.getElementById('pa-trigger');
@@ -1066,7 +1275,7 @@ function initPaymentAssistant() {
 
   const profileApr = (typeof Profile !== 'undefined' && Profile.apr) ? Profile.apr() : 6.9;
   const introBubble = body?.querySelector('.pa-msg-bot .pa-msg-bubble');
-  if (introBubble) {
+  if (introBubble && !isPayingCash()) {
     const introP = introBubble.querySelector('p');
     if (introP) {
       introP.innerHTML = `Your estimated monthly payment is a quick preview based on a <strong>60-month loan</strong> at <strong>${profileApr}% APR</strong> with <strong>$0 down</strong>.`;
@@ -1158,12 +1367,56 @@ function escapeHtml(s) {
   }[ch]));
 }
 
+function isPayingCash() {
+  return typeof Profile !== 'undefined' && Profile.isPayingCash && Profile.isPayingCash();
+}
+
+function estimateOutTheDoor(price) {
+  if (typeof Profile !== 'undefined' && Profile.estimateOutTheDoor) {
+    return Profile.estimateOutTheDoor(price);
+  }
+  const vehicle = price || 25000;
+  const tax = Math.round(vehicle * 0.07);
+  const titleReg = 425;
+  return { vehicle, tax, titleReg, fees: 0, total: vehicle + tax + titleReg };
+}
+
 // Canned UI-only responses — purely for demoing the chat surface.
 function generateMockAnswer(q) {
   const text = q.toLowerCase();
   const tier = (typeof PARTICIPANT !== 'undefined') ? PARTICIPANT.creditTier : null;
   const apr = (typeof Profile !== 'undefined' && Profile.apr) ? Profile.apr() : 6.9;
   const budget = (typeof PARTICIPANT !== 'undefined') ? PARTICIPANT.maxPrice : null;
+  const vId = new URLSearchParams(window.location.search).get('id') || '1';
+  const v = typeof getVehicleById === 'function' ? getVehicleById(vId) : null;
+  const otd = estimateOutTheDoor(v?.price || budget || 25000);
+
+  if (isPayingCash()) {
+    if (text.includes('out-the-door') || text.includes('out the door') || text.includes('total') || text.includes('included') || text.includes('fee')) {
+      return `<p>Your estimated <strong>out-the-door cash total</strong> is about <strong>${formatPrice(otd.total)}</strong> — that's ${formatPrice(otd.vehicle)} for the vehicle, ~${formatPrice(otd.tax)} GA sales tax, and ~${formatPrice(otd.titleReg)} for title and registration.</p>
+              <p>DriveClear has <strong>zero dealer fees</strong>. Ask your specialist for the exact number in writing before you hand over a check or wire.</p>`;
+    }
+    if (text.includes('pay cash') || text.includes('how do i pay') || text.includes('check') || text.includes('wire')) {
+      return `<p>Most buyers bring a <strong>certified check</strong> or arrange a <strong>bank wire</strong> once the out-the-door total is confirmed in writing. Your specialist will walk you through timing — usually the same day you sign.</p>
+              <p>No finance desk, no loan paperwork — just verify the total, sign the buyer's order, and pay.</p>`;
+    }
+    if (text.includes('add-on') || text.includes('gap') || text.includes('warranty') || text.includes('optional')) {
+      return `<p>Paying cash doesn't change the rule: <strong>GAP, extended warranty, and other add-ons are optional</strong>. Get standalone prices before anything gets bundled into your out-the-door total.</p>`;
+    }
+    if (text.includes('insur')) {
+      const ins = (typeof Profile !== 'undefined' && Profile.insuranceEstimate && v)
+        ? Profile.insuranceEstimate(v)
+        : null;
+      const range = ins ? ins.range : '$175–$215/mo';
+      return `<p>Insurance is separate from the cash purchase — for a <strong>16-year-old</strong> on a parent policy in Georgia, expect roughly <strong>${range}</strong> on a compact SUV.</p>
+              <p>You'll bind coverage before driving off, but it's not part of the vehicle check you write to the dealer.</p>`;
+    }
+    if (text.includes('trade')) {
+      return `<p>Yes — trade-in value can reduce the cash you bring. We'll appraise your vehicle separately so the trade number doesn't get blurred into the out-the-door price.</p>`;
+    }
+    return `<p>You're paying cash — focus on the <strong>out-the-door total</strong>, not monthly payments. Ask what's included, get it in writing, and keep add-ons optional.</p>`;
+  }
+
   if (text.includes('apr') || text.includes('rate') || text.includes('interest')) {
     const lead = tier
       ? `<p>Based on your <strong>${tier} credit</strong>, your estimated APR is about <strong>${apr}%</strong>. `
@@ -1185,6 +1438,16 @@ function generateMockAnswer(q) {
       : `<p>`;
     return `${lead}A common guideline is to keep your auto payment under <strong>10–15% of your monthly take-home pay</strong>, and total transportation costs under 20%.</p>
             <p>Adjust the term and down payment in the calculator to land at a payment that fits your budget.</p>`;
+  }
+  if (text.includes('insur')) {
+    const ins = (typeof Profile !== 'undefined' && Profile.insuranceEstimate && typeof getVehicleById === 'function')
+      ? Profile.insuranceEstimate(getVehicleById(new URLSearchParams(window.location.search).get('id') || '1'))
+      : null;
+    const range = ins ? ins.range : '$175–$215/mo';
+    const note = ins ? ins.note : 'teen driver on a parent policy · GA';
+    return `<p>For a <strong>16-year-old</strong> added to a parent policy in Georgia, expect roughly <strong>${range}</strong> on a compact SUV — on top of the loan payment.</p>
+            <p>Safer vehicles with strong crash-test scores can come in toward the lower end. This is an estimate only — your insurer will quote the real number.</p>
+            <p class="v-ins-note">Based on: ${note}</p>`;
   }
   return `<p>Great question — a DriveClear finance specialist can walk you through the details for your specific situation.</p>
           <p>You can also adjust the inputs in the <a href="#payment-calc">Payment Calculator</a> below, or call <strong>(800) 555-1234</strong>.</p>`;
@@ -1240,9 +1503,20 @@ function initVDPAiMode(v) {
           text: `The ${formatPrice(v.price)} you see is exactly what you pay — no dealer or doc fees.${v.marketSavings > 0 ? ` That's about ${formatPrice(v.marketSavings)} below market for a comparable ${v.year} ${v.make} ${v.model}.` : ''}`,
           chips: ['Is this price negotiable?', 'How was this price set?', 'Are there any extra fees?'] };
       case 'payment':
+        if (isPayingCash()) {
+          const otd = estimateOutTheDoor(v.price);
+          return { key: 'payment', title: 'Paying cash',
+            text: `You're paying cash — the key number is the out-the-door total (~${formatPrice(otd.total)} est.), not a monthly payment. Vehicle price + tax + title/reg, with zero DriveClear fees.`,
+            chips: ['What\'s included in the out-the-door price?', 'How do I pay cash at the dealership?', 'Are add-ons optional if I pay cash?'] };
+        }
         return { key: 'payment', title: 'Estimated monthly payment',
           text: `This estimate assumes a 60-month loan${(typeof Profile !== 'undefined' && Profile.apr) ? ` at about ${Profile.apr()}% APR` : ''} with $0 down. Change the term, rate, or down payment in the calculator to see your real number.`,
           chips: ['How does APR affect this?', 'What down payment should I put?', 'Can I lower the monthly payment?'] };
+      case 'calc':
+        if (isPayingCash()) {
+          return { key: 'calc', title: 'Out-the-door estimate', text: 'Your cash total includes the vehicle price, estimated Georgia sales tax, and title/registration — with zero DriveClear dealer fees.', chips: ['What\'s included in the out-the-door price?', 'How do I pay cash at the dealership?', 'Are add-ons optional if I pay cash?'] };
+        }
+        return { key: 'payment', title: 'Payment calculator', text: 'Slide your down payment, pick a term, and set a rate to see how your monthly payment changes — all estimates, no credit check.', chips: ['What term should I choose?', 'How much down is smart?', 'What’s my real rate?'] };
       case 'market':
         return { key: 'market', title: 'How pricing compares',
           text: v.marketSavings > 0
@@ -1287,8 +1561,6 @@ function initVDPAiMode(v) {
         const f = el.textContent.trim();
         return { key: 'feature', title: f, text: `${f} is included on this vehicle. Want to know how it works or whether it’s worth it?`, chips: [`How does ${f} work?`, 'Is this common in this class?'] };
       }
-      case 'calc':
-        return { key: 'payment', title: 'Payment calculator', text: 'Slide your down payment, pick a term, and set a rate to see how your monthly payment changes — all estimates, no credit check.', chips: ['What term should I choose?', 'How much down is smart?', 'What’s my real rate?'] };
       case 'photos':
         return { key: 'photos', title: 'Photos & condition', text: `Real photos of this exact ${v.year} ${v.make} ${v.model}. Every car gets a 150-point inspection before listing.`, chips: ['What does the inspection cover?', 'Any cosmetic flaws?'] };
       default:
@@ -1502,7 +1774,18 @@ function initPayCalc(vehiclePrice) {
   const resultEl = document.getElementById('calc-result');
   const downLabel = document.getElementById('calc-down-label');
 
-  if (!downIn || !resultEl) return;
+  if (!resultEl) return;
+
+  if (isPayingCash()) {
+    const otd = estimateOutTheDoor(vehiclePrice);
+    resultEl.innerHTML = `
+      <div class="calc-mo">${formatPrice(otd.total)}</div>
+      <div class="calc-mo-label">Est. Out-the-Door (Cash)</div>
+      <p class="calc-note" style="margin-top:10px">${formatPrice(otd.vehicle)} vehicle · ~${formatPrice(otd.tax)} tax · ~${formatPrice(otd.titleReg)} title/reg · $0 DriveClear fees</p>`;
+    return;
+  }
+
+  if (!downIn) return;
 
   const profileApr = (typeof Profile !== 'undefined' && Profile.apr) ? Profile.apr() : 6.9;
   if (rateIn) rateIn.value = profileApr;
@@ -2525,7 +2808,7 @@ function initTestDriveConfirmation() {
           <div class="td-detail-row"><span>Vehicle</span><strong>${title}</strong></div>
           <div class="td-detail-row"><span>Stock #</span><strong>${v.stockNum}</strong></div>
           <div class="td-detail-row"><span>Price</span><strong>${formatPrice(v.price)}</strong></div>
-          <div class="td-detail-row"><span>Location</span><strong>${v.location}</strong></div>
+          <div class="td-detail-row"><span>Location</span><strong>${vehicleLocationLabel(v)}</strong></div>
           <div class="td-detail-row"><span>When</span><strong>${escapeHtml(visit.when)}</strong></div>
           <div class="td-detail-row"><span>Where</span><strong>${escapeHtml(visit.where)}</strong></div>`;
       }
@@ -2542,8 +2825,33 @@ function tdHasAWD(v) { return /AWD|4WD|quattro|xDrive|4MATIC/i.test(v.drivetrain
 function tdHasTurbo(v) { return /turbo/i.test(v.engine); }
 function tdWarrantyLikely(v) { return tdVehicleAge(v) <= 3 && v.mileage < 50000; }
 
+function initTdPrepTabs() {
+  const tabs = document.querySelectorAll('.td-prep-tab');
+  const panels = document.querySelectorAll('.td-prep-panel');
+  if (!tabs.length || !panels.length) return;
+
+  const activate = tabName => {
+    tabs.forEach(tab => {
+      const on = tab.dataset.tab === tabName;
+      tab.classList.toggle('active', on);
+      tab.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    panels.forEach(panel => {
+      const on = panel.id === `td-panel-${tabName}`;
+      panel.classList.toggle('active', on);
+      panel.hidden = !on;
+    });
+  };
+
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => activate(tab.dataset.tab));
+  });
+}
+
 function initTestDrivePrep(v) {
   if (!v) return;
+
+  initTdPrepTabs();
 
   const visit = getVisitContext();
   const title = `${v.year} ${v.make} ${v.model}`;
@@ -2723,12 +3031,65 @@ function initTestDrivePrep(v) {
     plansTakeaway.classList.add('fp-reveal-item');
   }, 1200);
 
-  // ── 4. Conversational chat ──
-  const chatBody = document.getElementById('td-chat-body');
-  const chatForm = document.getElementById('td-chat-form');
-  const chatInput = document.getElementById('td-chat-input');
-  const chatChips = document.getElementById('td-chat-chips');
-  if (!chatBody || !chatForm) return;
+  // ── 4. Conversational chat (shared with Fast Track "Ask before you walk in") ──
+  const ask = initDealershipAskChat({
+    v,
+    visit,
+    introElId: 'td-ask-intro',
+    bodyId: 'td-chat-body',
+    formId: 'td-chat-form',
+    inputId: 'td-chat-input',
+    chipsId: 'td-chat-chips',
+    greetingLabel: 'Before your visit',
+  });
+
+  document.getElementById('td-plans-body')?.addEventListener('click', e => {
+    const btn = e.target.closest('.td-plan-ask');
+    if (btn && ask) ask(btn.dataset.q || btn.textContent);
+  });
+}
+
+function getDealershipAskChips() {
+  const defaultChips = [
+    { label: 'Full price upfront?', q: 'What should I ask so I know the full price upfront with no hidden fees?' },
+    { label: 'Prove clean history?', q: 'How do I ask the dealer to prove clean title and no accidents?' },
+    { label: 'What extras are optional?', q: 'How do I ask which add-ons are truly optional without hurting the deal?' },
+    { label: 'What\'s in the total?', q: 'What should I ask so the out-the-door cash total includes everything with no surprises?' },
+    { label: 'Can we decide later?', q: 'How do I know the dealer will respect our time and not pressure us to buy today?' },
+  ];
+  return (typeof Profile !== 'undefined' && Profile.testDriveAskChips && Profile.testDriveAskChips().length)
+    ? Profile.testDriveAskChips()
+    : defaultChips;
+}
+
+function getDealershipAskIntro() {
+  return (typeof Profile !== 'undefined' && Profile.testDriveAskIntro)
+    ? Profile.testDriveAskIntro()
+    : 'You\'re putting a new driver on the road — I\'ll help you ask the questions that get straight answers, so you can tell when a dealership is being transparent.';
+}
+
+function initDealershipAskChat(opts) {
+  const { v, visit, introElId, bodyId, formId, inputId, chipsId, greetingLabel, greetingLead } = opts;
+  const chatBody = document.getElementById(bodyId);
+  const chatForm = document.getElementById(formId);
+  const chatInput = document.getElementById(inputId);
+  const chatChips = document.getElementById(chipsId);
+  if (!chatBody || !chatForm || !v) return null;
+
+  tdPrepVehicle = v;
+  const askIntro = getDealershipAskIntro();
+  const introEl = introElId ? document.getElementById(introElId) : null;
+  if (introEl) introEl.textContent = askIntro;
+  if (chatInput && typeof Profile !== 'undefined' && Profile.testDriveAskPlaceholder) {
+    chatInput.placeholder = Profile.testDriveAskPlaceholder();
+  }
+
+  const chips = getDealershipAskChips();
+  if (chatChips) {
+    chatChips.innerHTML = chips.map(c =>
+      `<button type="button" class="pa-chip" data-q="${escapeHtml(c.q)}">${escapeHtml(c.label)}</button>`
+    ).join('');
+  }
 
   const addMsg = (cls, html) => {
     const el = document.createElement('div');
@@ -2758,51 +3119,295 @@ function initTestDrivePrep(v) {
     const chip = e.target.closest('.pa-chip');
     if (chip) ask(chip.dataset.q || chip.textContent);
   });
-  document.getElementById('td-plans-body')?.addEventListener('click', e => {
-    const btn = e.target.closest('.td-plan-ask');
-    if (btn) ask(btn.dataset.q || btn.textContent);
-  });
 
-  const apptShort = visit.when.replace(/^(\w+day),?\s*/i, '').trim() || visit.when;
-  addMsg('pa-msg-bot', `<div class="pa-msg-label">Before your visit</div><p>Your <strong>${title}</strong> is reserved for ${apptShort}. Ask me what to bring, what to listen for on the drive, or whether any protection plan actually makes sense for this car.</p>`);
+  const title = `${v.year} ${v.make} ${v.model}`;
+  const whenShort = visit.when.replace(/^(\w+day),?\s*/i, '').trim() || visit.when;
+  const lead = greetingLead || `Your <strong>${title}</strong> is reserved for ${whenShort}.`;
+  addMsg('pa-msg-bot', `<div class="pa-msg-label">${greetingLabel || 'Before your visit'}</div><p>${lead} ${askIntro}</p>`);
+  return ask;
 }
 
 function generateTestDrivePrepAnswer(q, v) {
   const car = v || tdPrepVehicle;
   const t = (q || '').toLowerCase();
   const title = car ? `${car.year} ${car.make} ${car.model}` : 'this vehicle';
-  const luxury = car && tdIsLuxury(car);
-  const awd = car && tdHasAWD(car);
   const warrantyActive = car && tdWarrantyLikely(car);
+  const priceStr = car ? formatPrice(car.price) : 'the listed price';
+  const teenDriver = PARTICIPANT?.insurance?.driverAge === 16;
+  const firstCar = PARTICIPANT?.needs?.includes('firstcar');
+  const whyLead = firstCar && teenDriver
+    ? 'You\'re trusting someone else with your teen on Atlanta roads — '
+    : firstCar
+      ? 'This is a first car — '
+      : '';
 
-  if (t.includes('bring') || t.includes('someone') || t.includes('spouse') || t.includes('passenger'))
-    return `<p>Absolutely — bring whoever helps you decide. ${car?.body === 'SUV' || car?.body === 'Minivan' ? 'Have them try the second row and cargo area.' : 'Have them sit in back for legroom and road noise.'} Only the driver needs a license.</p>`;
+  if (t.includes('full price') || t.includes('upfront') || t.includes('out-the-door') || t.includes('out the door') || t.includes('otd') || t.includes('hidden') || t.includes('total') || (t.includes('price') && (t.includes('ask') || t.includes('fee')))) {
+    if (isPayingCash()) {
+      const otd = estimateOutTheDoor(car?.price);
+      return `<p>You're paying cash — the only number that should matter is the <strong>out-the-door total</strong>, not a monthly quote or add-ons folded in later.</p>
+        <p><strong>Say this:</strong> "What's the out-the-door cash total on this ${title} — vehicle, tax, title, registration, and every fee? Can I get that in writing before I write a check?"</p>
+        <p><strong>Trust signal:</strong> They confirm about <strong>${formatPrice(otd.total)}</strong> (${formatPrice(otd.vehicle)} + tax + title/reg), explain <strong>zero DriveClear doc fees</strong>, and give you a written total with no finance desk visit.</p>
+        <p><strong>Red flag:</strong> Quoting only the sticker price, or steering you to "figure out the rest" after you agree to buy.</p>`;
+    }
+    return `<p>${whyLead}you deserve to know the real total before anyone talks payments. That\'s how you know the price on the screen is honest.</p>
+      <p><strong>Say this:</strong> "What\'s the out-the-door price on this ${title} — tax, title, registration, and every fee? Can I get that in writing before we discuss financing?"</p>
+      <p><strong>Trust signal:</strong> They confirm ${priceStr} matches the listing, explain there are <strong>zero DriveClear doc fees</strong>, and give you a written total without sending you to finance first.</p>
+      <p><strong>Red flag:</strong> "We\'ll figure that out later," or quoting only a monthly payment before you\'ve seen the full number.</p>`;
+  }
+  if (t.includes('clean') || t.includes('history') || t.includes('carfax') || t.includes('accident') || t.includes('title') || t.includes('verify') || t.includes('prove'))
+    return `<p>${whyLead}clean history isn\'t a nice-to-have — it\'s the baseline for peace of mind. You shouldn\'t have to take their word for it.</p>
+      <p><strong>Say this:</strong> "Can we walk through the full Carfax together — clean title, no accidents, and how many owners? I want to see what you see online."</p>
+      <p><strong>Trust signal:</strong> They pull the report before the drive, point to each owner and service record, and ${car?.accidentFree ? 'the report matches the accident-free listing on this ' + title + '.' : 'flag anything that doesn\'t match the listing.'}</p>
+      <p><strong>Red flag:</strong> "It\'s clean, don\'t worry" with no report, or a story that doesn\'t match what you saw online.</p>`;
+  if (t.includes('blind spot') || t.includes('blindspot') || (t.includes('explain') && t.includes('safety')) || (t.includes('demo') && t.includes('alert'))) {
+    const blindIntro = teenDriver
+      ? 'Blind spot monitoring is a big part of why you\'re here. For a new driver, you want to see the alerts work in person — not just confirm they\'re on the window sticker.'
+      : 'Blind spot monitoring is a big part of why you\'re here. Ask for a hands-on demo so you know the alerts are clear and easy to use before you buy.';
+    return `<p>${blindIntro}</p>
+      <p><strong>Say this:</strong> "Before we leave the lot, can you show me how blind spot alerts work on this ${title} — the dash icon, the mirror signal, and what it feels like when a car is next to us?"</p>
+      <p><strong>Trust signal:</strong> They take time to demo it in the parking lot and encourage you to test it on a merge during the drive — they want you confident, not rushed.</p>
+      <p><strong>Red flag:</strong> "It has it, you\'ll figure it out on the road" without showing you, or not knowing how the system works on this trim.</p>`;
+  }
+  if (t.includes('add-on') || t.includes('addon') || t.includes('gap') || t.includes('warranty') || t.includes('vsc') || t.includes('required') || t.includes('optional') || t.includes('extra'))
+    return `<p>${whyLead}a fair dealer separates the car from the extras — you should never feel like saying "not today" puts the deal at risk.</p>
+      <p><strong>Say this:</strong> "Which products are optional, and what would GAP or an extended warranty cost if I bought them separately — not bundled into my payment?"</p>
+      <p><strong>Trust signal:</strong> They list each add-on with a standalone price, say clearly that none are required to buy the car, and ${warrantyActive ? 'note that factory warranty on this ' + title + ' may still be active so you can decide later.' : 'don\'t push back when you ask for time to think.'}</p>
+      <p><strong>Red flag:</strong> "You have to have GAP," or folding extras into the payment before you\'ve agreed on the car price.</p>`;
+  if (t.includes('monthly') || t.includes('payment trap') || t.includes('per month') || t.includes('only talk') || t.includes('full loan') || t.includes('loan cost')) {
+    if (isPayingCash()) {
+      return `<p>You're paying cash — <strong>nobody should quote you a monthly payment</strong>. If they do, they're trying to sell financing you don't need.</p>
+        <p><strong>Say this:</strong> "We're paying cash — what's the out-the-door total, and can I get that in writing?"</p>
+        <p><strong>Trust signal:</strong> They stay focused on the one-time total and don't push you toward the finance desk.</p>
+        <p><strong>Red flag:</strong> "You should finance and invest the cash instead" before you've asked for advice — or hiding fees inside a "cash price" that isn't really out-the-door.</p>`;
+    }
+    return `<p>${whyLead}a low monthly payment can hide a long loan and thousands in extra interest — transparency means seeing the whole cost, not just what fits the budget this month.</p>
+      <p><strong>Say this:</strong> "What\'s the amount financed, the APR, the term, and total interest — not just the monthly payment? Can I see all four on one sheet?"</p>
+      <p><strong>Trust signal:</strong> They show every number plainly and don\'t stretch the term to hit a payment target without you asking.${teenDriver ? ' For a teen\'s first car, a shorter term with a clear total usually beats a 72-month "affordable" payment.' : ''}</p>
+      <p><strong>Red flag:</strong> "Let\'s focus on what you can afford per month" while skipping APR and total interest.</p>`;
+  }
+  if (t.includes('pressure') || t.includes('tactic') || t.includes('decide') || t.includes('later') || t.includes('today only') || t.includes('someone else') || t.includes('respect'))
+    return `<p>${whyLead}choosing a safe car for your family is a big decision — a dealership that respects you won\'t punish you for sleeping on it or comparing your other picks.</p>
+      <p><strong>Say this:</strong> "If we love this ${title}, is the price the same if we come back tomorrow? We\'re also looking at a couple other SUVs with blind spot monitoring."</p>
+      <p><strong>Trust signal:</strong> They say yes without hesitation, remind you of the 7-day return guarantee, and don\'t steer you to the finance desk the moment you park. Test driving isn\'t buying.</p>
+      <p><strong>Red flag:</strong> "Another buyer is coming today," manager approvals that expire at closing, or making you feel guilty for comparing options.</p>`;
+  if (t.includes('trust') || t.includes('transparent') || t.includes('honest'))
+    return `<p>Trust comes from <strong>written numbers</strong>, <strong>visible history</strong>, and <strong>no penalty for asking questions</strong>. On this ${title}, start with out-the-door price, Carfax, and a blind spot demo — if those answers are straight, the rest of the visit usually is too.</p>`;
+  if (t.includes('bring') || t.includes('someone') || t.includes('spouse') || t.includes('passenger') || t.includes('parent'))
+    return `<p>Bring whoever helps you decide — ${teenDriver ? 'especially a parent if your teen is driving' : 'a second set of eyes builds confidence'}. ${car?.body === 'SUV' || car?.body === 'Minivan' ? 'Have them try the second row and cargo area.' : 'Have them sit in back for legroom and road noise.'} Only the driver needs a license.</p>`;
   if (t.includes('how long') || t.includes('duration') || t.includes('time'))
-    return `<p>Plan about <strong>30–40 minutes</strong> total — 10 for the walk-around and Carfax, 20+ on the road on streets you actually drive. There's no timer; take the time you need.</p>`;
+    return `<p>Plan about <strong>30–40 minutes</strong> — enough time for Carfax, your questions, and a real drive. A transparent dealer won\'t rush you because they know informed buyers trust the process.</p>`;
   if (t.includes('same day') || t.includes('buy today') || t.includes('purchase'))
-    return `<p>If you love the ${title}, you can move forward same day — but you're not committing by test driving. Ask for the <strong>out-the-door price</strong> in writing before any paperwork, and keep add-ons separate.</p>`;
-  if (t.includes('gap'))
-    return `<p><strong>GAP</strong> covers the loan balance if the car is totaled while you're upside-down. It matters most with a small down payment. Optional — compare dealer GAP vs. your auto insurer; one is usually cheaper.</p>`;
-  if (t.includes('vsc') || t.includes('warranty') || t.includes('service contract'))
-    return warrantyActive
-      ? `<p>On this ${title}, factory warranty is likely still active at ${car ? formatMileage(car.mileage) : 'current mileage'} — you probably don't need a VSC yet. Ask us when factory coverage ends; you can add a contract later.</p>`
-      : `<p>An extended <strong>VSC</strong> is optional coverage for repairs after factory warranty expires. Get a standalone price${luxury ? ' — ' + car.make + ' parts are not cheap' : ''} and do not let it get packed into the monthly payment without you seeing the number.</p>`;
-  if (t.includes('tire') || t.includes('wheel'))
-    return `<p><strong>Tire & wheel protection</strong> covers road hazards and curb rash. ${awd ? 'AWD cars can wear tires unevenly if alignment is off — worth a quote if you keep low-profile tires.' : 'Only worth it if the standalone price is reasonable — skip it if they will not break it out separately.'}</p>`;
+    return `<p>You can buy same day if you love the ${title} — but transparency means getting the <strong>out-the-door price in writing</strong> first and keeping add-ons separate. No one should make you feel like walking away means losing a "special" deal.</p>`;
   if (t.includes('highway') || t.includes('listen') || t.includes('70') || t.includes('65'))
-    return `<p>On the highway in the ${title}: listen for wind noise, feel for vibration in the steering wheel, and watch the transmission — it should hold a gear without hunting. ${car && car.mileage > 40000 ? 'At ' + formatMileage(car.mileage) + ', a smooth 60 mph cruise is a good sign.' : ''}</p>`;
+    return `<p>On the highway in the ${title}: listen for wind noise, feel for vibration in the steering wheel, and confirm blind spot alerts on a merge. ${car && car.mileage > 40000 ? 'At ' + formatMileage(car.mileage) + ', a smooth 60 mph cruise is a good sign.' : 'A dealer who cares about transparency wants you to notice these things — not gloss over them.'}</p>`;
   if (t.includes('reschedule') || t.includes('cancel'))
-    return `<p>Reply to your confirmation email or call <strong>(800) 555-1234</strong> — we'll find a new slot. No penalty, no awkwardness.</p>`;
-  if (t.includes('pressure') || t.includes('sales') || t.includes('haggle'))
-    return `<p>Test drives here are <strong>no pressure</strong>. Your specialist will answer questions and let you drive — you won't be cornered into a desk. DriveClear pricing is no-haggle and all-in.</p>`;
-  if (t.includes('carfax') || t.includes('history') || t.includes('accident'))
-    return `<p>We'll walk through the <strong>Carfax</strong> before you drive — owners, accidents, service records. ${car?.accidentFree ? 'This one is listed accident-free.' : 'Ask about anything that stands out.'}</p>`;
-  if (t.includes('maintenance') || t.includes('service cost'))
-    return `<p>${luxury ? car.make + ' routine service runs higher than Honda/Toyota — budget for premium oil and dealer intervals, or compare an independent shop.' : 'Check what is due soon based on mileage — oil, brakes, and fluid changes. We will show service history on the Carfax.'}</p>`;
+    return `<p>Reply to your confirmation email or call <strong>(800) 555-1234</strong> — we'll find a new slot with no penalty. That flexibility is part of how DriveClear earns trust before you ever sign.</p>`;
+  if (t.includes('haggle') || t.includes('sales') || t.includes('no-haggle') || t.includes('one price'))
+    return `<p>DriveClear is <strong>one-price, no-haggle</strong> at ${priceStr} — what you see online should match what they quote in person. Ask them to confirm the out-the-door total matches; if it does, you\'re not missing a negotiation step.</p>`;
   if (t.includes('insurance') || t.includes('proof'))
-    return `<p>Your <strong>driver's license</strong> is required. Proof of insurance is helpful but not always required for a test drive — bring it if you have it handy.</p>`;
+    return `<p>Your <strong>driver\'s license</strong> is required.${teenDriver ? ' Bring a parent — they may co-sign if you buy, and proof of insurance on the family policy shows you\'re planning ahead, not scrambling at the desk.' : ' Proof of insurance helps but isn\'t always required just to test drive.'}</p>`;
+  if (t.includes('guarantee') || t.includes('return'))
+    return `<p><strong>Say this:</strong> "Can you walk me through the 7-day return guarantee — how many miles and what happens if it\'s not the right fit?"</p>
+      <p><strong>Trust signal:</strong> They explain it plainly: 7 days or 250 miles, full refund, no guilt trip. That\'s DriveClear backing the price you see, not just selling it.</p>`;
 
-  return `<p>Good question about the ${title}. Focus on how it feels on <em>your</em> roads, get the out-the-door price in writing if you're interested, and treat every protection plan as optional. Want tips on what to listen for, or whether GAP/VSC makes sense?</p>`;
+  return `<p>Good question about the ${title}. I can help you spot a <strong>transparent dealership</strong> — full price upfront, Carfax on the table, blind spot explained clearly, and no pressure if you need time. Tap a chip above or ask about something specific.</p>`;
+}
+
+// ─── Fast Track Purchase (VDP + confirmation) ─────────────
+let ftPrepVehicle = null;
+
+function ftSafetyLabel(v) {
+  if (!v) return 'blind spot alerts';
+  if (v.make === 'Honda') return 'Honda Sensing blind spot alerts';
+  if (v.make === 'Mazda') return 'i-ACTIVSENSE blind spot alerts';
+  if (v.make === 'GMC') return 'blind spot monitoring';
+  return 'blind spot alerts';
+}
+
+function initVDPFastTrack(v) {
+  const card = document.getElementById('vdp-fast-track');
+  if (!card || typeof Profile === 'undefined' || !Profile.fastTrackForVehicle) return;
+  const ft = Profile.fastTrackForVehicle(v);
+  if (!ft) {
+    card.hidden = true;
+    return;
+  }
+  const meta = Profile.fastTrackMeta(v);
+  card.hidden = false;
+  const copyEl = document.getElementById('vdp-fast-track-copy');
+  if (copyEl) {
+    copyEl.textContent = meta.subtitle || `We pre-filled your profile for this ${v.year} ${v.make} ${v.model} — finish in store in about ${meta.etaMinutes} minutes.`;
+  }
+  const listEl = document.getElementById('vdp-fast-track-checklist');
+  if (listEl) {
+    listEl.innerHTML = (meta.preFilled || []).map(item =>
+      `<li><i class="fa-solid fa-circle-check"></i> ${escapeHtml(item)}</li>`
+    ).join('');
+  }
+  const btn = document.getElementById('vdp-fast-track-btn');
+  if (btn) btn.href = `fast-track-confirmation.html?id=${v.id}`;
+}
+
+function initFastTrackConfirmation() {
+  const defaultId = (typeof Profile !== 'undefined' && Profile.fastTrackDefaultId)
+    ? Profile.fastTrackDefaultId()
+    : 391;
+  const id = new URLSearchParams(window.location.search).get('id') || String(defaultId || 391);
+  const v = typeof getVehicleById === 'function' ? getVehicleById(id) : null;
+  ftPrepVehicle = v;
+  const meta = (typeof Profile !== 'undefined' && Profile.fastTrackMeta)
+    ? Profile.fastTrackMeta(v)
+    : { etaMinutes: 45, appointment: 'your scheduled time', storeLine: 'your DriveClear dealer', preFilled: [] };
+  const visit = getVisitContext();
+  const when = meta.appointment || visit.when;
+
+  const prepSub = document.getElementById('ft-prep-sub');
+  if (prepSub) {
+    prepSub.textContent = v
+      ? `Personalized for your ${v.year} ${v.make} ${v.model} visit ${when} — so you spend minutes signing, not waiting.`
+      : meta.subtitle;
+  }
+
+  const root = document.getElementById('ft-confirm-root');
+  if (root) {
+    const vehicleEl = document.getElementById('ft-vehicle');
+    const detailsEl = document.getElementById('ft-details');
+    const vdpLink = document.getElementById('ft-vdp-link');
+    const etaEl = document.getElementById('ft-eta');
+
+    if (etaEl) etaEl.textContent = String(meta.etaMinutes || 45);
+
+    if (!v) {
+      if (vehicleEl) vehicleEl.textContent = 'your selected vehicle';
+    } else {
+      const title = `${v.year} ${v.make} ${v.model} ${v.trim}`;
+      if (vehicleEl) vehicleEl.textContent = title;
+      if (detailsEl) {
+        const ins = (typeof Profile !== 'undefined' && Profile.insuranceEstimate) ? Profile.insuranceEstimate(v) : null;
+        detailsEl.innerHTML = `
+          <div class="td-detail-row"><span>Vehicle</span><strong>${title}</strong></div>
+          <div class="td-detail-row"><span>Stock #</span><strong>${v.stockNum}</strong></div>
+          <div class="td-detail-row"><span>Locked price</span><strong>${formatPrice(v.price)}</strong></div>
+          ${ins ? `<div class="td-detail-row"><span>Est. insurance</span><strong>${escapeHtml(ins.range)}</strong></div>` : ''}
+          <div class="td-detail-row"><span>Location</span><strong>${vehicleLocationLabel(v)}</strong></div>
+          <div class="td-detail-row"><span>When</span><strong>${escapeHtml(when)}</strong></div>
+          <div class="td-detail-row"><span>Where</span><strong>${escapeHtml(meta.storeLine || visit.where)}</strong></div>
+          <div class="td-detail-row"><span>In-store time</span><strong>~${meta.etaMinutes || 45} minutes</strong></div>`;
+      }
+      if (vdpLink) vdpLink.href = `vdp.html?id=${v.id}`;
+    }
+  }
+
+  if (document.getElementById('ft-prep')) {
+    const fallbackId = (typeof Profile !== 'undefined' && Profile.fastTrackDefaultId)
+      ? Profile.fastTrackDefaultId()
+      : 391;
+    initFastTrackPrep(v || getVehicleById?.(String(fallbackId || 391)));
+  }
+}
+
+function initFastTrackPrep(v) {
+  if (!v) return;
+  const meta = (typeof Profile !== 'undefined' && Profile.fastTrackMeta)
+    ? Profile.fastTrackMeta(v)
+    : { etaMinutes: 45, preFilled: [], appointment: 'your visit' };
+  const visit = getVisitContext();
+  const when = meta.appointment || visit.when;
+  const title = `${v.year} ${v.make} ${v.model}`;
+  const byline = `<i class="fa-solid fa-wand-magic-sparkles"></i> Personalized for · <span>${title} · ${formatMileage(v.mileage)} · Fast Track</span>`;
+  ['ft-done-byline', 'ft-timeline-byline', 'ft-bring-byline'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = byline;
+  });
+
+  const ftGen = (el, delay, buildHtml) => {
+    if (!el) return;
+    el.innerHTML = '<div class="fp-generating"><span class="pa-typing-dots"><span></span><span></span><span></span></span><span>Building your Fast Track brief…</span></div>';
+    setTimeout(() => { el.innerHTML = buildHtml(); el.classList.add('fp-reveal-item'); }, delay);
+  };
+
+  const preFilled = meta.preFilled.length ? meta.preFilled : (
+    isPayingCash()
+      ? ['Cash payment method confirmed', 'Insurance verified on parent policy', 'Out-the-door price locked']
+      : ['Finance application submitted', 'Insurance verified on parent policy', 'Out-the-door price locked']
+  );
+  const driverAge = PARTICIPANT?.insurance?.driverAge;
+  const teenNote = driverAge === 16
+    ? ' Parent co-signer is already on file — no extra paperwork at the desk.'
+    : '';
+
+  ftGen(document.getElementById('ft-done-body'), 450, () => `
+    <p style="font-size:14px;color:var(--text-mid);line-height:1.65;margin:0 0 14px">
+      Your <strong style="color:var(--text-dark)">${v.year} ${v.make} ${v.model} ${v.trim}</strong> is held for ${when}.
+      These steps are already done online — that's what makes the in-store visit about <strong>${meta.etaMinutes} minutes</strong>, not hours.
+    </p>
+    <div class="td-checklist">
+      ${preFilled.map(item => `<div class="td-check-item"><i class="fa-solid fa-circle-check"></i><span>${escapeHtml(item)}${item.includes('Insurance') ? teenNote : ''}</span></div>`).join('')}
+    </div>`);
+
+  const safetyLabel = ftSafetyLabel(v);
+  const timeline = [
+    { min: '0–5', title: 'Check in at the kiosk', body: 'Scan your confirmation email or give your name — your specialist already has your file pulled up.' },
+    { min: '5–15', title: 'Quick test drive (optional)', body: `Confirm ${safetyLabel} feel right on your route — especially if you're comparing to your other shortlisted SUVs.` },
+    { min: '15–30', title: 'Sign & pay', body: isPayingCash()
+      ? 'Review the locked out-the-door cash total, sign the buyer\'s order, and pay by certified check or wire — no loan paperwork.'
+      : 'Review the locked out-the-door price, sign the buyer\'s order, and confirm your loan terms — no re-entering info you already submitted.' },
+    { min: '30–45', title: 'Keys & insurance bind', body: 'We bind insurance on the parent policy, hand over keys, and walk through the 7-day return guarantee.' },
+  ];
+
+  ftGen(document.getElementById('ft-timeline-body'), 700, () => `
+    <p style="font-size:14px;color:var(--text-mid);line-height:1.65;margin:0 0 14px">
+      Here's what happens ${when} — every step is sequenced so you're not waiting while someone re-types your application.
+    </p>
+    <div class="ft-timeline">
+      ${timeline.map(step => `
+        <div class="ft-step">
+          <div class="ft-step-min">${step.min} min</div>
+          <div class="ft-step-body">
+            <strong>${step.title}</strong>
+            <p>${step.body}</p>
+          </div>
+        </div>`).join('')}
+    </div>`);
+
+  const bringItems = [
+    { icon: 'id-card', html: '<strong>Driver\'s license</strong> — yours and a parent co-signer if you\'re under 18.' },
+    { icon: 'shield-halved', html: '<strong>Insurance card</strong> — parent policy is verified, but bring the physical card just in case.' },
+    { icon: 'credit-card', html: isPayingCash()
+      ? '<strong>Cash or certified check</strong> — once the out-the-door total is confirmed in writing, bring payment the same day you sign.'
+      : '<strong>Down payment method</strong> — if you\'re putting money down, have the card or check ready.' },
+    { icon: 'users', html: '<strong>Whoever signs with you</strong> — parent or guardian should come if they\'re on the loan.' },
+  ];
+
+  ftGen(document.getElementById('ft-bring-body'), 950, () => `
+    <div class="td-checklist">
+      ${bringItems.map(it => `<div class="td-check-item"><i class="fa-solid fa-${it.icon}"></i><span>${it.html}</span></div>`).join('')}
+    </div>
+    <div class="td-visit-note">
+      <strong>${isPayingCash() ? 'Skip the finance desk entirely:' : 'Skip the finance desk wait:'}</strong> ${isPayingCash()
+        ? 'You\'re paying cash — there\'s no loan to discuss. If anyone sends you to finance anyway, ask for your Fast Track file and the written out-the-door total.'
+        : 'Because your application is pre-filled, you won\'t re-answer the same questions in store. If anyone tries to restart paperwork from scratch, ask for your Fast Track file.'}
+    </div>`);
+
+  const takeawayEl = document.getElementById('ft-timeline-takeaway');
+  setTimeout(() => {
+    if (!takeawayEl) return;
+    takeawayEl.innerHTML = `<i class="fa-solid fa-lightbulb"></i><div><strong>My take:</strong> Your locked price is ${formatPrice(v.price)} — confirm that out-the-door number matches before you sign. Everything else (GAP, VSC) stays optional.</div>`;
+    takeawayEl.hidden = false;
+    takeawayEl.classList.add('fp-reveal-item');
+  }, 1200);
+
+  initDealershipAskChat({
+    v,
+    visit,
+    introElId: 'ft-ask-intro',
+    bodyId: 'ft-chat-body',
+    formId: 'ft-chat-form',
+    inputId: 'ft-chat-input',
+    chipsId: 'ft-chat-chips',
+    greetingLabel: 'Before you walk in',
+    greetingLead: `Your <strong>${title}</strong> Fast Track is set for ${when.replace(/^(\w+day),?\s*/i, '').trim() || when}.`,
+  });
 }
 
 // ─── Trade-in Insights (trade confirmation page) ─────────
@@ -3117,7 +3722,105 @@ function parseSearchParams(q) {
 
 // Deterministic synthetic distance (miles) per vehicle — stable across the app.
 function vehicleDistance(v) {
+  if (typeof Profile !== 'undefined' && Profile.milesFromZip && v.location) {
+    const miles = Profile.milesFromZip(v.location);
+    if (miles != null) return miles;
+  }
   return ((v.id * 7) % 12) * 9 + 6; // ~6–105 miles
+}
+
+function vehicleHasBlindSpot(v) {
+  return (v.features || []).some(f => /blind\s*spot|lane change alert|\bblis\b/i.test(f));
+}
+
+function buildSrpStateFromUrl(urlP, profileDefaults) {
+  const d = profileDefaults || {};
+  const num = (key, fallback) => urlP.has(key) ? parseInt(urlP.get(key), 10) : fallback;
+  const flag = (key, fallback) => urlP.has(key) ? urlP.get(key) === '1' : !!fallback;
+  return {
+    make: urlP.getAll('make').length ? urlP.getAll('make') : (d.make || []),
+    body: urlP.getAll('body').length ? urlP.getAll('body') : (d.body || []),
+    drive: urlP.getAll('drive').length ? urlP.getAll('drive') : (d.drive || []),
+    minYear: num('minYear', d.minYear ?? 2010),
+    maxYear: num('maxYear', d.maxYear ?? 2024),
+    minPrice: num('minPrice', d.minPrice ?? 0),
+    maxPrice: num('maxPrice', d.maxPrice ?? 50000),
+    maxMiles: num('maxMiles', d.maxMiles ?? 100000),
+    minMpg: num('minMpg', d.minMpg ?? 0),
+    maxDist: num('maxDist', d.maxDist ?? 0),
+    accidentFree: flag('accidentFree', d.accidentFree),
+    cleanTitle: flag('cleanTitle', d.cleanTitle),
+    blindSpot: flag('blindSpot', d.blindSpot),
+    sort: urlP.get('sort') || 'recommended',
+    query: urlP.get('q') || '',
+  };
+}
+
+function filterSrpVehicles(vehicles, state) {
+  return vehicles.filter(v => {
+    if (state.make.length && !state.make.includes(v.make)) return false;
+    if (state.body.length && !state.body.includes(v.body)) return false;
+    if (state.drive.length && !state.drive.includes(v.drivetrain)) return false;
+    if (v.price < state.minPrice || v.price > state.maxPrice) return false;
+    if (v.mileage > state.maxMiles) return false;
+    if (v.year < state.minYear || v.year > state.maxYear) return false;
+    if (state.minMpg && v.mpgHwy < state.minMpg) return false;
+    if (state.maxDist && vehicleDistance(v) > state.maxDist) return false;
+    if (state.accidentFree && !v.accidentFree) return false;
+    if (state.cleanTitle && !v.accidentFree) return false;
+    if (state.blindSpot && !vehicleHasBlindSpot(v)) return false;
+    if (state.query) {
+      const haystack = `${v.year} ${v.make} ${v.model} ${v.trim} ${v.body} ${v.extColor}`.toLowerCase();
+      if (!haystack.includes(state.query)) return false;
+    }
+    return true;
+  });
+}
+
+function preferredMakeRank(make, preferred) {
+  const idx = preferred.indexOf(make);
+  return idx === -1 ? preferred.length : idx;
+}
+
+function sortSrpResults(results, sortMode) {
+  const preferred = (typeof Profile !== 'undefined' && Profile.preferredMakes)
+    ? Profile.preferredMakes()
+    : [];
+  return results.sort((a, b) => {
+    if (preferred.length) {
+      const rankDiff = preferredMakeRank(a.make, preferred) - preferredMakeRank(b.make, preferred);
+      if (rankDiff !== 0) return rankDiff;
+    }
+    switch (sortMode) {
+      case 'price-asc': return a.price - b.price;
+      case 'price-desc': return b.price - a.price;
+      case 'year-desc': return b.year - a.year;
+      case 'miles-asc': return a.mileage - b.mileage;
+      default: return (b.marketSavings || 0) - (a.marketSavings || 0);
+    }
+  });
+}
+
+function syncSrpFormFromState(state) {
+  document.querySelectorAll('.fp-make').forEach(cb => { cb.checked = state.make.includes(cb.value); });
+  document.querySelectorAll('.fp-body').forEach(cb => { cb.checked = state.body.includes(cb.value); });
+  document.querySelectorAll('.fp-drive').forEach(cb => { cb.checked = state.drive.includes(cb.value); });
+  const minPriceIn = document.getElementById('fp-min-price');
+  const maxPriceIn = document.getElementById('fp-max-price');
+  const maxMilesIn = document.getElementById('fp-max-miles');
+  const minYearIn = document.getElementById('fp-min-year');
+  const maxYearIn = document.getElementById('fp-max-year');
+  const accidentFreeIn = document.getElementById('fp-accident-free');
+  const cleanTitleIn = document.getElementById('fp-clean-title');
+  const blindSpotIn = document.getElementById('fp-blind-spot');
+  if (minPriceIn) minPriceIn.value = state.minPrice || '';
+  if (maxPriceIn) maxPriceIn.value = state.maxPrice < 50000 ? state.maxPrice : '';
+  if (maxMilesIn) maxMilesIn.value = state.maxMiles < 100000 ? state.maxMiles : '';
+  if (minYearIn) minYearIn.value = state.minYear > 2010 ? state.minYear : '';
+  if (maxYearIn) maxYearIn.value = state.maxYear < 2024 ? state.maxYear : (state.maxYear || 2024);
+  if (accidentFreeIn) accidentFreeIn.checked = !!state.accidentFree;
+  if (cleanTitleIn) cleanTitleIn.checked = !!state.cleanTitle;
+  if (blindSpotIn) blindSpotIn.checked = !!state.blindSpot;
 }
 
 function paramMatches(v, P) {
@@ -3131,6 +3834,9 @@ function paramMatches(v, P) {
   if (P.maxYear && v.year > P.maxYear) return false;
   if (P.minMpg && v.mpgHwy < P.minMpg) return false;
   if (P.maxDist && vehicleDistance(v) > P.maxDist) return false;
+  if (P.accidentFree && !v.accidentFree) return false;
+  if (P.cleanTitle && !v.accidentFree) return false;
+  if (P.blindSpot && !vehicleHasBlindSpot(v)) return false;
   return true;
 }
 
