@@ -34,13 +34,13 @@ function srpStateFromProfile(Profile) {
   const pp = Profile.toParams();
   return {
     make: [].concat(pp.make || []),
-    body: pp.body ? [pp.body] : [],
+    body: pp.body ? (Array.isArray(pp.body) ? pp.body : [pp.body]) : [],
     drive: pp.drive ? (Array.isArray(pp.drive) ? pp.drive : [pp.drive]) : [],
     minPrice: 0,
     maxPrice: pp.maxPrice || 50000,
     maxMiles: pp.maxMiles || 100000,
     minYear: pp.minYear || 2010,
-    maxYear: pp.maxYear || 2024,
+    maxYear: pp.maxYear || new Date().getFullYear(),
     minMpg: pp.minMpg || 0,
     maxDist: pp.maxDist || 0,
     query: '',
@@ -73,7 +73,8 @@ function buildSrpUrl(state) {
   if (state.maxPrice < 50000) u.set('maxPrice', state.maxPrice);
   if (state.maxMiles < 100000) u.set('maxMiles', state.maxMiles);
   if (state.minYear > 2010) u.set('minYear', state.minYear);
-  if (state.maxYear < 2024) u.set('maxYear', state.maxYear);
+  const currentYear = new Date().getFullYear();
+  if (state.maxYear < currentYear) u.set('maxYear', state.maxYear);
   if (state.minMpg) u.set('minMpg', state.minMpg);
   if (state.maxDist) u.set('maxDist', state.maxDist);
   const qs = u.toString();

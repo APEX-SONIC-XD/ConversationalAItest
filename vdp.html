@@ -24,6 +24,7 @@
     </form>
     <ul class="nav-links">
       <li><a href="srp.html" class="active">Used Cars</a></li>
+      <li><a href="favorites.html" class="nav-favorites-link">Favorites<span class="nav-fav-count" hidden></span></a></li>
       <li><a href="sell-trade.html">Sell / Trade</a></li>
       <li><a href="financing.html">Financing</a></li>
     </ul>
@@ -38,6 +39,7 @@
 <nav class="mobile-nav">
   <a href="index.html">Home</a>
   <a href="srp.html">Used Cars</a>
+  <a href="favorites.html" class="nav-favorites-link">Favorites<span class="nav-fav-count" hidden></span></a>
   <a href="sell-trade.html">Sell / Trade</a>
   <a href="financing.html">Financing</a>
 </nav>
@@ -104,48 +106,9 @@
 
         <!-- Vehicle History -->
         <div class="vdp-section">
-          <h2 class="vdp-sec-title">Vehicle History</h2>
-          <div class="hist-items">
-            <div class="hist-item">
-              <div class="hist-icon green"><i class="fa-solid fa-user"></i></div>
-              <div>
-                <div class="hist-title">1 Previous Owner</div>
-                <div class="hist-sub">Personal use vehicle — not a fleet or rental car</div>
-              </div>
-              <div class="hist-check"><i class="fa-solid fa-check"></i></div>
-            </div>
-            <div class="hist-item">
-              <div class="hist-icon green"><i class="fa-solid fa-shield-halved"></i></div>
-              <div>
-                <div class="hist-title">No Reported Accidents</div>
-                <div class="hist-sub">No damage or structural issue events on record</div>
-              </div>
-              <div class="hist-check"><i class="fa-solid fa-check"></i></div>
-            </div>
-            <div class="hist-item">
-              <div class="hist-icon blue"><i class="fa-solid fa-file-shield"></i></div>
-              <div>
-                <div class="hist-title">Clean Carfax Report</div>
-                <div class="hist-sub">Full vehicle history available — no title issues</div>
-              </div>
-              <div class="hist-check"><i class="fa-solid fa-check"></i></div>
-            </div>
-            <div class="hist-item">
-              <div class="hist-icon green"><i class="fa-solid fa-wrench"></i></div>
-              <div>
-                <div class="hist-title">150-Point Inspection</div>
-                <div class="hist-sub">Inspected by a certified DriveClear technician</div>
-              </div>
-              <div class="hist-check"><i class="fa-solid fa-check"></i></div>
-            </div>
-            <div class="hist-item">
-              <div class="hist-icon green"><i class="fa-solid fa-file-certificate"></i></div>
-              <div>
-                <div class="hist-title">Clean Title</div>
-                <div class="hist-sub">Not salvage, rebuilt, or flood-damaged</div>
-              </div>
-              <div class="hist-check"><i class="fa-solid fa-check"></i></div>
-            </div>
+          <h2 class="vdp-sec-title">Vehicle History &amp; Where It Came From</h2>
+          <div class="hist-items" id="vdp-history">
+            <!-- Rendered by app.js -->
           </div>
         </div>
 
@@ -195,6 +158,8 @@
 
     <!-- ─── Right: Sidebar ─── -->
     <div class="vdp-sidebar">
+
+      <div class="vdp-ai-highlight" id="vdp-ai-highlight" hidden aria-label="Highlights for your search"></div>
 
       <!-- Price Card -->
       <div class="vdp-card">
@@ -300,9 +265,9 @@
           <a href="#" class="btn btn-ghost btn-block">
             <i class="fa-regular fa-message" style="color:var(--teal)"></i> Send Us a Message
           </a>
-          <a href="#" class="btn btn-ghost btn-block">
+          <button type="button" class="btn btn-ghost btn-block" id="vdp-find-location">
             <i class="fa-solid fa-map-location-dot" style="color:var(--teal)"></i> Find Nearest Location
-          </a>
+          </button>
         </div>
         <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);font-size:13px;color:var(--text-light)">
           <i class="fa-solid fa-clock" style="color:var(--teal);margin-right:6px"></i>

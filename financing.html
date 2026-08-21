@@ -24,6 +24,7 @@
     </form>
     <ul class="nav-links">
       <li><a href="srp.html">Used Cars</a></li>
+      <li><a href="favorites.html" class="nav-favorites-link">Favorites<span class="nav-fav-count" hidden></span></a></li>
       <li><a href="sell-trade.html">Sell / Trade</a></li>
       <li><a href="financing.html" class="active">Financing</a></li>
     </ul>
@@ -38,6 +39,7 @@
 <nav class="mobile-nav">
   <a href="index.html">Home</a>
   <a href="srp.html">Used Cars</a>
+  <a href="favorites.html" class="nav-favorites-link">Favorites<span class="nav-fav-count" hidden></span></a>
   <a href="sell-trade.html">Sell / Trade</a>
   <a href="financing.html">Financing</a>
 </nav>
@@ -128,7 +130,7 @@
           <li><i class="fa-solid fa-check"></i> Firm approval with a locked-in rate and term</li>
           <li><i class="fa-solid fa-check"></i> Same-day decisions available at most locations</li>
           <li><i class="fa-solid fa-check"></i> Apply trade-in equity or down payment at checkout</li>
-          <li><i class="fa-solid fa-check"></i> We shop multiple lenders — no rate markups</li>
+          <li><i class="fa-solid fa-check"></i> We shop <strong><span data-lender-count>20+</span> lenders</strong> — no rate markups</li>
           <li><i class="fa-solid fa-check"></i> Complete purchase in as little as 45 minutes</li>
         </ul>
         <div class="fin-path-meta">
@@ -147,6 +149,10 @@
           <div class="fin-path-meta-item">
             <div class="fin-path-meta-label">Terms up to</div>
             <div class="fin-path-meta-value">72 months</div>
+          </div>
+          <div class="fin-path-meta-item">
+            <div class="fin-path-meta-label">Lender network</div>
+            <div class="fin-path-meta-value"><span data-lender-count>20+</span> partners</div>
           </div>
         </div>
         <p class="fin-path-best"><strong>Best for:</strong> You've found the car you want and you're ready to finalize your loan, trade-in, and purchase details.</p>
@@ -232,8 +238,8 @@
         </div>
         <div class="info-mini">
           <div class="info-mini-icon"><i class="fa-solid fa-handshake"></i></div>
-          <div class="info-mini-title">Multiple Lenders</div>
-          <div class="info-mini-desc">We shop your application across our network to find your best rate.</div>
+          <div class="info-mini-title"><span data-lender-count>20+</span> Lenders</div>
+          <div class="info-mini-desc">We shop your application across our network of <span data-lender-count>20+</span> lending partners to find your best rate.</div>
         </div>
         <div class="info-mini">
           <div class="info-mini-icon"><i class="fa-solid fa-tag"></i></div>
@@ -296,6 +302,13 @@
           <div class="fin-compare-row">
             <div class="fin-compare-cell highlight">No</div>
             <div class="fin-compare-cell">Yes</div>
+          </div>
+        </div>
+        <div>
+          <div class="fin-compare-label">Lenders shopped</div>
+          <div class="fin-compare-row">
+            <div class="fin-compare-cell">Rate estimate only</div>
+            <div class="fin-compare-cell highlight"><span data-lender-count>20+</span> lenders · no markups</div>
           </div>
         </div>
         <div>

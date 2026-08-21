@@ -33,45 +33,202 @@ const PARTICIPANT = {
   maxPrice: null,
   maxApproved: null,
   maxMonthly: null,
-  body: null,
-  makes: [],
+  body: ['Sedan', 'SUV'],
+  makes: ['Toyota', 'Subaru'],
   minYear: null,
   maxMiles: null,
-  drivetrain: null,
-  minMpg: null,
+  drivetrain: 'AWD',
+  minMpg: 28,
   maxDist: null,
 
-  needs: [],
+  needs: ['winter', 'snow', 'value', 'efficient', 'hybrid'],
 
   tradeIn: null,
 
   creditTier: null,
-  journeyStage: null,
+  journeyStage: 'Prepared',
 
   // ── Market / region (inventory lot cities, distance context) ──
   // Facilitator: set label + lotCities when participant is shopping in a new area.
   market: {
-    label: null,
-    lotCities: [],
+    label: 'Rochester, NY',
+    lotCities: [
+      'Rochester, NY',
+      'Henrietta, NY',
+      'Greece, NY',
+      'Webster, NY',
+      'Pittsford, NY',
+      'Irondequoit, NY',
+      'Brighton, NY',
+      'Victor, NY',
+    ],
+    locations: [
+      { city: 'Rochester, NY', name: 'DriveClear Rochester', address: '120 East Ave', zip: '14604', lat: 43.1566, lng: -77.6088 },
+      { city: 'Henrietta, NY', name: 'DriveClear Henrietta', address: '2280 W Henrietta Rd', zip: '14623', lat: 43.0592, lng: -77.6120 },
+      { city: 'Greece, NY', name: 'DriveClear Greece', address: '4100 W Ridge Rd', zip: '14626', lat: 43.2597, lng: -77.7047 },
+      { city: 'Webster, NY', name: 'DriveClear Webster', address: '980 Ridge Rd', zip: '14580', lat: 43.2123, lng: -77.4299 },
+      { city: 'Pittsford, NY', name: 'DriveClear Pittsford', address: '3220 Monroe Ave', zip: '14534', lat: 43.0906, lng: -77.5150 },
+      { city: 'Irondequoit, NY', name: 'DriveClear Irondequoit', address: '1800 East Ridge Rd', zip: '14617', lat: 43.2134, lng: -77.5792 },
+      { city: 'Brighton, NY', name: 'DriveClear Brighton', address: '1900 Monroe Ave', zip: '14618', lat: 43.1476, lng: -77.5564 },
+      { city: 'Victor, NY', name: 'DriveClear Victor', address: '7507 Main St', zip: '14564', lat: 42.9820, lng: -77.4089 },
+      { city: 'Fairport, NY', name: 'DriveClear Fairport', address: '675 Moseley Rd', zip: '14450', lat: 43.0998, lng: -77.4436 },
+      { city: 'Penfield, NY', name: 'DriveClear Penfield', address: '1800 Panorama Trail', zip: '14526', lat: 43.1304, lng: -77.4754 },
+      { city: 'Gates, NY', name: 'DriveClear Gates', address: '2200 Buffalo Rd', zip: '14624', lat: 43.1511, lng: -77.7042 },
+      { city: 'Canandaigua, NY', name: 'DriveClear Canandaigua', address: '3295 Rochester Rd', zip: '14424', lat: 42.8876, lng: -77.2815 },
+      { city: 'Brockport, NY', name: 'DriveClear Brockport', address: '3600 W Ridge Rd', zip: '14420', lat: 43.2137, lng: -77.9361 },
+      { city: 'Syracuse, NY', name: 'DriveClear Syracuse', address: '3700 W Genesee St', zip: '13219', lat: 43.0481, lng: -76.1474 },
+      { city: 'Buffalo, NY', name: 'DriveClear Buffalo', address: '4400 Transit Rd', zip: '14221', lat: 42.9634, lng: -78.6978 },
+      { city: 'Albany, NY', name: 'DriveClear Albany', address: '1200 Central Ave', zip: '12205', lat: 42.7170, lng: -73.8686 },
+    ],
   },
 
   // ── Homepage AI recommendations (index.html) ──
   // Facilitator: edit display copy here — name, price, expert blurbs, drawer text.
   // VDP link (optional): set year + make + model, or vdpId as fallback.
   homepage: {
-    titleAccent: null,
+    titleAccent: 'DriveClear Rochester',
     appointment: null,
     dealerAddress: null,
-    criteriaText: null,
-    footText: null,
-    footLinkText: null,
-    footLinkHref: null,
+    criteriaText: 'Toyota Corolla Hybrid AWD — compact, efficient, and snow-capable for Rochester without a budget-brand trade-off',
+    footText: 'Three AWD sedans for Rochester — Corolla Hybrid, Impreza, and Legacy.',
+    footLinkText: 'See all hybrid & AWD sedan matches →',
+    footLinkHref: 'srp.html?make=Toyota&make=Subaru&body=Sedan&body=SUV&drive=AWD&minMpg=28',
     compare: {
-      title: null,
-      subtitle: null,
-      footDefault: null,
+      title: 'Corolla Hybrid AWD vs. Subaru sedans',
+      subtitle: 'Your shortlist compared on price, fuel economy, below-market savings, and snow-ready AWD — Corolla Hybrid, Impreza, and Legacy.',
+      footDefault: 'Corolla Hybrid AWD leads on mpg — Impreza and Legacy trade efficiency for standard Subaru AWD and more cabin room.',
     },
-    picks: [],
+    picks: [
+      {
+        key: 'corolla-23-hybrid-awd',
+        name: '2023 Toyota Corolla LE Hybrid AWD',
+        price: '$26,488',
+        year: 2023,
+        make: 'Toyota',
+        model: 'Corolla',
+        trim: 'LE',
+        match: 'Your pick',
+        trimLabel: 'LE · Hybrid AWD · 50+ mpg',
+        specs: [
+          { icon: 'road', text: '22,400 mi' },
+          { icon: 'leaf', text: '50 mpg comb.' },
+          { icon: 'snowflake', text: 'Hybrid AWD' },
+        ],
+        provenance: {
+          headline: 'Off-lease return',
+          detail: 'Toyota Financial Services lease return — not a rental or fleet car. Single lessee, personal-use lease in upstate NY.',
+        },
+        expert: 'Exactly what you asked for — Corolla LE Hybrid AWD for Rochester snow and the lowest running costs on this list.',
+        ownersRating: '4.8/5',
+        ownersText: 'Owners love the hybrid mpg with AWD confidence in winter; one-owner and accident-free.',
+        compareMetrics: { price: 26488, mpg: 50, hp: 138, zero: 9.6, miles: 22400, distMin: 3, value: 1100 },
+        drawer: {
+          dealer: 'DriveClear Rochester',
+          value: '$1,100 below market',
+          valueClass: 'great',
+          intro: 'Your match — <strong>2023 Toyota Corolla LE Hybrid AWD</strong> with Toyota Safety Sense 3.0, heated seats, and ~50 mpg combined.',
+          specs: [
+            ['Mileage', '22,400 mi'],
+            ['Drivetrain', 'Hybrid AWD'],
+            ['MPG (comb.)', '50 MPG'],
+            ['Horsepower', '138 hp'],
+            ['0–60 mph', '9.6 s'],
+            ['Engine', '1.8L Hybrid 4-Cyl'],
+            ['Prior use', 'Off-lease return'],
+            ['Source', 'Toyota Financial Services'],
+          ],
+          fit: 'Smallest footprint here with the best fuel economy — off-lease but not a rental, with hybrid AWD for Rochester winters.',
+          watch: 'Compact sedan — compare Impreza and Legacy if you want more back-seat room.',
+          chips: ['Was this a rental?', 'Off-lease vs personal?', 'Compare all three'],
+        },
+      },
+      {
+        key: 'impreza-22-prem',
+        name: '2022 Subaru Impreza Premium',
+        price: '$27,488',
+        year: 2022,
+        make: 'Subaru',
+        model: 'Impreza',
+        trim: 'Premium',
+        match: 'Subaru AWD',
+        trimLabel: 'Compact sedan · Symmetrical AWD · EyeSight',
+        specs: [
+          { icon: 'road', text: '23,800 mi' },
+          { icon: 'snowflake', text: 'Symmetrical AWD' },
+          { icon: 'arrow-trend-down', text: '$1,300 below market' },
+        ],
+        provenance: {
+          headline: 'Personal trade-in',
+          detail: 'Local Rochester owner — never leased, rented, or fleet-owned. One private owner on Carfax.',
+        },
+        expert: 'Compact Subaru AWD sedan — same snow-belt formula as the Legacy in a smaller, easier-to-park package.',
+        ownersRating: '4.7/5',
+        ownersText: 'Impreza owners like the smaller size for city streets with full-time AWD — strong snow-belt pick.',
+        compareMetrics: { price: 27488, mpg: 32, hp: 182, zero: 9.0, miles: 23800, distMin: 10, value: 1300 },
+        drawer: {
+          dealer: 'DriveClear · Irondequoit',
+          value: '$1,300 below market',
+          valueClass: 'great',
+          intro: 'Subaru compact — <strong>2022 Impreza Premium AWD</strong> with EyeSight and all-weather package.',
+          specs: [
+            ['Mileage', '23,800 mi'],
+            ['Drivetrain', 'AWD'],
+            ['MPG (comb.)', '32 MPG'],
+            ['Horsepower', '182 hp'],
+            ['0–60 mph', '9.0 s'],
+            ['Engine', '2.5L 4-Cyl'],
+            ['Prior use', 'Personal trade-in'],
+            ['Source', 'Local Rochester owner'],
+          ],
+          fit: 'Smallest Subaru here — personal-use trade-in, not lease or rental, with standard AWD and EyeSight.',
+          watch: 'Less rear seat room than Legacy — worth it if compact size matters more.',
+          chips: ['Impreza vs Legacy?', 'Impreza vs Corolla?', 'Compare all three'],
+        },
+      },
+      {
+        key: 'legacy-22-prem',
+        name: '2022 Subaru Legacy Premium',
+        price: '$27,988',
+        year: 2022,
+        make: 'Subaru',
+        model: 'Legacy',
+        trim: 'Premium',
+        match: 'Roomier Subaru',
+        trimLabel: 'Midsize sedan · Symmetrical AWD · EyeSight',
+        specs: [
+          { icon: 'road', text: '26,500 mi' },
+          { icon: 'snowflake', text: 'Symmetrical AWD' },
+          { icon: 'arrow-trend-down', text: '$1,500 below market' },
+        ],
+        provenance: {
+          headline: 'Off-lease return',
+          detail: 'Subaru Motors Finance off-lease from Syracuse area — not a rental. Single lessee, personal-use lease.',
+        },
+        expert: 'Subaru\'s discontinued snow-belt sedan — standard AWD and EyeSight with more cabin room than the Impreza, used only on this lot.',
+        ownersRating: '4.7/5',
+        ownersText: 'Legacy owners in upstate NY praise winter traction and visibility; less mpg than the Corolla Hybrid but confident in lake-effect snow.',
+        compareMetrics: { price: 27988, mpg: 31, hp: 182, zero: 8.5, miles: 26500, distMin: 7, value: 1500 },
+        drawer: {
+          dealer: 'DriveClear · Pittsford',
+          value: '$1,500 below market',
+          valueClass: 'great',
+          intro: 'Subaru midsize — <strong>2022 Legacy Premium AWD</strong> with EyeSight, heated seats, and all-weather package.',
+          specs: [
+            ['Mileage', '26,500 mi'],
+            ['Drivetrain', 'AWD'],
+            ['MPG (comb.)', '31 MPG'],
+            ['Horsepower', '182 hp'],
+            ['0–60 mph', '8.5 s'],
+            ['Engine', '2.5L 4-Cyl'],
+            ['Prior use', 'Off-lease return'],
+            ['Source', 'Subaru Motors Finance'],
+          ],
+          fit: 'Used Legacy — off-lease but not a rental; Subaru discontinued this model so only pre-owned examples remain.',
+          watch: 'Gas mpg trails the Corolla Hybrid; worth it if you want a roomier sedan and Subaru AWD.',
+          chips: ['Legacy vs Impreza?', 'Legacy in snow?', 'Compare all three'],
+        },
+      },
+    ],
   },
 };
 
@@ -86,6 +243,7 @@ const NEED_PRESETS = {
   budget:    { maxPrice: 22000 },
   efficient: { minMpg: 33 },
   fuel:      { minMpg: 33 },
+  hybrid:    { minMpg: 40 },
   hauling:   { body: 'Truck' },
   work:      { body: 'Truck' },
   winter:    { drive: 'AWD' },
@@ -107,7 +265,11 @@ const Profile = {
       if (preset) for (const k in preset) { if (preset[k] != null && P[k] == null) P[k] = preset[k]; }
     });
     if (PARTICIPANT.maxPrice != null) P.maxPrice = PARTICIPANT.maxPrice;
-    if (PARTICIPANT.body) P.body = PARTICIPANT.body;
+    if (PARTICIPANT.body) {
+      P.body = Array.isArray(PARTICIPANT.body)
+        ? (PARTICIPANT.body.length === 1 ? PARTICIPANT.body[0] : PARTICIPANT.body.slice())
+        : PARTICIPANT.body;
+    }
     if (PARTICIPANT.makes && PARTICIPANT.makes.length) {
       P.make = PARTICIPANT.makes.length === 1 ? PARTICIPANT.makes[0] : PARTICIPANT.makes.slice();
     }
@@ -152,7 +314,14 @@ const Profile = {
     if (P.minYear) parts.push(P.minYear + '+');
     if (Array.isArray(P.make)) parts.push(P.make.join('/'));
     else if (P.make) parts.push(P.make);
-    if (P.body === 'SUV') parts.push('SUVs');
+    if (Array.isArray(P.body) && P.body.length) {
+      const labels = P.body.map(b => {
+        if (b === 'SUV') return 'compact SUVs';
+        if (b === 'Sedan') return 'sedans';
+        return String(b).toLowerCase() + 's';
+      });
+      parts.push(labels.join(' or '));
+    } else if (P.body === 'SUV') parts.push('SUVs');
     else if (P.body === 'Truck') parts.push('trucks');
     else if (P.body === 'Sedan') parts.push('sedans');
     else if (P.body === 'Coupe') parts.push('coupes');
@@ -219,6 +388,20 @@ const Profile = {
   primaryLotCity() {
     const cities = this.lotLocations();
     return cities && cities.length ? cities[0] : null;
+  },
+
+  dealerLocations() {
+    const m = PARTICIPANT.market;
+    if (m && m.locations && m.locations.length) return m.locations.slice();
+    const cities = this.lotLocations() || [];
+    return cities.map(city => ({
+      city,
+      name: `DriveClear ${String(city).split(',')[0].trim()}`,
+      address: '',
+      zip: '',
+      lat: 43.1566,
+      lng: -77.6088,
+    }));
   },
 
   applyToInventory() {
