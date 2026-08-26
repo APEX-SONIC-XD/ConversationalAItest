@@ -24,6 +24,7 @@
     </form>
     <ul class="nav-links">
       <li><a href="srp.html" class="active">Used Cars</a></li>
+      <li><a href="favorites.html" class="nav-favorites-link">Favorites<span class="nav-fav-count" hidden></span></a></li>
       <li><a href="sell-trade.html">Sell / Trade</a></li>
       <li><a href="financing.html">Financing</a></li>
     </ul>
@@ -38,6 +39,7 @@
 <nav class="mobile-nav">
   <a href="index.html">Home</a>
   <a href="srp.html">Used Cars</a>
+  <a href="favorites.html" class="nav-favorites-link">Favorites<span class="nav-fav-count" hidden></span></a>
   <a href="sell-trade.html">Sell / Trade</a>
   <a href="financing.html">Financing</a>
 </nav>
@@ -85,6 +87,9 @@
           <h2 class="vdp-sec-title">About This Vehicle</h2>
           <p class="vdp-desc" id="vdp-desc">Loading vehicle description…</p>
         </div>
+
+        <!-- Corvette year compare (shown by app.js when applicable) -->
+        <div class="vdp-section" id="vdp-year-compare" hidden></div>
 
         <!-- Specs -->
         <div class="vdp-section">
@@ -212,7 +217,7 @@
             <div class="pa-title">
               <div class="pa-avatar"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
               <div>
-                <div class="pa-name">DriveClear Assistant</div>
+                <div class="pa-name">DriveClear Insights</div>
                 <div class="pa-status"><span class="pa-dot"></span> Ask about payments</div>
               </div>
             </div>
@@ -245,7 +250,7 @@
             </button>
           </form>
           <div class="pa-footer">
-            <i class="fa-solid fa-shield-halved"></i> AI-assisted answers · Not a financing offer
+            <i class="fa-solid fa-shield-halved"></i> DriveClear Insights · Not a financing offer
           </div>
         </div>
 
@@ -311,7 +316,7 @@
       </div>
 
       <!-- Guarantee Card -->
-      <div class="vdp-card" style="background:var(--teal-light);border-color:rgba(0,191,179,0.25)">
+      <div class="vdp-card" style="background:var(--teal-light);border-color:rgba(var(--brand-rgb),0.25)">
         <div style="display:flex;align-items:flex-start;gap:12px">
           <div style="width:42px;height:42px;background:var(--teal);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">
             <i class="fa-solid fa-rotate-left" style="color:#fff;font-size:16px"></i>
@@ -423,34 +428,24 @@
 </footer>
 
 <!-- ═══════════════════════ AI ASSIST MODE ═══════════════════════ -->
-<!-- Toggle: turns the page into an "ask anything" surface. VDP-only. -->
-<button class="ai-toggle" id="ai-toggle" type="button" role="switch" aria-checked="false" aria-label="Toggle AI Assist mode">
-  <span class="ai-toggle-ic"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
-  <span class="ai-toggle-text">
-    <span class="ai-toggle-name">AI Assist</span>
-    <span class="ai-toggle-state" id="ai-toggle-state">Off</span>
-  </span>
-  <span class="ai-switch"><span class="ai-switch-knob"></span></span>
-</button>
-
-<!-- Hover snippet that explains whatever element is under the AI cursor -->
+<!-- Hover snippet + slide-in drawer (opened from DriveClear Insights section). VDP-only. -->
 <div class="ai-tip" id="ai-tip" role="tooltip" hidden>
   <button type="button" class="ai-tip-close" id="ai-tip-close" aria-label="Dismiss"><i class="fa-solid fa-xmark"></i></button>
   <div class="ai-tip-title" id="ai-tip-title"></div>
   <div class="ai-tip-text" id="ai-tip-text"></div>
   <button type="button" class="ai-tip-more" id="ai-tip-more">
-    Ask AI about this <i class="fa-solid fa-arrow-right"></i>
+    Explore DriveClear Insights <i class="fa-solid fa-arrow-right"></i>
   </button>
 </div>
 
 <!-- Slide-in chat sidebar for a deeper conversation about an element -->
 <div class="ai-drawer-scrim" id="ai-drawer-scrim" hidden></div>
-<aside class="ai-drawer" id="ai-drawer" aria-label="DriveClear AI assistant" aria-hidden="true">
+<aside class="ai-drawer" id="ai-drawer" aria-label="DriveClear Insights" aria-hidden="true">
   <div class="ai-drawer-head">
     <div class="ai-drawer-id">
       <span class="ai-drawer-avatar"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
       <div>
-        <div class="ai-drawer-name">DriveClear Assistant</div>
+        <div class="ai-drawer-name">DriveClear Insights</div>
         <div class="ai-drawer-sub" id="ai-drawer-topic"><span class="pa-dot"></span> Ask about this vehicle</div>
       </div>
     </div>
@@ -464,8 +459,35 @@
     <input type="text" class="ai-drawer-input" id="ai-drawer-input" placeholder="Ask a follow-up question…" autocomplete="off" aria-label="Ask a follow-up question">
     <button type="submit" class="ai-drawer-send" aria-label="Send message"><i class="fa-solid fa-arrow-up"></i></button>
   </form>
-  <div class="ai-drawer-footer"><i class="fa-solid fa-shield-halved"></i> AI-assisted answers · Demo content</div>
+  <div class="ai-drawer-footer"><i class="fa-solid fa-shield-halved"></i> DriveClear Insights · Demo content</div>
 </aside>
+
+<!-- ═══════════════════════ DRIVECLEAR INSIGHTS MODAL ═══════════════════════ -->
+<div class="aidx" id="ai-detail" hidden role="dialog" aria-modal="true" aria-label="DriveClear Insights">
+  <div class="aidx-backdrop" id="ai-detail-backdrop"></div>
+  <div class="aidx-panel">
+    <div class="aidx-head">
+      <div class="aidx-head-title">
+        <div class="aidx-avatar"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+        <div>
+          <div class="aidx-name" id="aidx-name">Vehicle</div>
+          <div class="aidx-status"><span class="aidx-dot"></span> DriveClear Insights</div>
+        </div>
+      </div>
+      <button type="button" class="aidx-close" id="ai-detail-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <div class="aidx-body" id="aidx-body"></div>
+
+    <div class="aidx-chips" id="aidx-chips" aria-label="Ask about this vehicle"></div>
+
+    <form class="aidx-input-row" id="aidx-form">
+      <input type="text" class="aidx-input" id="aidx-input" placeholder="Ask about this car…" autocomplete="off" aria-label="Ask about this car">
+      <button type="submit" class="aidx-send" aria-label="Send"><i class="fa-solid fa-arrow-up"></i></button>
+    </form>
+    <div class="aidx-foot"><i class="fa-solid fa-shield-halved"></i> DriveClear Insights summary · fake demo data</div>
+  </div>
+</div>
 
 <script src="js/inventory.js"></script>
 <script src="js/profile.js"></script>

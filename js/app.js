@@ -5,7 +5,10 @@
 // ─── Mobile Nav ───────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   // Profile market → inventory lot cities (must run before any page init).
-  if (typeof Profile !== 'undefined' && Profile.applyToInventory) Profile.applyToInventory();
+  if (typeof Profile !== 'undefined') {
+    if (Profile.applyToInventory) Profile.applyToInventory();
+    if (Profile.syncPickLocations) Profile.syncPickLocations();
+  }
 
   const hamburger = document.querySelector('.nav-hamburger');
   const mobileNav = document.querySelector('.mobile-nav');
@@ -65,15 +68,107 @@ document.addEventListener('DOMContentLoaded', () => {
   initHomepageRec();
   initComparePage();
 
+  // Favorites page
+  resetStaleFavoritesIfNeeded();
+  if (document.getElementById('favorites-grid')) initFavorites();
+  updateFavoritesNav();
+
   // Interior pages
   if (document.getElementById('sell-trade-form')) initSellTradePage();
   if (document.getElementById('fin-calc-root')) initFinancingPage();
+  guardFinanceConfirmation();
   if (document.getElementById('fin-prep')) initFinancePrep();
   if (document.getElementById('trade-prep')) initTradePrep();
   if (document.getElementById('td-confirm-root') || document.getElementById('td-prep')) initTestDriveConfirmation();
 });
 
 // ─── Homepage AI recommendations (reads PARTICIPANT.homepage) ───
+function findPickForVehicle(v) {
+  if (!v || typeof PARTICIPANT === 'undefined' || !PARTICIPANT.homepage?.picks) return null;
+  for (const pick of PARTICIPANT.homepage.picks) {
+    if (pick.vdpId != null && String(pick.vdpId) === String(v.id)) return pick;
+    const pv = typeof findVehicleForPick === 'function' ? findVehicleForPick(pick) : null;
+    if (pv && pv.id === v.id) return pick;
+  }
+  return null;
+}
+
+function buildDefaultInsightSpecs(v) {
+  if (!v) return [];
+  return [
+    ['Engine', `${v.engine} · ${v.hp} hp`],
+    ['Drivetrain', `${v.drivetrain} · ${v.transmission}`],
+    ['Mileage', formatMileage(v.mileage)],
+    ['Location', displayLocation(v)],
+  ];
+}
+
+function buildInsightCarFromPick(pick, v) {
+  const vehicle = v || (typeof findVehicleForPick === 'function' ? findVehicleForPick(pick) : null);
+  const name = pick.name || (vehicle ? `${vehicle.year} ${vehicle.make} ${vehicle.model}` : 'Vehicle');
+  const trim = pick.trimLabel || (vehicle ? `${vehicle.trim} · ${vehicle.extColor}` : '');
+  const price = pick.price || (vehicle ? formatPrice(vehicle.price) : '—');
+  const pickLoc = (typeof Profile !== 'undefined' && Profile.pickLocation)
+    ? Profile.pickLocation(pick) : (pick.location || (vehicle ? displayLocation(vehicle) : 'In stock'));
+  const d = pick.drawer || {};
+  const savings = vehicle?.marketSavings || 0;
+  return {
+    name,
+    trim,
+    dealer: d.dealer || vehicle?.dealerName || 'DriveClear',
+    distance: d.distance || pickLoc,
+    price,
+    value: d.value || (savings > 0 ? `${formatPrice(savings)} below market` : 'At market'),
+    valueClass: d.valueClass || (savings > 0 ? 'great' : 'at'),
+    intro: d.intro || `Here's the full picture on the <strong>${escapeHtml(name)}</strong>.`,
+    specs: d.specs || buildDefaultInsightSpecs(vehicle),
+    fit: d.fit || pick.expert || '',
+    expert: pick.expert || '',
+    owners: { rating: pick.ownersRating || '—', text: pick.ownersText || '' },
+    watch: d.watch || '',
+    chips: d.chips || ['Is the price fair?', 'How reliable is it?', 'Compare to other Stingrays'],
+    vdpId: vehicle?.id || pick.vdpId || null,
+  };
+}
+
+function buildInsightCarFromVehicle(v) {
+  if (!v) return null;
+  const pick = findPickForVehicle(v);
+  if (pick) return buildInsightCarFromPick(pick, v);
+  if (v.make === 'Chevrolet' && v.model === 'Corvette') {
+    const isNew = vehicleCondition(v) === 'new';
+    const summary = (typeof Profile !== 'undefined' && Profile.summary) ? Profile.summary() : '';
+    return {
+      name: `${v.year} ${v.make} ${v.model}`,
+      trim: `${v.trim} · ${v.extColor}`,
+      dealer: v.dealerName || 'DriveClear',
+      distance: displayLocation(v),
+      price: formatPrice(v.price),
+      value: v.marketSavings > 0 ? `${formatPrice(v.marketSavings)} below market` : 'At market',
+      valueClass: v.marketSavings > 0 ? 'great' : 'at',
+      intro: `Here's the full picture on this <strong>${v.year} ${v.make} ${v.model} ${v.trim}</strong> — ${formatMileage(v.mileage)}${isNew ? ', brand new on the lot' : ''}.`,
+      specs: buildDefaultInsightSpecs(v).concat([
+        ['Reliability', isNew ? '4.2/5 · on par with sports-car segment avg' : '4.3–4.4/5 · strong C8 track record'],
+        ['5-yr maint. est.', isNew ? '~$14,200 · tires, brakes, fluids, service' : '~$15,500–$16,200 · incl. post-warranty service'],
+      ]),
+      fit: summary
+        ? `Matches what you've shared: ${summary.replace(/\.$/, '')}.`
+        : 'A mid-engine Stingray built for weekend drives with reliability and upkeep in mind.',
+      expert: `Same 495 hp LT2 V8 across the C8 line — this ${v.year} ${v.trim} at ${formatPrice(v.price)} balances year, miles, and trim against others on our lot.`,
+      owners: {
+        rating: '4.3/5',
+        text: 'Owners praise LT2 durability when serviced on schedule — premium tires and Z51 brake wear are the main upkeep costs, not engine issues.',
+      },
+      watch: isNew
+        ? 'Plan ~$2,800/yr in upkeep even with warranty — premium fuel, tires, and Z51 brakes add up.'
+        : `At ${formatMileage(v.mileage)}, confirm remaining factory warranty and service records before you commit.`,
+      chips: ['What changed 2022→2024?', 'Why is this priced here?', 'Repair & upkeep costs?', 'Compare to other Stingrays'],
+      vdpId: v.id,
+    };
+  }
+  return null;
+}
+
 function initHomepageRec() {
   const grid = document.getElementById('ai-rec-grid');
   if (!grid || typeof PARTICIPANT === 'undefined') return;
@@ -99,11 +194,10 @@ function initHomepageRec() {
       ? Profile.homepageFootLinkText()
       : (hp.footLinkText || 'See all matches →');
     const linkHref = (typeof Profile !== 'undefined' && Profile.srpHref) ? Profile.srpHref() : (hp.footLinkHref || 'srp.html');
-    foot.innerHTML = `<i class="fa-solid fa-circle-info"></i> ${footText} <a href="${escapeHtml(linkHref)}">${escapeHtml(linkText)}</a>`;
+    foot.innerHTML = `<i class="fa-solid fa-circle-info"></i> ${footText} <a href="${escapeHtml(linkHref)}">${escapeHtml(linkText)}</a>${insightSourcesHtml(resolveInsightSources('overview'), { compact: true })}`;
   }
 
   const sketch = 'https://plus.unsplash.com/premium_vector-1733984597729-fad43b660da0?fm=jpg&q=60&w=900&auto=format&fit=crop';
-  const drawerCars = {};
 
   grid.innerHTML = hp.picks.map(pick => {
     const v = typeof findVehicleForPick === 'function' ? findVehicleForPick(pick) : null;
@@ -115,28 +209,14 @@ function initHomepageRec() {
     const locIcon = pick.locationIcon || 'location-dot';
     const pickLoc = (typeof Profile !== 'undefined' && Profile.pickLocation)
       ? Profile.pickLocation(pick) : (pick.location || 'In stock');
-    const specsHtml = (pick.specs || []).map(s =>
+    const specs = (pick.specs || []).slice();
+    const relScore = pick.compareMetrics && pick.compareMetrics.reliability;
+    if (relScore && !specs.some(s => /reliab/i.test(s.text || ''))) {
+      specs.push({ icon: 'star', text: `${relScore}/5 reliability` });
+    }
+    const specsHtml = specs.map(s =>
       `<span><i class="fa-solid fa-${escapeHtml(s.icon)}"></i> ${escapeHtml(s.text)}</span>`
     ).join('');
-
-    const d = pick.drawer || {};
-    drawerCars[pick.key] = {
-      name,
-      trim,
-      dealer: d.dealer || 'DriveClear',
-      distance: d.distance || pickLoc || 'In stock',
-      price,
-      value: d.value || 'At market',
-      valueClass: d.valueClass || 'at',
-      intro: d.intro || `Here's the full picture on the <strong>${escapeHtml(name)}</strong>.`,
-      specs: d.specs || [],
-      fit: d.fit || pick.expert || '',
-      expert: pick.expert || '',
-      owners: { rating: pick.ownersRating || '—', text: pick.ownersText || '' },
-      watch: d.watch || '',
-      chips: d.chips || ['Is the price fair?', 'How reliable is it?'],
-      vdpId: vdpId || null,
-    };
 
     return `<article class="ai-rec-card${vdpId ? '' : ' ai-rec-card-static'}"${vdpId ? ` data-vdp-id="${vdpId}"` : ''}>
       <div class="ai-rec-img" style="background-image:url('${img}')">
@@ -154,32 +234,38 @@ function initHomepageRec() {
         ${pick.expert ? `<div class="ai-rec-insight ai-rec-expert">
           <div class="ai-rec-insight-label"><i class="fa-solid fa-user-tie"></i> Expert take</div>
           <p>${pick.expert}</p>
+          ${insightSourcesHtml(resolveInsightSources('expert', pick), { compact: true })}
         </div>` : ''}
         ${pick.ownersText ? `<div class="ai-rec-insight ai-rec-owners">
-          <div class="ai-rec-insight-label"><i class="fa-solid fa-users"></i> Owner sentiment · ${escapeHtml(pick.ownersRating || '—')}</div>
+          <div class="ai-rec-insight-label"><i class="fa-solid fa-users"></i> What previous owners have said · ${escapeHtml(pick.ownersRating || '—')}</div>
           <p>${pick.ownersText}</p>
+          ${insightSourcesHtml(resolveInsightSources('owners', pick), { compact: true })}
         </div>` : ''}
-        <button type="button" class="btn btn-primary btn-block btn-sm ai-detail-open" data-car="${escapeHtml(pick.key)}"><i class="fa-solid fa-wand-magic-sparkles"></i> View details with AI</button>
       </div>
     </article>`;
   }).join('');
 
-  initHomeDetailModal(drawerCars);
-
   grid.querySelectorAll('.ai-rec-card[data-vdp-id]').forEach(card => {
-    card.addEventListener('click', e => {
-      if (e.target.closest('.ai-detail-open')) return;
+    card.addEventListener('click', () => {
       window.location.href = `vdp.html?id=${card.dataset.vdpId}`;
     });
   });
 }
 
-function initHomeDetailModal(CARS) {
+function initInsightDetailModal(CARS, opts) {
   const modal = document.getElementById('ai-detail');
   const body = document.getElementById('aidx-body');
   const chipsEl = document.getElementById('aidx-chips');
   const nameEl = document.getElementById('aidx-name');
   if (!modal || !body || !CARS) return;
+
+  const defaultKey = opts?.defaultKey || Object.keys(CARS)[0];
+  const onVdp = !!opts?.onVdp;
+
+  const aidxFoot = document.querySelector('.aidx-foot');
+  if (aidxFoot) {
+    aidxFoot.innerHTML = `<i class="fa-solid fa-shield-halved"></i> DriveClear Insights summary · fake demo data${insightSourcesHtml(resolveInsightSources('overview'), { compact: true })}`;
+  }
 
   let active = null;
 
@@ -193,7 +279,8 @@ function initHomeDetailModal(CARS) {
       <div class="aidx-msg">
         <div class="aidx-msg-avatar"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
         <div class="aidx-msg-bubble">
-          <div class="aidx-trim">${c.trim} · ${c.dealer} · ${c.distance}</div>
+          <div class="aidx-trim">${c.trim}</div>
+          ${c.dealer || (c.distance && !/^in stock/i.test(c.distance)) ? `<div class="aidx-meta">${escapeHtml([c.dealer, c.distance].filter(Boolean).join(' · '))}</div>` : ''}
           <div class="aidx-priceline"><span class="aidx-price">${c.price}</span><span class="aidx-val aidx-val-${c.valueClass}">${c.value}</span></div>
           <p>${c.intro}</p>
         </div>
@@ -203,20 +290,24 @@ function initHomeDetailModal(CARS) {
       <div class="aidx-block aidx-fit">
         <div class="aidx-block-label"><i class="fa-solid fa-bullseye"></i> Why this fits you</div>
         <p>${c.fit}</p>
+        ${insightSourcesHtml(resolveInsightSources('overview'), { compact: true, label: 'Based on' })}
       </div>
       <div class="aidx-block aidx-expert">
         <div class="aidx-block-label"><i class="fa-solid fa-user-tie"></i> Expert take</div>
         <p>${c.expert}</p>
+        ${insightSourcesHtml(resolveInsightSources('expert'), { compact: true })}
       </div>
       <div class="aidx-block aidx-owners">
-        <div class="aidx-block-label"><i class="fa-solid fa-users"></i> Owner sentiment · ${c.owners.rating}</div>
+        <div class="aidx-block-label"><i class="fa-solid fa-users"></i> What previous owners have said · ${c.owners.rating}</div>
         <p>${c.owners.text}</p>
+        ${insightSourcesHtml(resolveInsightSources('owners'), { compact: true })}
       </div>
       <div class="aidx-block aidx-watch">
         <div class="aidx-block-label"><i class="fa-solid fa-triangle-exclamation"></i> Watch-outs</div>
         <p>${c.watch}</p>
+        ${insightSourcesHtml(resolveInsightSources('reliability'), { compact: true })}
       </div>
-      ${c.vdpId ? `<a href="vdp.html?id=${c.vdpId}" class="btn btn-outline btn-block btn-sm" style="margin-top:12px"><i class="fa-solid fa-car"></i> View full listing</a>` : ''}`;
+      ${!onVdp && c.vdpId ? `<a href="vdp.html?id=${c.vdpId}" class="btn btn-outline btn-block btn-sm" style="margin-top:12px"><i class="fa-solid fa-car"></i> View full listing</a>` : ''}`;
     chipsEl.innerHTML = c.chips.map(q => `<button type="button" class="aidx-chip">${escapeHtml(q)}</button>`).join('');
     chipsEl.querySelectorAll('.aidx-chip').forEach(b => b.addEventListener('click', () => answer(b.textContent)));
     body.scrollTop = 0;
@@ -231,8 +322,14 @@ function initHomeDetailModal(CARS) {
     if (t.includes('reliab') || t.includes('safe')) {
       return `Owners rate it <strong>${active.owners.rating}</strong>. ${active.owners.text}`;
     }
-    if (t.includes('service') || t.includes('cost') || t.includes('maintenance')) {
-      return `${active.watch} I'd set aside a maintenance budget and ask the dealer for the service schedule before you commit.`;
+    if (t.includes('service') || t.includes('cost') || t.includes('maintenance') || t.includes('upkeep') || t.includes('tco') || t.includes('repair')) {
+      const tco = active.specs.find(s => /^5-yr maint/i.test(s[0]));
+      const rel = active.specs.find(s => /^Reliability/i.test(s[0]));
+      const parts = [];
+      if (tco) parts.push(`Estimated <strong>${tco[1]}</strong> over five years`);
+      if (rel) parts.push(`reliability at <strong>${rel[1]}</strong>`);
+      const detail = parts.length ? parts.join(' — ') + '.' : '';
+      return `${detail} ${active.watch || ''} Ask the dealer for the next service interval before you commit.`.trim();
     }
     if (t.includes('mileage')) {
       const m = active.specs.find(s => s[0] === 'Mileage');
@@ -265,7 +362,7 @@ function initHomeDetailModal(CARS) {
   document.querySelectorAll('.ai-detail-open').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();
-      open(btn.dataset.car);
+      open(btn.dataset.car || defaultKey);
     });
   });
 
@@ -342,17 +439,22 @@ function initComparePage() {
   if (titleEl) titleEl.textContent = meta.title;
   if (subEl) subEl.innerHTML = meta.subtitle;
   if (footEl && meta.footDefault) {
-    footEl.innerHTML = `<i class="fa-solid fa-circle-info"></i> ${meta.footDefault}`;
+    footEl.innerHTML = `<i class="fa-solid fa-circle-info"></i> ${meta.footDefault}${insightSourcesHtml(resolveInsightSources('compare'), { compact: true })}`;
   }
 
   const fmtMiles = m => {
     if (!m) return '—';
     return m >= 1000 ? `${Math.round(m / 100) / 10}k mi` : `${m} mi`;
   };
-  const fmtDist = c => c.distMin === 0 ? 'At your dealer' : (c.distance || `${c.distMin} min away`);
+  const fmtDist = c => {
+    if (c.location) return c.location;
+    if (c.distMin === 0) return 'At your dealer';
+    return c.distance || `${c.distMin} min away`;
+  };
 
   const rows = [
     { label: 'Dealer', icon: 'store', cells: c => escapeHtml(c.dealer) },
+    { label: 'Location', icon: 'location-dot', cells: c => escapeHtml(c.location || (c.distMin === 0 ? 'Local' : '—')) },
     { metric: 'distMin', label: 'Distance', icon: 'route', cells: c => escapeHtml(fmtDist(c)) },
     { label: 'Year', icon: 'calendar', cells: c => c.year || '—' },
     { metric: 'miles', label: 'Mileage', icon: 'gauge', cells: c => fmtMiles(c.miles) },
@@ -361,11 +463,13 @@ function initComparePage() {
     { metric: 'zero', label: '0–60 mph', icon: 'stopwatch', cells: c => `${c.zero} s` },
     { label: 'Drivetrain', icon: 'snowflake', cells: c => escapeHtml(c.drivetrain) },
     { metric: 'mpg', label: 'MPG (comb.)', icon: 'gas-pump', cells: c => c.mpg },
+    { metric: 'reliability', label: 'Reliability', icon: 'star', cells: c => c.reliability ? `${c.reliability}/5` : '—' },
+    { metric: 'tco5yr', label: '5-yr maint. est.', icon: 'wrench', cells: c => c.tco5yr ? formatPrice(c.tco5yr) : '—' },
     { metric: 'price', label: 'Price', icon: 'tag', cells: c => `<span class="xdc-price">${formatPrice(c.price)}</span>` },
     { metric: 'value', label: 'Value', icon: 'arrow-trend-down', cells: c => `<span class="xdc-val xdc-val-${c.valueClass}">${escapeHtml(c.valueLabel)}</span>` },
   ];
 
-  const metricDir = { price: 'min', mpg: 'max', hp: 'max', zero: 'min', miles: 'min', distMin: 'min', value: 'max' };
+  const metricDir = { price: 'min', mpg: 'max', hp: 'max', zero: 'min', miles: 'min', distMin: 'min', value: 'max', reliability: 'max', tco5yr: 'min' };
 
   const headCells = cars.map(c => `
     <th data-veh="${escapeHtml(c.key)}">
@@ -431,9 +535,10 @@ function updateHeroModels(make, modelSel) {
 }
 
 // ─── Card Rendering ───────────────────────────────────────
-function renderCards(vehicles, container) {
+function renderCards(vehicles, container, opts) {
+  opts = opts || {};
   if (!vehicles.length) {
-    container.innerHTML = `<div class="no-results">
+    container.innerHTML = opts.emptyHtml || `<div class="no-results">
       <i class="fa-regular fa-face-frown"></i>
       <p>No vehicles match your filters.</p>
       <p style="margin-top:8px;font-size:14px;">Try adjusting your search criteria.</p>
@@ -453,6 +558,7 @@ function renderCards(vehicles, container) {
       const saved = isSaved(id);
       btn.classList.toggle('saved', saved);
       btn.innerHTML = saved ? '<i class="fa-solid fa-heart"></i>' : '<i class="fa-regular fa-heart"></i>';
+      if (typeof opts.onSaveToggle === 'function') opts.onSaveToggle(id, saved);
     });
   });
   container.querySelectorAll('.v-compare').forEach(btn => {
@@ -465,9 +571,32 @@ function renderCards(vehicles, container) {
   refreshCompareButtons();
 }
 
+function vehicleCondition(v) {
+  if (v.condition === 'new' || v.condition === 'used') return v.condition;
+  return 'used';
+}
+
+function profileRegionLocations() {
+  if (typeof Profile !== 'undefined' && Profile.lotLocations) {
+    const cities = Profile.lotLocations();
+    if (cities && cities.length) return cities;
+  }
+  return [];
+}
+
+function displayLocation(v) {
+  if (!v) return '';
+  if (typeof Profile !== 'undefined' && Profile.vehicleLocation) {
+    const loc = Profile.vehicleLocation(v);
+    if (loc) return loc;
+  }
+  return v.location || '';
+}
+
 function cardHTML(v) {
   const apr = (typeof Profile !== 'undefined' && Profile.apr) ? Profile.apr() : 6.9;
   const monthly = calcMonthly(v.price, 0, apr);
+  const cond = vehicleCondition(v);
   const badgeClass = v.dealBadge ? `badge-${v.dealBadge}` : '';
   const mktHtml = v.marketSavings > 0
     ? `<span class="v-mkt mkt-below">$${v.marketSavings.toLocaleString()} Below Market</span>`
@@ -476,7 +605,10 @@ function cardHTML(v) {
   <a class="v-card" href="vdp.html?id=${v.id}">
     <div class="v-img">
       <img src="${v.images[0]}" alt="${v.year} ${v.make} ${v.model}" loading="lazy">
-      ${v.dealBadge ? `<span class="v-badge ${badgeClass}">${v.dealLabel}</span>` : ''}
+      <div class="v-badge-stack">
+        <span class="v-badge badge-condition badge-${cond}">${cond === 'new' ? 'New' : 'Used'}</span>
+        ${v.dealBadge ? `<span class="v-badge ${badgeClass}">${v.dealLabel}</span>` : ''}
+      </div>
       <span class="v-photo-count"><i class="fa-regular fa-image"></i> ${v.images.length + 12} Photos</span>
       <button class="v-save" data-id="${v.id}" title="Save vehicle" aria-label="Save vehicle">
         <i class="fa-regular fa-heart"></i>
@@ -494,7 +626,7 @@ function cardHTML(v) {
         <span class="v-meta-item"><i class="fa-solid fa-gauge"></i> ${formatMileage(v.mileage)}</span>
         <span class="v-meta-item"><i class="fa-solid fa-car-side"></i> ${v.body}</span>
         <span class="v-meta-item"><i class="fa-solid fa-gear"></i> ${v.drivetrain}</span>
-        <span class="v-meta-item"><i class="fa-solid fa-location-dot"></i> ${v.location}</span>
+        <span class="v-meta-item"><i class="fa-solid fa-location-dot"></i> ${displayLocation(v)}</span>
       </div>
       <div class="v-flags">
         ${v.owners === 1 ? '<span class="v-flag flag-owner"><i class="fa-solid fa-circle-check"></i> 1 Owner</span>' : ''}
@@ -510,13 +642,72 @@ function cardHTML(v) {
 }
 
 // ─── Saved / Favorites ───────────────────────────────────
+function isBlankParticipantProfile() {
+  if (typeof PARTICIPANT === 'undefined') return false;
+  const hp = PARTICIPANT.homepage || {};
+  return PARTICIPANT.maxPrice == null
+    && PARTICIPANT.body == null
+    && !(PARTICIPANT.makes || []).length
+    && !(PARTICIPANT.needs || []).length
+    && !(hp.picks || []).length;
+}
+
+function resetStaleFavoritesIfNeeded() {
+  if (!isBlankParticipantProfile() || sessionStorage.getItem('dc_favorites_ready')) return;
+  localStorage.removeItem('dc_saved');
+  sessionStorage.setItem('dc_favorites_ready', '1');
+}
+
 function getSaved() { return JSON.parse(localStorage.getItem('dc_saved') || '[]'); }
-function isSaved(id) { return getSaved().includes(id); }
+function isSaved(id) { return getSaved().includes(parseInt(id, 10)); }
 function toggleSave(id) {
+  id = parseInt(id, 10);
   const saved = getSaved();
   const idx = saved.indexOf(id);
   if (idx > -1) saved.splice(idx, 1); else saved.push(id);
   localStorage.setItem('dc_saved', JSON.stringify(saved));
+  updateFavoritesNav();
+}
+
+function updateFavoritesNav() {
+  const count = getSaved().length;
+  document.querySelectorAll('.nav-favorites-link').forEach(link => {
+    let badge = link.querySelector('.nav-fav-count');
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.className = 'nav-fav-count';
+      badge.setAttribute('aria-hidden', 'true');
+      link.appendChild(badge);
+    }
+    if (count > 0) {
+      badge.textContent = ` (${count})`;
+      badge.hidden = false;
+      link.setAttribute('aria-label', `Favorites, ${count} saved`);
+    } else {
+      badge.textContent = '';
+      badge.hidden = true;
+      link.removeAttribute('aria-label');
+    }
+  });
+}
+
+function initFavorites() {
+  const grid = document.getElementById('favorites-grid');
+  if (!grid) return;
+
+  const browseHref = (typeof Profile !== 'undefined' && Profile.srpHref) ? Profile.srpHref() : 'srp.html';
+  const vehicles = getSaved()
+    .map(savedId => getVehicleById(savedId))
+    .filter(Boolean);
+
+  renderCards(vehicles, grid, {
+    emptyHtml: `<div class="no-results">
+      <i class="fa-regular fa-heart"></i>
+      <p>No favorites yet.</p>
+      <p style="margin-top:8px;font-size:14px;"><a href="${escapeHtml(browseHref)}" style="color:var(--teal);font-weight:600">Browse cars →</a> and tap the heart to save one.</p>
+    </div>`,
+    onSaveToggle: () => initFavorites(),
+  });
 }
 
 // ─── SRP ─────────────────────────────────────────────────
@@ -591,8 +782,13 @@ function initSRP() {
     make: urlP.getAll('make'),
     body: urlP.getAll('body'),
     drive: urlP.getAll('drive'),
+    model: urlP.get('model') || '',
+    trim: urlP.get('trim') || '',
+    condition: urlP.getAll('condition'),
+    region: urlP.get('region') || '',
+    locations: [],
     minYear: parseInt(urlP.get('minYear')) || 2010,
-    maxYear: parseInt(urlP.get('maxYear')) || 2024,
+    maxYear: parseInt(urlP.get('maxYear')) || 2026,
     minPrice: parseInt(urlP.get('minPrice')) || 0,
     maxPrice: parseInt(urlP.get('maxPrice')) || 50000,
     maxMiles: parseInt(urlP.get('maxMiles')) || 100000,
@@ -601,6 +797,7 @@ function initSRP() {
     sort: urlP.get('sort') || 'recommended',
     query: urlP.get('q') || '',
   };
+  if (state.region === 'DFW') state.locations = profileRegionLocations();
 
   // Pre-fill search input
   if (searchInput) searchInput.value = state.query;
@@ -628,42 +825,110 @@ function initSRP() {
       if (cb) cb.checked = true;
     });
   }
+  if (state.condition.length) {
+    state.condition.forEach(c => {
+      const cb = document.querySelector(`.fp-condition[value="${c}"]`);
+      if (cb) cb.checked = true;
+    });
+  }
+  if (state.region) {
+    const cb = document.querySelector(`.fp-region[value="${state.region}"]`);
+    if (cb) cb.checked = true;
+  }
 
-  // Price inputs
+  // Price / text inputs
   const minPriceIn = document.getElementById('fp-min-price');
   const maxPriceIn = document.getElementById('fp-max-price');
   const maxMilesIn = document.getElementById('fp-max-miles');
   const minYearIn = document.getElementById('fp-min-year');
   const maxYearIn = document.getElementById('fp-max-year');
+  const modelIn = document.getElementById('fp-model');
+  const trimIn = document.getElementById('fp-trim');
+  if (modelIn && state.model) modelIn.value = state.model;
+  if (trimIn && state.trim) trimIn.value = state.trim;
   if (minPriceIn) minPriceIn.value = state.minPrice || '';
-  if (maxPriceIn) maxPriceIn.value = state.maxPrice < 50000 ? state.maxPrice : '';
+  if (maxPriceIn && (urlP.has('maxPrice') || state.maxPrice < 100000)) maxPriceIn.value = state.maxPrice;
   if (maxMilesIn) maxMilesIn.value = state.maxMiles < 100000 ? state.maxMiles : '';
-  if (minYearIn && urlP.get('minYear')) minYearIn.value = state.minYear;
-  if (maxYearIn && urlP.get('maxYear')) maxYearIn.value = state.maxYear;
+  if (minYearIn && (urlP.get('minYear') || state.minYear > 2010)) minYearIn.value = state.minYear;
+  if (maxYearIn && (urlP.get('maxYear') || state.maxYear < 2026)) maxYearIn.value = state.maxYear;
 
-  // Seed from the participant profile when the page wasn't opened with explicit filters.
-  const URL_FILTER_KEYS = ['make', 'body', 'drive', 'minYear', 'maxYear', 'minPrice', 'maxPrice', 'maxMiles', 'minMpg', 'maxDist', 'q'];
-  if (typeof Profile !== 'undefined' && Profile.toParams && !URL_FILTER_KEYS.some(k => urlP.has(k))) {
+  // Seed from profile — merge any filter not already in the URL.
+  if (typeof Profile !== 'undefined' && Profile.toParams) {
     const pp = Profile.toParams();
-    [].concat(pp.make || []).forEach(m => { const cb = document.querySelector(`.fp-make[value="${m}"]`); if (cb) cb.checked = true; });
-    if (pp.body) { const cb = document.querySelector(`.fp-body[value="${pp.body}"]`); if (cb) cb.checked = true; }
-    if (pp.drive) { (Array.isArray(pp.drive) ? pp.drive : [pp.drive]).forEach(d => { const cb = document.querySelector(`.fp-drive[value="${d}"]`); if (cb) cb.checked = true; }); }
-    if (pp.maxPrice && maxPriceIn) maxPriceIn.value = pp.maxPrice;
-    if (pp.maxMiles && maxMilesIn) maxMilesIn.value = pp.maxMiles;
-    if (pp.minYear && minYearIn) minYearIn.value = pp.minYear;
-    state.minMpg = pp.minMpg || 0;
-    state.maxDist = pp.maxDist || 0;
+    const seedMake = () => {
+      [].concat(pp.make || []).forEach(m => {
+        const cb = document.querySelector(`.fp-make[value="${m}"]`);
+        if (cb) cb.checked = true;
+      });
+    };
+    const seedDrive = () => {
+      (Array.isArray(pp.drive) ? pp.drive : [pp.drive]).filter(Boolean).forEach(d => {
+        const cb = document.querySelector(`.fp-drive[value="${d}"]`);
+        if (cb) cb.checked = true;
+      });
+    };
+    const seedCondition = () => {
+      [].concat(pp.condition || []).forEach(c => {
+        const cb = document.querySelector(`.fp-condition[value="${c}"]`);
+        if (cb) cb.checked = true;
+      });
+    };
+
+    if (!urlP.has('make') && pp.make) seedMake();
+    if (!urlP.has('body') && pp.body) {
+      const cb = document.querySelector(`.fp-body[value="${pp.body}"]`);
+      if (cb) cb.checked = true;
+    }
+    if (!urlP.has('drive') && pp.drive) seedDrive();
+    if (!urlP.has('model') && pp.model) {
+      state.model = pp.model;
+      if (modelIn) modelIn.value = pp.model;
+    }
+    if (!urlP.has('trim') && pp.trim) {
+      state.trim = pp.trim;
+      if (trimIn) trimIn.value = pp.trim;
+    }
+    if (!urlP.has('condition') && pp.condition) seedCondition();
+    if (!urlP.has('region') && pp.region) {
+      state.region = pp.region;
+      state.locations = pp.locations || profileRegionLocations();
+      const cb = document.querySelector(`.fp-region[value="${pp.region}"]`);
+      if (cb) cb.checked = true;
+    }
+    if (!urlP.has('maxYear') && pp.maxYear) {
+      state.maxYear = pp.maxYear;
+      if (maxYearIn) maxYearIn.value = pp.maxYear;
+    }
+    if (!urlP.has('maxPrice') && pp.maxPrice) {
+      state.maxPrice = pp.maxPrice;
+      if (maxPriceIn) maxPriceIn.value = pp.maxPrice;
+    }
+    if (!urlP.has('maxMiles') && pp.maxMiles) {
+      state.maxMiles = pp.maxMiles;
+      if (maxMilesIn) maxMilesIn.value = pp.maxMiles;
+    }
+    if (!urlP.has('minYear') && pp.minYear) {
+      state.minYear = pp.minYear;
+      if (minYearIn) minYearIn.value = pp.minYear;
+    }
+    if (!urlP.has('minMpg')) state.minMpg = pp.minMpg || 0;
+    if (!urlP.has('maxDist')) state.maxDist = pp.maxDist || 0;
   }
 
   function readFilters() {
     state.make = [...document.querySelectorAll('.fp-make:checked')].map(c => c.value);
     state.body = [...document.querySelectorAll('.fp-body:checked')].map(c => c.value);
     state.drive = [...document.querySelectorAll('.fp-drive:checked')].map(c => c.value);
+    state.model = modelIn?.value.trim() || '';
+    state.trim = trimIn?.value.trim() || '';
+    state.condition = [...document.querySelectorAll('.fp-condition:checked')].map(c => c.value);
+    state.region = document.querySelector('.fp-region:checked')?.value || '';
+    state.locations = state.region === 'DFW' ? profileRegionLocations() : [];
     state.minPrice = parseInt(minPriceIn?.value) || 0;
     state.maxPrice = parseInt(maxPriceIn?.value) || 50000;
     state.maxMiles = parseInt(maxMilesIn?.value) || 100000;
     state.minYear = parseInt(minYearIn?.value) || 2010;
-    state.maxYear = parseInt(maxYearIn?.value) || 2024;
+    state.maxYear = parseInt(maxYearIn?.value) || 2026;
     state.query = searchInput?.value.trim().toLowerCase() || '';
     state.sort = sortSel?.value || 'recommended';
   }
@@ -674,6 +939,10 @@ function initSRP() {
       if (state.make.length && !state.make.includes(v.make)) return false;
       if (state.body.length && !state.body.includes(v.body)) return false;
       if (state.drive.length && !state.drive.includes(v.drivetrain)) return false;
+      if (state.model && !v.model.toLowerCase().includes(state.model.toLowerCase())) return false;
+      if (state.trim && !v.trim.toLowerCase().includes(state.trim.toLowerCase())) return false;
+      if (state.condition.length && !state.condition.includes(vehicleCondition(v))) return false;
+      if (state.locations.length && !state.locations.includes(v.location)) return false;
       if (v.price < state.minPrice || v.price > state.maxPrice) return false;
       if (v.mileage > state.maxMiles) return false;
       if (v.year < state.minYear || v.year > state.maxYear) return false;
@@ -713,25 +982,29 @@ function initSRP() {
   });
 
   // Filter change listeners
-  document.querySelectorAll('.fp-make, .fp-body, .fp-drive').forEach(cb => {
+  document.querySelectorAll('.fp-make, .fp-body, .fp-drive, .fp-condition, .fp-region').forEach(cb => {
     cb.addEventListener('change', applyAndRender);
   });
-  [minPriceIn, maxPriceIn, maxMilesIn, minYearIn, maxYearIn].forEach(inp => {
+  [minPriceIn, maxPriceIn, maxMilesIn, minYearIn, maxYearIn, modelIn, trimIn].forEach(inp => {
     if (inp) inp.addEventListener('input', debounce(applyAndRender, 400));
   });
   if (searchInput) searchInput.addEventListener('input', debounce(applyAndRender, 300));
   if (sortSel) sortSel.addEventListener('change', applyAndRender);
   if (clearBtn) clearBtn.addEventListener('click', () => {
-    document.querySelectorAll('.fp-make, .fp-body, .fp-drive').forEach(cb => cb.checked = false);
+    document.querySelectorAll('.fp-make, .fp-body, .fp-drive, .fp-condition, .fp-region').forEach(cb => { cb.checked = false; });
     if (minPriceIn) minPriceIn.value = '';
     if (maxPriceIn) maxPriceIn.value = '';
     if (maxMilesIn) maxMilesIn.value = '';
     if (minYearIn) minYearIn.value = 2018;
-    if (maxYearIn) maxYearIn.value = 2024;
+    if (maxYearIn) maxYearIn.value = 2026;
+    if (modelIn) modelIn.value = '';
+    if (trimIn) trimIn.value = '';
     if (searchInput) searchInput.value = '';
     state.make = []; state.body = []; state.drive = [];
+    state.model = ''; state.trim = '';
+    state.condition = []; state.region = ''; state.locations = [];
     state.minPrice = 0; state.maxPrice = 50000; state.maxMiles = 100000;
-    state.minYear = 2010; state.maxYear = 2024; state.minMpg = 0; state.maxDist = 0; state.query = '';
+    state.minYear = 2010; state.maxYear = 2026; state.minMpg = 0; state.maxDist = 0; state.query = '';
     applyAndRender();
   });
 
@@ -896,10 +1169,32 @@ function initSRP() {
 function renderActiveTags(container, state) {
   if (!container) return;
   const tags = [];
-  state.make.forEach(m => tags.push({ label: m, remove: () => { const cb = document.querySelector(`.fp-make[value="${m}"]`); if(cb) cb.checked=false; } }));
-  state.body.forEach(b => tags.push({ label: b, remove: () => { const cb = document.querySelector(`.fp-body[value="${b}"]`); if(cb) cb.checked=false; } }));
-  if (state.maxPrice < 50000) tags.push({ label: `Under ${formatPrice(state.maxPrice)}`, remove: () => { document.getElementById('fp-max-price').value=''; } });
-  if (state.maxMiles < 100000) tags.push({ label: `Under ${state.maxMiles.toLocaleString()} mi`, remove: () => { document.getElementById('fp-max-miles').value=''; } });
+  state.make.forEach(m => tags.push({ label: m, remove: () => { const cb = document.querySelector(`.fp-make[value="${m}"]`); if (cb) cb.checked = false; } }));
+  state.body.forEach(b => tags.push({ label: b, remove: () => { const cb = document.querySelector(`.fp-body[value="${b}"]`); if (cb) cb.checked = false; } }));
+  state.drive.forEach(d => tags.push({ label: d, remove: () => { const cb = document.querySelector(`.fp-drive[value="${d}"]`); if (cb) cb.checked = false; } }));
+  if (state.model) tags.push({ label: state.model, remove: () => { const el = document.getElementById('fp-model'); if (el) el.value = ''; } });
+  if (state.trim) tags.push({ label: state.trim, remove: () => { const el = document.getElementById('fp-trim'); if (el) el.value = ''; } });
+  if (state.minYear > 2010 || state.maxYear < 2026) {
+    tags.push({
+      label: state.minYear > 2010 ? `${state.minYear}–${state.maxYear}` : `Through ${state.maxYear}`,
+      remove: () => {
+        const minEl = document.getElementById('fp-min-year');
+        const maxEl = document.getElementById('fp-max-year');
+        if (minEl) minEl.value = 2018;
+        if (maxEl) maxEl.value = 2026;
+      },
+    });
+  }
+  state.condition.forEach(c => tags.push({
+    label: c === 'new' ? 'New' : 'Used',
+    remove: () => { const cb = document.querySelector(`.fp-condition[value="${c}"]`); if (cb) cb.checked = false; },
+  }));
+  if (state.region === 'DFW') tags.push({
+    label: 'Dallas–Fort Worth',
+    remove: () => { const cb = document.querySelector('.fp-region[value="DFW"]'); if (cb) cb.checked = false; },
+  });
+  if (state.maxPrice < 100000 && document.getElementById('fp-max-price')?.value) tags.push({ label: `Under ${formatPrice(state.maxPrice)}`, remove: () => { document.getElementById('fp-max-price').value = ''; } });
+  if (state.maxMiles < 100000) tags.push({ label: `Under ${state.maxMiles.toLocaleString()} mi`, remove: () => { document.getElementById('fp-max-miles').value = ''; } });
 
   container.innerHTML = tags.map((t,i) =>
     `<span class="a-tag">${t.label}<button data-idx="${i}" aria-label="Remove filter">&times;</button></span>`
@@ -953,8 +1248,14 @@ function initVDP() {
   }
 
   populateVDP(v);
+  renderCorvetteYearCompare(v);
+  const insightCar = buildInsightCarFromVehicle(v);
+  if (insightCar && document.getElementById('ai-detail')) {
+    initInsightDetailModal({ current: insightCar }, { defaultKey: 'current', onVdp: true });
+  }
   initGallery(v.images);
   initPayCalc(v.price);
+  wireVdpFinanceLinks(v);
   renderSimilar(v);
   updateVDPSaveBtn(v.id);
   initVDPAiMode(v);
@@ -1009,10 +1310,13 @@ function populateVDP(v) {
   const flags = document.getElementById('vdp-flags');
   if (flags) {
     flags.innerHTML = `
+      ${vehicleCondition(v) === 'new' ? '<span class="vdp-flag" style="background:#eef2ff;color:#3730a3"><i class="fa-solid fa-sparkles"></i> Brand New</span>' : ''}
       ${v.owners===1?'<span class="vdp-flag flag-owner"><i class="fa-solid fa-circle-check"></i> 1 Owner</span>':''}
+      ${v.owners===0 && vehicleCondition(v)==='new'?'<span class="vdp-flag flag-owner"><i class="fa-solid fa-certificate"></i> Factory Warranty</span>':''}
       ${v.accidentFree?'<span class="vdp-flag flag-clean"><i class="fa-solid fa-shield-halved"></i> Accident Free</span>':''}
       <span class="vdp-flag flag-carfax"><i class="fa-solid fa-file-shield"></i> Carfax Available</span>
-      <span class="vdp-flag" style="background:#f5f3ff;color:#6d28d9"><i class="fa-solid fa-map-marker-alt"></i> ${v.location}</span>
+      <span class="vdp-flag" style="background:#f5f3ff;color:#6d28d9"><i class="fa-solid fa-map-marker-alt"></i> ${displayLocation(v)}</span>
+      ${v.dealerName ? `<span class="vdp-flag" style="background:#ecfeff;color:#0e7490"><i class="fa-solid fa-store"></i> ${v.dealerName}</span>` : ''}
     `;
   }
 
@@ -1026,7 +1330,7 @@ function populateVDP(v) {
       ['Drivetrain', v.drivetrain], ['Ext. Color', v.extColor], ['Int. Color', v.intColor],
       ['Fuel Economy', `${v.mpgCity} City / ${v.mpgHwy} Hwy`], ['Owners', `${v.owners} Owner${v.owners>1?'s':''}`],
       ['Stock #', v.stockNum], ['VIN', v.vin.substring(0,10)+'...'],
-      ['Location', v.location], ['Title', 'Clean Title'],
+      ['Location', displayLocation(v)], ['Title', 'Clean Title'],
     ];
     specsEl.innerHTML = specs.map(([l,val]) => `
       <div class="spec-item">
@@ -1051,6 +1355,194 @@ function populateVDP(v) {
   document.title = `${v.year} ${v.make} ${v.model} ${v.trim} — DriveClear`;
 }
 
+function findCorvetteYearRef(year) {
+  if (typeof VEHICLES === 'undefined') return null;
+  return VEHICLES.find(x => x.make === 'Chevrolet' && x.model === 'Corvette' && x.year === year) || null;
+}
+
+function renderCorvetteYearCompare(v) {
+  const mount = document.getElementById('vdp-year-compare');
+  if (!mount || v.make !== 'Chevrolet' || v.model !== 'Corvette') return;
+
+  const ref2022 = findCorvetteYearRef(2022);
+  const ref2023 = findCorvetteYearRef(2023);
+  const ref2024 = findCorvetteYearRef(2024);
+  const ref2026 = findCorvetteYearRef(2026);
+  const thisPrice = v.price;
+  const priceDelta = ref2022 && ref2024 ? ref2024.price - ref2022.price : 0;
+  const isNew = vehicleCondition(v) === 'new';
+  const warrantyNote = isNew
+    ? `This ${v.year} is <strong>brand new</strong> — full GM bumper-to-bumper and powertrain warranty covers most repair risk in the first years.`
+    : v.year >= 2024 && v.mileage < 12000
+      ? `At ${formatMileage(v.mileage)}, factory bumper-to-bumper may still be active on this ${v.year} — ask the dealer to confirm what's left.`
+      : v.year <= 2022 || v.mileage > 36000
+        ? `At ${formatMileage(v.mileage)}, bumper-to-bumper has likely expired — plan for out-of-pocket service and wear items.`
+        : `At ${formatMileage(v.mileage)}, powertrain coverage may still apply even if bumper-to-bumper is done — verify before you buy.`;
+  const upkeepBand = isNew
+    ? '~$2,800/yr'
+    : v.mileage < 15000 ? '~$1,600/yr' : '~$1,400/yr';
+  const upkeepDetail = isNew
+    ? 'Mostly consumables — premium tires, Z51 brakes, and fluids; warranty covers major mechanical repair risk.'
+    : v.mileage < 15000
+      ? 'Lower miles today, but budget for tires, brake pads, and scheduled DCT / magnetic-ride service.'
+      : 'Tires, brakes, and scheduled service — the LT2 V8 itself is proven when maintained on schedule.';
+
+  mount.hidden = false;
+  mount.innerHTML = `
+    <div class="vdp-yoy-card" data-ai-topic="year-compare">
+      <div class="vdp-yoy-head">
+        <i class="fa-solid fa-wand-magic-sparkles"></i>
+        <div>
+          <div class="vdp-yoy-label">DriveClear Insights</div>
+          <h2 class="vdp-sec-title" style="margin:0">2022–2026 Stingray — what changed &amp; why prices differ</h2>
+        </div>
+      </div>
+      <p class="vdp-yoy-intro">You're looking at a <strong>${v.year} ${v.trim}</strong>${vehicleCondition(v) === 'new' ? ' — <strong>brand new</strong> on the lot' : ''}. The C8 Stingray keeps the same <strong>495&nbsp;hp LT2 V8</strong> — year-to-year changes are features, trim, and miles. We stock used 2022–2024 and <strong>new 2026</strong> Stingrays.</p>
+      <div class="vdp-yoy-grid vdp-yoy-grid-3">
+        <div class="vdp-yoy-col">
+          <div class="vdp-yoy-year">2022 Stingray (1LT)</div>
+          <ul class="vdp-yoy-list">
+            <li>Early C8 — wired CarPlay common on 1LT</li>
+            <li>Original steering-wheel layout</li>
+            <li>From <strong>${ref2022 ? formatPrice(ref2022.price) : '$68,990'}</strong> · <a href="vdp.html?id=391">view</a></li>
+          </ul>
+        </div>
+        <div class="vdp-yoy-col">
+          <div class="vdp-yoy-year">2023 Stingray (1LT)</div>
+          <ul class="vdp-yoy-list">
+            <li><strong>Wireless CarPlay</strong> added mid-cycle on 1LT</li>
+            <li>Bridge year — same LT2 V8, fewer miles than 2022</li>
+            <li>From <strong>${ref2023 ? formatPrice(ref2023.price) : '$72,990'}</strong> · <a href="vdp.html?id=401">view</a></li>
+          </ul>
+        </div>
+        <div class="vdp-yoy-col">
+          <div class="vdp-yoy-year">2024 Stingray (2LT)</div>
+          <ul class="vdp-yoy-list">
+            <li>Revised steering wheel &amp; switchgear, GT2 seats</li>
+            <li>Front lift, head-up display on 2LT</li>
+            <li>From <strong>${ref2024 ? formatPrice(ref2024.price) : '$78,490'}</strong> · <a href="vdp.html?id=411">view</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="vdp-yoy-new">
+        <div class="vdp-yoy-year">2026 Stingray (2LT) · <span class="vdp-yoy-new-tag">New</span></div>
+        <p class="vdp-yoy-new-copy">Factory-fresh on our lot — delivery miles only, full GM warranty, Z51 performance package. From <strong>${ref2026 ? formatPrice(ref2026.price) : '$84,990'}</strong>${ref2026 ? ` · ${formatMileage(ref2026.mileage)}` : ' · 12 mi'}. <a href="vdp.html?id=431">View new 2026 →</a></p>
+      </div>
+      <div class="vdp-yoy-price">
+        <strong>Why the price gap?</strong>
+        <ul class="vdp-yoy-breakdown">
+          ${priceDelta > 0 ? `
+            <li><strong>Year band:</strong> 2022 from ${ref2022 ? formatPrice(ref2022.price) : '$68,990'} → 2023 from ${ref2023 ? formatPrice(ref2023.price) : '$72,990'} → 2024 from ${ref2024 ? formatPrice(ref2024.price) : '$78,490'} on our lot.</li>
+            <li><strong>Same engine:</strong> Every year runs the 495 hp LT2 V8 — you're paying for year, miles, and trim, not a different powertrain.</li>
+            <li><strong>Trim &amp; features:</strong> 2LT adds GT2 seats, HUD, and front lift; 2023+ adds wireless CarPlay on 1LT.</li>
+          ` : `
+            <li><strong>This listing:</strong> ${v.year} Stingray at <strong>${formatPrice(thisPrice)}</strong>.</li>
+            <li><strong>What moves price:</strong> Model year, odometer, trim (1LT vs 2LT), options, and local demand.</li>
+          `}
+          ${v.marketSavings > 0 ? `<li><strong>Market check:</strong> This one is <strong>${formatPrice(v.marketSavings)} below market</strong> for its year and equipment.</li>` : ''}
+        </ul>
+        <p class="vdp-yoy-chat-link">
+          <button type="button" class="vdp-yoy-open-chat" data-q="Why is there a price gap between model years on this Stingray?">Ask about pricing in chat →</button>
+        </p>
+      </div>
+      <div class="vdp-yoy-price vdp-yoy-tco">
+        <strong>Reliability &amp; upkeep</strong>
+        <ul class="vdp-yoy-breakdown">
+          <li><strong>Powertrain:</strong> Same LT2 V8 across 2022–2026 — owner reliability scores sit around <strong>4.2–4.4/5</strong>; no mechanical gap year-to-year.</li>
+          <li><strong>Annual upkeep:</strong> Budget <strong>${upkeepBand}</strong> for this ${v.year}${isNew ? ' (new)' : ` at ${formatMileage(v.mileage)}`}. ${upkeepDetail}</li>
+          <li><strong>Tires &amp; brakes:</strong> Z51 and weekend miles wear rubber and pads faster — the biggest variable cost on a Stingray, not engine failures.</li>
+          <li><strong>Warranty on this car:</strong> ${warrantyNote}</li>
+          <li><strong>New vs used TCO:</strong> A <strong>new 2026</strong> carries full factory warranty; used <strong>2022–2024</strong> units trade lower purchase price for post-warranty service — factor both into 5-year cost.</li>
+        </ul>
+        <p class="vdp-yoy-chat-link">
+          <button type="button" class="vdp-yoy-open-chat" data-q="What are repair and maintenance costs on a Corvette Stingray?">Ask about reliability &amp; upkeep in chat →</button>
+        </p>
+      </div>
+      <div class="vdp-yoy-chips">
+        <button type="button" class="pa-chip vdp-yoy-chip" data-q="What actually changed from 2022 to 2024 on the Stingray?">What changed 2022→2024?</button>
+        <button type="button" class="pa-chip vdp-yoy-chip" data-q="Why is the 2024 Corvette priced higher than the 2022?">Why is 2024 more expensive?</button>
+        <button type="button" class="pa-chip vdp-yoy-chip" data-q="How does the 2023 Stingray compare to 2022 and 2024?">Where does 2023 fit?</button>
+        <button type="button" class="pa-chip vdp-yoy-chip" data-q="What are repair and maintenance costs on a Corvette Stingray?">Repair &amp; upkeep costs?</button>
+      </div>
+      <div class="vdp-yoy-actions">
+        <button type="button" class="btn btn-primary ai-detail-open" data-car="current">
+          <i class="fa-solid fa-wand-magic-sparkles"></i> View DriveClear Insights
+        </button>
+      </div>
+      ${insightSourcesHtml(resolveInsightSources('corvette'), { compact: false })}
+    </div>`;
+
+  mount.querySelectorAll('.vdp-yoy-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.dispatchEvent(new CustomEvent('vdp-ai-ask', {
+        detail: { question: chip.dataset.q || chip.textContent },
+      }));
+    });
+  });
+  mount.querySelectorAll('.vdp-yoy-open-chat').forEach(link => {
+    link.addEventListener('click', () => {
+      document.dispatchEvent(new CustomEvent('vdp-ai-ask', {
+        detail: { question: link.dataset.q || 'Why is there a price gap between model years?' },
+      }));
+    });
+  });
+}
+
+function generateCorvetteYearAnswer(q, v) {
+  const t = (q || '').toLowerCase();
+  const ref2022 = findCorvetteYearRef(2022);
+  const ref2023 = findCorvetteYearRef(2023);
+  const ref2024 = findCorvetteYearRef(2024);
+  const delta = ref2022 && ref2024 ? ref2024.price - ref2022.price : 9590;
+
+  if (t.includes('maintenance') || t.includes('repair') || t.includes('upkeep') || t.includes('reliable') || t.includes('tco') || (t.includes('cost') && (t.includes('ownership') || t.includes('service')))) {
+    const isNew = v.condition === 'new' || v.mileage < 500;
+    return `<p><strong>C8 Stingray upkeep in plain terms:</strong> the LT2 V8 is proven — owner reliability scores sit around <strong>4.2–4.4/5</strong> when maintained on schedule.</p>
+      <ul style="margin:10px 0 0;padding-left:18px;line-height:1.6">
+        <li><strong>Routine service:</strong> ~$400–$800 per visit at a Chevy dealer; magnetic ride and DCT fluid are the bigger line items on used cars.</li>
+        <li><strong>Tires &amp; brakes:</strong> Z51 packages wear faster — budget <strong>$1,200–$1,800/yr</strong> if you drive spirited on weekends.</li>
+        <li><strong>This ${v.year}:</strong> ${isNew ? 'Factory warranty covers most repair risk early — plan ~$2,800/yr in upkeep (mostly consumables).' : `At ${formatMileage(v.mileage)}, bumper-to-bumper may be expired — plan ~$1,400/yr and ask for service records.`}</li>
+      </ul>
+      <p style="margin-top:10px">Year-to-year reliability is essentially the same — warranty status and mileage drive total cost of ownership more than model year.</p>`;
+  }
+
+  if (t.includes('2023') || (t.includes('where') && t.includes('fit'))) {
+    return `<p><strong>2023 is the middle ground</strong> in our lot — same 495 hp LT2 V8 as 2022 and 2024, but with wireless CarPlay added and typically <strong>lower miles than a 2022</strong> at a price below the 2024 2LT.</p>
+      <ul style="margin:10px 0 0;padding-left:18px;line-height:1.6">
+        <li><strong>2023 1LT:</strong> ${ref2023 ? formatPrice(ref2023.price) : '$72,990'} · ${ref2023 ? formatMileage(ref2023.mileage) : '10,500 mi'} — wireless CarPlay, magnetic ride.</li>
+        <li><strong>vs 2022:</strong> ~${ref2022 && ref2023 ? formatPrice(ref2023.price - ref2022.price) : '$4,000'} more for newer year and updated tech, fewer miles.</li>
+        <li><strong>vs 2024:</strong> ~${ref2023 && ref2024 ? formatPrice(ref2024.price - ref2023.price) : '$5,500'} less — 1LT vs 2LT, but same core driving experience.</li>
+      </ul>
+      <p style="margin-top:10px">For a Sunday driver, 2023 is often the sweet spot between value and modern features.</p>`;
+  }
+  if (t.includes('why') && (t.includes('price') || t.includes('expensive') || t.includes('2024'))) {
+    return `<p><strong>Short answer:</strong> the 2024 isn't mechanically a different car — you're mostly paying for <strong>newer year, lower miles, more standard content, and trim level</strong>.</p>
+      <ul style="margin:10px 0 0;padding-left:18px;line-height:1.6">
+        <li><strong>2022 1LT:</strong> ${ref2022 ? formatPrice(ref2022.price) : '$68,990'} · ${ref2022 ? formatMileage(ref2022.mileage) : '12,400 mi'}</li>
+        <li><strong>2023 1LT:</strong> ${ref2023 ? formatPrice(ref2023.price) : '$72,990'} · ${ref2023 ? formatMileage(ref2023.mileage) : '10,500 mi'} — wireless CarPlay added</li>
+        <li><strong>2024 2LT:</strong> ${ref2024 ? formatPrice(ref2024.price) : '$78,490'} · ${ref2024 ? formatMileage(ref2024.mileage) : '8,200 mi'} — GT2 seats, HUD, front lift</li>
+        <li><strong>MSRP creep:</strong> Chevy raised Stingray MSRP roughly <strong>$2,400</strong> from 2022 to 2024 before options.</li>
+      </ul>
+      <p style="margin-top:10px">2022 → 2024 spread in our lot: about <strong>${formatPrice(delta)}</strong> — not a different engine.</p>`;
+  }
+  if ((t.includes('2022') && t.includes('2024')) || t.includes('change') || t.includes('different')) {
+    return `<p><strong>2022 → 2024 Stingray — same generation, incremental updates:</strong></p>
+      <ul style="margin:10px 0 0;padding-left:18px;line-height:1.6">
+        <li><strong>Powertrain:</strong> unchanged — 6.2L LT2 V8, 495 hp, 8-speed DCT, mid-engine layout.</li>
+        <li><strong>2023:</strong> wireless CarPlay/Android Auto rolls out on 1LT — the bridge year in our inventory.</li>
+        <li><strong>2024 interior:</strong> revised steering wheel &amp; controls, GT2 seats standard on 2LT.</li>
+        <li><strong>2024 convenience:</strong> front lift and head-up display common on 2LT.</li>
+        <li><strong>Not on Stingray:</strong> the 2024 <em>E-Ray</em> hybrid AWD is a separate model.</li>
+      </ul>
+      <p style="margin-top:10px">All three years are on our SRP — filter Chevrolet coupes or browse from the links on this page.</p>`;
+  }
+  if (t.includes('enough') || t.includes('2022')) {
+    return `<p>For your use case — <strong>weekend drives, not commuting</strong> — a 2022 Stingray 1LT absolutely delivers the C8 experience: mid-engine balance, 495 hp, magnetic ride available, and the drama you wanted.</p>
+      <p>You're mainly giving up the 2024's <strong>wireless CarPlay, revised cabin switches, and lower odometer</strong> — not a fundamentally different car. At <strong>${formatPrice(v.price)}</strong> with ${formatMileage(v.mileage)} on the clock, the 2022 is the value play if price matters.</p>`;
+  }
+  return `<p>The C8 Stingray stayed on the same LT2 platform 2022–2024. Price differences on the used market come from <strong>year, trim, mileage, and options</strong> — ask me to compare this ${v.year} to our 2024 listing line-by-line.</p>`;
+}
+
 // ─── Payment Options AI Assistant ────────────────────────
 function initPaymentAssistant() {
   const trigger = document.getElementById('pa-trigger');
@@ -1063,6 +1555,11 @@ function initPaymentAssistant() {
 
   if (!trigger || !popover || trigger.dataset.bound === '1') return;
   trigger.dataset.bound = '1';
+
+  const paFooter = popover.querySelector('.pa-footer');
+  if (paFooter) {
+    paFooter.innerHTML = `<i class="fa-solid fa-shield-halved"></i> DriveClear Insights · Not a financing offer${insightSourcesHtml(resolveInsightSources('financeNumbers'), { compact: true })}`;
+  }
 
   const profileApr = (typeof Profile !== 'undefined' && Profile.apr) ? Profile.apr() : 6.9;
   const introBubble = body?.querySelector('.pa-msg-bot .pa-msg-bubble');
@@ -1158,6 +1655,55 @@ function escapeHtml(s) {
   }[ch]));
 }
 
+const INSIGHT_SOURCE_SETS = {
+  overview: ['Car and Driver', 'Edmunds owner reviews', 'RepairPal', 'Kelley Blue Book'],
+  expert: ['Car and Driver', 'MotorTrend', 'Edmunds'],
+  owners: ['Edmunds owner reviews', 'J.D. Power'],
+  reliability: ['RepairPal', 'Edmunds reliability data'],
+  market: ['Kelley Blue Book', 'CarGurus', 'DriveClear listings'],
+  compare: ['DriveClear inventory', 'Kelley Blue Book', 'RepairPal', 'Edmunds owner reviews'],
+  corvette: ['Chevrolet specs', 'Car and Driver', 'RepairPal', 'Edmunds owner reviews'],
+  financeNumbers: ['Your pre-qual profile', 'DriveClear payment calculator'],
+  financeLenders: ['DriveClear lender network', 'NHTSA lender disclosures'],
+  financeQuestions: ['CFPB auto finance guides', 'DriveClear dealer playbook'],
+  tradeOffer: ['Kelley Blue Book', 'Edmunds', 'DriveClear appraisal model'],
+  tradeTiming: ['Kelley Blue Book depreciation curves', 'DriveClear market demand index'],
+  tradeCompare: ['Kelley Blue Book', 'Edmunds private-party values', 'Texas tax savings tables'],
+  testDriveVisit: ['DriveClear listing', 'Carfax', 'Dealer service records'],
+  testDriveTips: ['NHTSA', 'Car and Driver', 'DriveClear test-drive checklist'],
+  testDrivePlans: ['DriveClear route data', 'Local DFW road conditions'],
+  listing: ['DriveClear listing', 'Carfax', 'RepairPal'],
+};
+
+function resolveInsightSources(type, pick) {
+  const hp = (typeof PARTICIPANT !== 'undefined' && PARTICIPANT.homepage) ? PARTICIPANT.homepage : {};
+  const global = hp.insightSources || {};
+  if (pick) {
+    const key = type + 'Sources';
+    if (pick[key] && pick[key].length) return pick[key];
+  }
+  if (global[type] && global[type].length) return global[type];
+  return INSIGHT_SOURCE_SETS[type] || INSIGHT_SOURCE_SETS.overview || [];
+}
+
+function insightSourcesHtml(sources, opts) {
+  const list = [].concat(sources || []).filter(Boolean);
+  if (!list.length) return '';
+  const label = (opts && opts.label) || 'Sources';
+  const compact = opts && opts.compact;
+  const joined = list.map(s => escapeHtml(s)).join(' · ');
+  if (compact) {
+    return `<div class="dc-sources dc-sources-compact"><span class="dc-sources-label">${escapeHtml(label)}:</span> ${joined}</div>`;
+  }
+  return `<div class="dc-sources"><span class="dc-sources-label"><i class="fa-solid fa-book-open"></i> ${escapeHtml(label)}</span><span class="dc-sources-list">${joined}</span></div>`;
+}
+
+function setInsightByline(id, headlineHtml, sourceType, pick) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.innerHTML = `<div class="fp-byline-head">${headlineHtml}</div>${insightSourcesHtml(resolveInsightSources(sourceType, pick), { compact: true })}`;
+}
+
 // Canned UI-only responses — purely for demoing the chat surface.
 function generateMockAnswer(q) {
   const text = q.toLowerCase();
@@ -1194,8 +1740,6 @@ function generateMockAnswer(q) {
 // A toggle that turns the page into an "ask anything" surface: hovering any
 // explained element shows a quick snippet; clicking opens a chat sidebar.
 function initVDPAiMode(v) {
-  const toggle = document.getElementById('ai-toggle');
-  const stateLbl = document.getElementById('ai-toggle-state');
   const tip = document.getElementById('ai-tip');
   const tipTitle = document.getElementById('ai-tip-title');
   const tipText = document.getElementById('ai-tip-text');
@@ -1209,7 +1753,12 @@ function initVDPAiMode(v) {
   const drawerChips = document.getElementById('ai-drawer-chips');
   const drawerForm = document.getElementById('ai-drawer-form');
   const drawerInput = document.getElementById('ai-drawer-input');
-  if (!toggle || !tip || !drawer) return;
+  if (!tip || !drawer) return;
+
+  const drawerFooter = document.querySelector('.ai-drawer-footer');
+  if (drawerFooter) {
+    drawerFooter.innerHTML = `<span><i class="fa-solid fa-shield-halved"></i> DriveClear Insights · Demo content</span>${insightSourcesHtml(resolveInsightSources('listing'), { compact: true })}`;
+  }
 
   // Mark every element we can explain.
   const tag = (el, topic) => { if (el) el.setAttribute('data-ai-topic', topic); };
@@ -1291,6 +1840,10 @@ function initVDPAiMode(v) {
         return { key: 'payment', title: 'Payment calculator', text: 'Slide your down payment, pick a term, and set a rate to see how your monthly payment changes — all estimates, no credit check.', chips: ['What term should I choose?', 'How much down is smart?', 'What’s my real rate?'] };
       case 'photos':
         return { key: 'photos', title: 'Photos & condition', text: `Real photos of this exact ${v.year} ${v.make} ${v.model}. Every car gets a 150-point inspection before listing.`, chips: ['What does the inspection cover?', 'Any cosmetic flaws?'] };
+      case 'year-compare':
+        return { key: 'year-compare', title: '2022 vs 2024 Stingray',
+          text: 'Same 495 hp LT2 V8 across these years — 2024 adds wireless CarPlay, revised cabin controls, and typically costs more used because of lower miles and 2LT content.',
+          chips: ['What changed 2022→2024?', 'Why is 2024 more expensive?', 'Is 2022 enough for me?'] };
       default:
         return { key: 'general', title: 'About this vehicle', text: 'Ask me anything about this car.', chips: ['Is this a good deal?', 'Tell me about reliability'] };
     }
@@ -1412,29 +1965,46 @@ function initVDPAiMode(v) {
     const chip = e.target.closest('.pa-chip');
     if (chip) askDrawer(chip.dataset.q || chip.textContent);
   });
+
+  document.addEventListener('vdp-ai-ask', (e) => {
+    const q = e.detail?.question;
+    if (!q) return;
+    openDrawer({
+      key: v.make === 'Chevrolet' && v.model === 'Corvette' ? 'year-compare' : 'general',
+      title: v.make === 'Chevrolet' && v.model === 'Corvette' ? '2022 vs 2024 Stingray' : 'About this vehicle',
+      text: v.make === 'Chevrolet' && v.model === 'Corvette'
+        ? 'Same 495 hp LT2 V8 across these years — ask about changes and pricing.'
+        : 'Ask me anything about this car.',
+      chips: [],
+    });
+    askDrawer(q);
+  });
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
     if (drawer.classList.contains('open')) closeDrawer();
     else if (pinned) { activeTarget = null; hideTip(); }
   });
-
-  // ── Toggle ─────────────────────────────────────────────
-  const setMode = (on) => {
-    aiOn = on;
-    document.body.classList.toggle('ai-mode', on);
-    toggle.classList.toggle('on', on);
-    toggle.setAttribute('aria-checked', on ? 'true' : 'false');
-    if (stateLbl) stateLbl.textContent = on ? 'On' : 'Off';
-    if (!on) { activeTarget = null; hideTip(); closeDrawer(); }
-  };
-  toggle.addEventListener('click', () => setMode(!aiOn));
 }
 
 // Topic-aware canned follow-ups for the VDP AI drawer (UI-only demo content).
 function generateVdpAnswer(key, q, v) {
   const t = (q || '').toLowerCase();
+  if (v.make === 'Chevrolet' && v.model === 'Corvette' && (
+    t.includes('2022') || t.includes('2024') || t.includes('year') ||
+    (t.includes('change') || t.includes('different') || t.includes('stingray')) ||
+    (t.includes('price') && (t.includes('why') || t.includes('more') || t.includes('higher'))) ||
+    t.includes('enough') ||
+    t.includes('maintenance') || t.includes('repair') || t.includes('upkeep') || t.includes('reliable') || t.includes('tco')
+  )) {
+    return generateCorvetteYearAnswer(q, v);
+  }
+  if (key === 'year-compare' || (v.model === 'Corvette' && key === 'spec' && /year/i.test(q))) {
+    return generateCorvetteYearAnswer(q, v);
+  }
   if (t.includes('apr') || t.includes('rate') || t.includes('interest') || t.includes('down') || t.includes('afford') || t.includes('budget') || t.includes('trade'))
     return generateMockAnswer(q);
+  if (t.includes('maintenance') || t.includes('repair') || t.includes('upkeep') || t.includes('reliable') || t.includes('tco') || (t.includes('cost') && t.includes('ownership')))
+    return `<p>For a ${v.year} ${v.make} ${v.model}, plan for scheduled service, tires, and brakes on top of the payment. ${v.mileage < 500 || v.condition === 'new' ? 'Factory warranty still limits out-of-pocket repair risk on this one.' : `At ${formatMileage(v.mileage)}, confirm what's still under warranty and ask for service records.`} A DriveClear specialist can walk through a 5-year upkeep estimate before you buy.</p>`;
   switch (key) {
     case 'price': case 'market':
       return `<p>Every DriveClear price is set by comparing this exact ${v.year} ${v.make} ${v.model} ${v.trim} against recent local sales — then we remove dealer and doc fees. It's a fixed, no-haggle price.</p><p>${v.marketSavings > 0 ? `Right now it's about <strong>${formatPrice(v.marketSavings)} below</strong> the local average.` : `It's priced right at the local average.`}</p>`;
@@ -1491,6 +2061,120 @@ function initGallery(images) {
   document.getElementById('g-next')?.addEventListener('click', () => goTo(current + 1));
 
   goTo(0);
+}
+
+// ─── Finance vehicle context (VDP → financing / confirmation) ──
+function getFinanceVehicle() {
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get('id') || params.get('vehicleId');
+  if (id && typeof getVehicleById === 'function') {
+    const v = getVehicleById(id);
+    if (v) {
+      try { sessionStorage.setItem('dc_finance_vehicle', String(v.id)); } catch (_) {}
+      return v;
+    }
+  }
+  try {
+    const stored = sessionStorage.getItem('dc_finance_vehicle');
+    if (stored && typeof getVehicleById === 'function') {
+      const v = getVehicleById(stored);
+      if (v) return v;
+    }
+  } catch (_) {}
+  return null;
+}
+
+function financeVehicleHref(path, vehicle) {
+  const v = vehicle || getFinanceVehicle();
+  if (!v) return path;
+  const base = path.split('?')[0];
+  return `${base}?id=${v.id}`;
+}
+
+function setFinanceVehicleContext(v) {
+  if (!v?.id) return;
+  try { sessionStorage.setItem('dc_finance_vehicle', String(v.id)); } catch (_) {}
+}
+
+const PREQUAL_KEY = 'dc_prequal_complete';
+
+function isPrequalComplete() {
+  try { return sessionStorage.getItem(PREQUAL_KEY) === '1'; } catch (_) { return false; }
+}
+
+function setPrequalComplete() {
+  try { sessionStorage.setItem(PREQUAL_KEY, '1'); } catch (_) {}
+}
+
+function applyFinanceGate() {
+  const prequalified = isPrequalComplete();
+  document.querySelectorAll('.fin-apply-gated').forEach(link => {
+    link.classList.toggle('is-locked', !prequalified);
+    if (prequalified) {
+      link.removeAttribute('aria-disabled');
+      link.removeAttribute('tabindex');
+    } else {
+      link.setAttribute('aria-disabled', 'true');
+      link.setAttribute('tabindex', '-1');
+    }
+  });
+  const financeCard = document.getElementById('finance');
+  if (financeCard) financeCard.classList.toggle('fin-path-locked', !prequalified);
+  const notice = document.getElementById('fin-apply-lock-notice');
+  if (notice) notice.hidden = prequalified;
+}
+
+function guardFinanceConfirmation() {
+  const root = document.getElementById('fin-prep');
+  if (!root || root.dataset.prepMode !== 'finance' || isPrequalComplete()) return;
+  const v = getFinanceVehicle();
+  const base = v ? financeVehicleHref('financing.html', v) : 'financing.html';
+  window.location.replace(`${base}#prequal`);
+}
+
+function financeVehicleBannerHtml(v, label) {
+  return `
+    <div class="fin-vehicle-banner-inner">
+      <div class="fin-vehicle-banner-icon" aria-hidden="true"><i class="fa-solid fa-car"></i></div>
+      <div class="fin-vehicle-banner-text">
+        <div class="fin-vehicle-banner-label">${label}</div>
+        <div class="fin-vehicle-banner-title">${v.year} ${v.make} ${v.model} ${v.trim}</div>
+        <div class="fin-vehicle-banner-meta">${formatPrice(v.price)} · ${formatMileage(v.mileage)} · ${displayLocation(v)}</div>
+      </div>
+      <a href="vdp.html?id=${v.id}" class="btn btn-ghost btn-sm fin-vehicle-banner-link">View listing</a>
+    </div>`;
+}
+
+function renderFinanceVehicleBanner() {
+  const v = getFinanceVehicle();
+  if (!v) return;
+  document.querySelectorAll('#fin-vehicle-banner, #fin-confirm-vehicle').forEach(mount => {
+    const label = mount.dataset.bannerLabel
+      || (mount.classList.contains('fin-vehicle-banner--options')
+        ? 'Financing or pre-qual for this vehicle'
+        : 'Financing this vehicle');
+    mount.hidden = false;
+    mount.innerHTML = financeVehicleBannerHtml(v, label);
+  });
+}
+
+function wireFinancePageLinks(vehicle) {
+  const v = vehicle || getFinanceVehicle();
+  if (!v) return;
+  document.querySelectorAll(
+    'a[href="prequal-confirmation.html"], a[href="finance-confirmation.html"]'
+  ).forEach(a => {
+    a.href = financeVehicleHref(a.getAttribute('href').split('?')[0], v);
+  });
+}
+
+function wireVdpFinanceLinks(v) {
+  if (!v?.id) return;
+  setFinanceVehicleContext(v);
+  const qs = `?id=${v.id}`;
+  const root = document.getElementById('vdp-root');
+  if (!root) return;
+  root.querySelectorAll('a[href="financing.html"]').forEach(a => { a.href = 'financing.html' + qs; });
 }
 
 // ─── Payment Calculator ─────────────────────────────────
@@ -1739,7 +2423,7 @@ function openCompareModal() {
           <div class="ai-header">
             <div class="ai-spark"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
             <div class="ai-header-text">
-              <div class="ai-tag">AI INSIGHTS · BETA</div>
+              <div class="ai-tag">DRIVECLEAR INSIGHTS · BETA</div>
               <div class="ai-title">Smart Comparison Analysis</div>
             </div>
             <div class="ai-status">
@@ -1785,7 +2469,10 @@ function openCompareModal() {
 
             <div class="ai-disclaimer">
               <i class="fa-solid fa-circle-info"></i>
-              AI-generated summary based on the listing data above. Always inspect the vehicle and review the full Carfax before buying.
+              <div>
+                DriveClear Insights summary based on the listing data above. Always inspect the vehicle and review the full Carfax before buying.
+                ${insightSourcesHtml(resolveInsightSources('compare'), { compact: true })}
+              </div>
             </div>
           </div>
         </div>
@@ -2057,11 +2744,37 @@ function initFinancingPage() {
   const termSel = document.getElementById('fin-term');
   const resultEl = document.getElementById('fin-calc-result');
   const downLabel = document.getElementById('fin-down-label');
+  const finVehicle = getFinanceVehicle();
 
-  // Seed rate from the participant's credit tier and price from their budget.
-  if (typeof Profile !== 'undefined') {
-    if (rateIn && PARTICIPANT.creditTier) rateIn.value = Profile.apr();
-    if (priceIn && PARTICIPANT.maxPrice) priceIn.value = PARTICIPANT.maxPrice;
+  renderFinanceVehicleBanner();
+  wireFinancePageLinks(finVehicle);
+  applyFinanceGate();
+
+  const finOptions = document.getElementById('fin-options');
+  if (finOptions && !finOptions.dataset.gateBound) {
+    finOptions.dataset.gateBound = '1';
+    finOptions.addEventListener('click', (e) => {
+      const link = e.target.closest('.fin-apply-gated.is-locked');
+      if (!link) return;
+      e.preventDefault();
+      document.getElementById('prequal')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  }
+  document.querySelector('.page-hero')?.addEventListener('click', (e) => {
+    const link = e.target.closest('.fin-apply-gated.is-locked');
+    if (!link) return;
+    e.preventDefault();
+    document.getElementById('fin-options')?.scrollIntoView({ behavior: 'smooth' });
+    setTimeout(() => {
+      document.getElementById('prequal')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 400);
+  });
+
+  // Seed rate from profile; price from the VDP vehicle when present, else budget.
+  if (typeof Profile !== 'undefined' && rateIn && PARTICIPANT.creditTier) rateIn.value = Profile.apr();
+  if (priceIn) {
+    if (finVehicle) priceIn.value = finVehicle.price;
+    else if (typeof PARTICIPANT !== 'undefined' && PARTICIPANT.maxPrice) priceIn.value = PARTICIPANT.maxPrice;
   }
 
   function updateCalc() {
@@ -2110,8 +2823,16 @@ function initFinancingPage() {
 
 // ─── Dealership Finance Prep (confirmation pages) ─────────
 function buildLenderPool(baseApr, price, tier, term = 60) {
+  const marketLabel = (typeof PARTICIPANT !== 'undefined' && PARTICIPANT.market?.label)
+    ? PARTICIPANT.market.label
+    : null;
+  const localCity = marketLabel ? marketLabel.split(',')[0].trim() : 'Dallas';
+  const localName = `${localCity} Metro Credit Union`;
+  const localPerk = `${localCity} branch — in-person service`;
+  const localWhy = `Member-owned credit union with branches in ${localCity} — competitive rates and a local office you can walk into.`;
   const templates = [
     { id: 'dcu', name: 'DriveClear Credit Union', rateAdj: -0.2, speed: 3, flex: 3, perk: 'Lowest rate in our network', why: 'Best APR at your credit tier — we\'d submit here first.' },
+    { id: 'local', name: localName, local: true, rateAdj: 0.1, speed: 4, flex: 4, perk: localPerk, why: localWhy },
     { id: 'mwaf', name: 'Mountain West Auto Finance', rateAdj: 0.3, speed: 5, flex: 4, perk: 'Same-day decision', why: 'Fastest approval — strong fit for Colorado buyers.' },
     { id: 'ndl', name: 'National Drive Lending', rateAdj: 0.5, speed: 4, flex: 5, perk: 'Flexible on age & mileage', why: 'Backup if the vehicle is older or miles run high.' },
   ];
@@ -2129,6 +2850,7 @@ function sortLenders(lenders, priority) {
   const copy = lenders.slice();
   if (priority === 'rate') copy.sort((a, b) => a.apr - b.apr || b.speed - a.speed);
   else if (priority === 'speed') copy.sort((a, b) => b.speed - a.speed || a.apr - b.apr);
+  else if (priority === 'local') copy.sort((a, b) => (b.local ? 1 : 0) - (a.local ? 1 : 0) || a.apr - b.apr || b.flex - a.flex);
   else copy.sort((a, b) => (b.speed + b.flex - b.apr * 0.5) - (a.speed + a.flex - a.apr * 0.5));
   return copy;
 }
@@ -2137,6 +2859,8 @@ function initFinancePrep() {
   const root = document.getElementById('fin-prep');
   if (!root) return;
   const mode = root.dataset.prepMode || 'finance';
+  if (mode === 'prequal') setPrequalComplete();
+  const finVehicle = getFinanceVehicle();
   const apr = (typeof Profile !== 'undefined' && Profile.apr) ? Profile.apr() : 6.9;
   const tier = (typeof PARTICIPANT !== 'undefined') ? PARTICIPANT.creditTier : null;
   const budget = (typeof PARTICIPANT !== 'undefined' && PARTICIPANT.maxPrice) ? PARTICIPANT.maxPrice : null;
@@ -2146,12 +2870,27 @@ function initFinancePrep() {
   // monthly target, the real buying ceiling is whichever is lower: their stated
   // budget, or what that payment can finance at their rate (60-mo reference).
   const maxMonthly = (typeof PARTICIPANT !== 'undefined' && PARTICIPANT.maxMonthly) ? PARTICIPANT.maxMonthly : null;
-  let price = budget || approved || 25000;
+  let price;
   let impliedMax = null;
-  if (maxMonthly) {
-    impliedMax = Math.round(fpMaxPrice(maxMonthly, apr, 60) / 100) * 100;
-    price = Math.min(price, impliedMax);
+  const vehicleLabel = finVehicle
+    ? `${finVehicle.year} ${finVehicle.make} ${finVehicle.model} ${finVehicle.trim}`
+    : null;
+  if (finVehicle) {
+    price = finVehicle.price;
+    if (maxMonthly) impliedMax = Math.round(fpMaxPrice(maxMonthly, apr, 60) / 100) * 100;
+  } else {
+    price = budget || approved || 25000;
+    if (maxMonthly) {
+      impliedMax = Math.round(fpMaxPrice(maxMonthly, apr, 60) / 100) * 100;
+      price = Math.min(price, impliedMax);
+    }
   }
+
+  renderFinanceVehicleBanner();
+  wireFinancePageLinks(finVehicle);
+  document.querySelectorAll('#fin-apply-cta, #fin-apply-cta-prep').forEach(el => {
+    el.href = financeVehicleHref('finance-confirmation.html', finVehicle);
+  });
 
   // Live "AI is generating" placeholder, then reveal the personalized content.
   const fpGen = (el, delay, buildHtml) => {
@@ -2162,24 +2901,33 @@ function initFinancePrep() {
 
   // AI byline shown on each generated card, drawn from the participant profile.
   const bits = [];
+  if (vehicleLabel) bits.push(vehicleLabel + ' · ' + formatPrice(price));
   if (tier) bits.push(tier + ' credit');
   if (budget) bits.push('~' + formatPrice(budget) + ' budget');
   if (maxMonthly) bits.push('~' + formatPrice(maxMonthly) + '/mo target');
   const profileLine = bits.join(' · ');
   const byline = profileLine
     ? `<i class="fa-solid fa-wand-magic-sparkles"></i> Generated for you · <span>${profileLine}</span>`
-    : '<i class="fa-solid fa-wand-magic-sparkles"></i> AI-generated for your visit';
-  ['fp-numbers-byline', 'fp-questions-byline', 'fp-lenders-byline'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.innerHTML = byline;
-  });
+    : '<i class="fa-solid fa-wand-magic-sparkles"></i> DriveClear Insights for your visit';
+  setInsightByline('fp-numbers-byline', byline, 'financeNumbers');
+  setInsightByline('fp-questions-byline', byline, 'financeQuestions');
+  if (document.getElementById('fp-lenders-byline')) {
+    setInsightByline('fp-lenders-byline', byline, 'financeLenders');
+  }
 
   // ── 1. "Know your numbers" — interactive payment explorer ──
   const numbersEl = document.getElementById('fp-numbers-body');
   const takeawayEl = document.getElementById('fp-numbers-takeaway');
   const mo60 = calcMonthly(price, 0, apr, 60);
   const tierLabel = tier ? ` · ${tier} credit` : '';
-  const priceLabel = (budget || approved || maxMonthly) ? formatPrice(price) : '$25,000';
+  const priceLabel = finVehicle
+    ? `${vehicleLabel} (${formatPrice(price)})`
+    : ((budget || approved || maxMonthly) ? formatPrice(price) : '$25,000');
+  const priceNumLabel = finVehicle
+    ? "This vehicle's list price — negotiate out-the-door around this number"
+    : (maxMonthly
+      ? `Your ceiling at ${formatPrice(maxMonthly)}/mo — keep the out-the-door price under this`
+      : "The most you're approved to finance — keep the out-the-door price under this");
   const downMax = Math.max(5000, Math.round((price * 0.3) / 500) * 500);
 
   if (numbersEl) {
@@ -2218,7 +2966,7 @@ function initFinancePrep() {
           </div>
           <div class="fp-num">
             <div class="fp-num-v">${formatPrice(price)}</div>
-            <div class="fp-num-l">${maxMonthly ? `Your ceiling at ${formatPrice(maxMonthly)}/mo — keep the out-the-door price under this` : "The most you're approved to finance — keep the out-the-door price under this"}</div>
+            <div class="fp-num-l">${priceNumLabel}</div>
           </div>
         </div>
         <div class="fp-afford">
@@ -2275,7 +3023,11 @@ function initFinancePrep() {
   // AI "my take" — a short reasoning callout tuned to the credit tier.
   if (takeawayEl) {
     let take;
-    if (tier === 'great' || tier === 'good')
+    if (finVehicle && (tier === 'great' || tier === 'good'))
+      take = `Your ${apr}% pre-qual rate applies to this ${vehicleLabel} — anchor on ${formatPrice(price)} out-the-door (~${formatPrice(mo60)}/mo at 60 mo) so add-ons don't inflate the payment.`;
+    else if (finVehicle)
+      take = `For this ${vehicleLabel} at ${formatPrice(price)}, your ${apr}% estimate puts you around ${formatPrice(mo60)}/mo — focus on out-the-door price, not just the monthly.`;
+    else if (tier === 'great' || tier === 'good')
       take = `Your ${apr}% rate is already strong — make the dealer match or beat it, and keep the focus on the out-the-door price so add-ons don't creep into your ${formatPrice(mo60)}/mo.`;
     else if (tier === 'fair' || tier === 'poor')
       take = `At ${apr}%, a bigger down payment or a co-signer could lower your rate — ask what specifically moves you to a better tier before you sign.`;
@@ -2288,12 +3040,16 @@ function initFinancePrep() {
     }, 950);
   }
 
-  // ── 2. "Who we'd shop for you" — AI lender matching (finance confirmation only) ──
+  // ── 2. "Who we'd shop for you" — AI lender matching ──
   const lendersEl = document.getElementById('fp-lenders-body');
   const lendersTakeaway = document.getElementById('fp-lenders-takeaway');
-  if (mode === 'finance' && lendersEl) {
+  if (lendersEl) {
     const lenderPool = buildLenderPool(apr, price, tier, 60);
-    const lenderIntro = 'Based on your application, these are the lenders we\'d shop first — zero rate markups.';
+    const lenderIntro = mode === 'prequal'
+      ? (finVehicle
+        ? `Based on your pre-qualification for this ${vehicleLabel}, these are the lenders we'd shop when you're ready to finance — zero rate markups.`
+        : 'Based on your pre-qualification, these are the lenders we\'d shop when you\'re ready to finance — zero rate markups.')
+      : 'Based on your application, these are the lenders we\'d shop first — zero rate markups.';
     lendersEl.innerHTML = '<div class="fp-generating"><span class="pa-typing-dots"><span></span><span></span><span></span></span><span>Matching you with lenders in our network…</span></div>';
     setTimeout(() => {
       let priority = 'overall';
@@ -2304,10 +3060,16 @@ function initFinancePrep() {
         const top = ranked[0];
         const row = (l, i) => {
           const isTop = i === 0;
-          return `<div class="fm-lender${isTop ? ' fm-lender-top' : ''}">
-            ${isTop ? '<div class="fm-lender-badge"><i class="fa-solid fa-wand-magic-sparkles"></i> AI top pick</div>' : ''}
+          const badgeLabel = priority === 'local' && l.local
+            ? 'Local lender pick'
+            : 'DriveClear top pick';
+          const badgeIcon = priority === 'local' && l.local
+            ? 'fa-location-dot'
+            : 'fa-wand-magic-sparkles';
+          return `<div class="fm-lender${isTop ? ' fm-lender-top' : ''}${l.local ? ' fm-lender-local' : ''}">
+            ${isTop ? `<div class="fm-lender-badge"><i class="fa-solid ${badgeIcon}"></i> ${badgeLabel}</div>` : ''}
             <div class="fm-lender-head">
-              <strong>${l.name}</strong>
+              <strong>${l.name}${l.local ? ' <span class="fm-lender-local-tag">Local</span>' : ''}</strong>
               <span>${l.apr}% APR · ${formatPrice(l.monthly)}/mo</span>
             </div>
             <p class="fm-lender-why">${l.why}</p>
@@ -2332,6 +3094,7 @@ function initFinancePrep() {
                 <button type="button" data-priority="overall"${priority === 'overall' ? ' class="active"' : ''}>Best overall</button>
                 <button type="button" data-priority="rate"${priority === 'rate' ? ' class="active"' : ''}>Lowest rate</button>
                 <button type="button" data-priority="speed"${priority === 'speed' ? ' class="active"' : ''}>Fastest approval</button>
+                <button type="button" data-priority="local"${priority === 'local' ? ' class="active"' : ''}>Local lender</button>
               </div>
             </div>
           </div>
@@ -2375,7 +3138,9 @@ function initFinancePrep() {
         });
         if (lendersTakeaway) {
           const alt = ranked[1];
-          const take = priority === 'speed'
+          const take = priority === 'local'
+            ? `${top.name} is your best local option — a branch nearby if you want to sign in person. Still compare ${alt.name} on rate before you commit.`
+            : priority === 'speed'
             ? `${top.name} is your fastest path — but ask for ${alt.name} too if you want to compare the rate before you sign.`
             : priority === 'rate'
               ? `${top.name} leads on APR at ${top.apr}% — if the dealer pushes their in-house lender, you already know the number to beat.`
@@ -2548,10 +3313,9 @@ function initTestDrivePrep(v) {
   const visit = getVisitContext();
   const title = `${v.year} ${v.make} ${v.model}`;
   const byline = `<i class="fa-solid fa-wand-magic-sparkles"></i> Personalized for · <span>${title} · ${formatMileage(v.mileage)} · ${v.drivetrain}</span>`;
-  ['td-visit-byline', 'td-tips-byline', 'td-plans-byline'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.innerHTML = byline;
-  });
+  setInsightByline('td-visit-byline', byline, 'testDriveVisit');
+  setInsightByline('td-tips-byline', byline, 'testDriveTips');
+  setInsightByline('td-plans-byline', byline, 'testDrivePlans');
 
   const tdGen = (el, delay, buildHtml) => {
     if (!el) return;
@@ -2852,10 +3616,9 @@ function initTradePrep() {
 
   // ── Shared AI byline + generating reveal ──
   const byline = `<i class="fa-solid fa-wand-magic-sparkles"></i> Based on your car · <span>${car.year} ${car.make} ${car.model} · ${Math.round(car.mileage / 1000)}k mi · ${car.condition} condition</span>`;
-  ['tp-offer-byline', 'tp-timing-byline', 'tp-compare-byline'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.innerHTML = byline;
-  });
+  setInsightByline('tp-offer-byline', byline, 'tradeOffer');
+  setInsightByline('tp-timing-byline', byline, 'tradeTiming');
+  setInsightByline('tp-compare-byline', byline, 'tradeCompare');
   const tpGen = (el, delay, buildHtml) => {
     if (!el) return;
     el.innerHTML = '<div class="fp-generating"><span class="pa-typing-dots"><span></span><span></span><span></span></span><span>Analyzing your vehicle…</span></div>';
@@ -3121,9 +3884,16 @@ function vehicleDistance(v) {
 }
 
 function paramMatches(v, P) {
-  if (P.make && v.make !== P.make) return false;
+  if (P.make) {
+    const makes = [].concat(P.make);
+    if (makes.length && !makes.includes(v.make)) return false;
+  }
   if (P.body && v.body !== P.body) return false;
   if (P.drive && v.drivetrain !== P.drive) return false;
+  if (P.model && !v.model.toLowerCase().includes(String(P.model).toLowerCase())) return false;
+  if (P.trim && !v.trim.toLowerCase().includes(String(P.trim).toLowerCase())) return false;
+  if (P.condition && P.condition.length && !P.condition.includes(vehicleCondition(v))) return false;
+  if (P.locations && P.locations.length && !P.locations.includes(v.location)) return false;
   if (P.maxPrice && v.price > P.maxPrice) return false;
   if (P.maxMiles && v.mileage > P.maxMiles) return false;
   if (P.year && v.year !== P.year) return false;
@@ -3162,6 +3932,8 @@ function paramHref(P) {
   if (P.make) [].concat(P.make).forEach(m => u.append('make', m));
   if (P.body) u.set('body', P.body);
   if (P.drive) u.set('drive', P.drive);
+  if (P.model) u.set('model', P.model);
+  if (P.trim) u.set('trim', P.trim);
   if (P.maxPrice) u.set('maxPrice', P.maxPrice);
   if (P.maxMiles) u.set('maxMiles', P.maxMiles);
   if (P.year) { u.set('minYear', P.year); u.set('maxYear', P.year); }
@@ -3169,6 +3941,8 @@ function paramHref(P) {
   if (P.maxYear) u.set('maxYear', P.maxYear);
   if (P.minMpg) u.set('minMpg', P.minMpg);
   if (P.maxDist) u.set('maxDist', P.maxDist);
+  if (P.region) u.set('region', P.region);
+  [].concat(P.condition || []).forEach(c => u.append('condition', c));
   if (P.sort) u.set('sort', P.sort);
   return 'srp.html?' + u.toString();
 }

@@ -23,11 +23,17 @@ function loadDriveClear() {
     this.Profile = typeof Profile !== 'undefined' ? Profile : null;
   `, sandbox);
   if (sandbox.Profile?.applyToInventory) sandbox.Profile.applyToInventory();
+  if (sandbox.Profile?.syncPickLocations) sandbox.Profile.syncPickLocations();
   return sandbox;
 }
 
 function vehicleDistance(v) {
   return ((v.id * 7) % 12) * 9 + 6;
+}
+
+function vehicleCondition(v) {
+  if (v.condition === 'new' || v.condition === 'used') return v.condition;
+  return 'used';
 }
 
 function srpStateFromProfile(Profile) {
@@ -36,6 +42,10 @@ function srpStateFromProfile(Profile) {
     make: [].concat(pp.make || []),
     body: pp.body ? [pp.body] : [],
     drive: pp.drive ? (Array.isArray(pp.drive) ? pp.drive : [pp.drive]) : [],
+    model: pp.model || '',
+    trim: pp.trim || '',
+    condition: [].concat(pp.condition || []),
+    locations: [].concat(pp.locations || []),
     minPrice: 0,
     maxPrice: pp.maxPrice || 50000,
     maxMiles: pp.maxMiles || 100000,
@@ -52,6 +62,10 @@ function filterSRP(VEHICLES, state) {
     if (state.make.length && !state.make.includes(v.make)) return false;
     if (state.body.length && !state.body.includes(v.body)) return false;
     if (state.drive.length && !state.drive.includes(v.drivetrain)) return false;
+    if (state.model && !v.model.toLowerCase().includes(state.model.toLowerCase())) return false;
+    if (state.trim && !v.trim.toLowerCase().includes(state.trim.toLowerCase())) return false;
+    if (state.condition.length && !state.condition.includes(vehicleCondition(v))) return false;
+    if (state.locations.length && !state.locations.includes(v.location)) return false;
     if (v.price < state.minPrice || v.price > state.maxPrice) return false;
     if (v.mileage > state.maxMiles) return false;
     if (v.year < state.minYear || v.year > state.maxYear) return false;
@@ -70,12 +84,16 @@ function buildSrpUrl(state) {
   state.make.forEach(m => u.append('make', m));
   state.body.forEach(b => u.set('body', b));
   state.drive.forEach(d => u.set('drive', d));
-  if (state.maxPrice < 50000) u.set('maxPrice', state.maxPrice);
+  if (state.model) u.set('model', state.model);
+  if (state.trim) u.set('trim', state.trim);
+  if (state.maxPrice < 100000) u.set('maxPrice', state.maxPrice);
   if (state.maxMiles < 100000) u.set('maxMiles', state.maxMiles);
   if (state.minYear > 2010) u.set('minYear', state.minYear);
-  if (state.maxYear < 2024) u.set('maxYear', state.maxYear);
+  if (state.maxYear && state.maxYear !== 2024) u.set('maxYear', state.maxYear);
   if (state.minMpg) u.set('minMpg', state.minMpg);
   if (state.maxDist) u.set('maxDist', state.maxDist);
+  state.condition.forEach(c => u.append('condition', c));
+  if (state.locations.length) u.set('region', 'DFW');
   const qs = u.toString();
   return qs ? `srp.html?${qs}` : 'srp.html';
 }

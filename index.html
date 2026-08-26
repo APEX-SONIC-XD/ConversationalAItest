@@ -25,6 +25,7 @@
     </form>
     <ul class="nav-links" role="list">
       <li><a href="srp.html">Used Cars</a></li>
+      <li><a href="favorites.html" class="nav-favorites-link">Favorites<span class="nav-fav-count" hidden></span></a></li>
       <li><a href="sell-trade.html">Sell / Trade</a></li>
       <li><a href="financing.html">Financing</a></li>
     </ul>
@@ -38,6 +39,7 @@
 
 <nav class="mobile-nav" aria-label="Mobile navigation">
   <a href="srp.html">Used Cars</a>
+  <a href="favorites.html" class="nav-favorites-link">Favorites<span class="nav-fav-count" hidden></span></a>
   <a href="sell-trade.html">Sell / Trade</a>
   <a href="financing.html">Financing</a>
 </nav>
@@ -119,12 +121,12 @@
 </section>
 
 <!-- ═══════════════════════ AI RECOMMENDATIONS ═══════════════════════ -->
-<section class="section ai-rec" aria-label="AI recommendations for your appointment">
+<section class="section ai-rec" aria-label="DriveClear Insights recommendations for your appointment">
   <div class="container">
     <div class="ai-rec-banner">
       <div class="ai-rec-banner-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
       <div class="ai-rec-banner-text">
-        <div class="ai-rec-eyebrow">DriveClear Assistant · Personalized</div>
+        <div class="ai-rec-eyebrow">DriveClear Insights · Personalized</div>
         <h2 class="ai-rec-title" id="ai-rec-title">Matches for your visit</h2>
         <p class="ai-rec-sub" id="ai-rec-sub"></p>
       </div>
@@ -335,35 +337,6 @@
     </div>
   </div>
 </footer>
-
-<!-- ═══════════════════════ AI DETAIL MODAL ═══════════════════════ -->
-<div class="aidx" id="ai-detail" hidden role="dialog" aria-modal="true" aria-label="AI vehicle details">
-  <div class="aidx-backdrop" id="ai-detail-backdrop"></div>
-  <div class="aidx-panel">
-    <div class="aidx-head">
-      <div class="aidx-head-title">
-        <div class="aidx-avatar"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
-        <div>
-          <div class="aidx-name" id="aidx-name">Vehicle</div>
-          <div class="aidx-status"><span class="aidx-dot"></span> DriveClear Assistant</div>
-        </div>
-      </div>
-      <button type="button" class="aidx-close" id="ai-detail-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
-    </div>
-
-    <div class="aidx-body" id="aidx-body">
-      <!-- populated by JS -->
-    </div>
-
-    <div class="aidx-chips" id="aidx-chips" aria-label="Ask the assistant"></div>
-
-    <form class="aidx-input-row" id="aidx-form">
-      <input type="text" class="aidx-input" id="aidx-input" placeholder="Ask about this car…" autocomplete="off" aria-label="Ask about this car">
-      <button type="submit" class="aidx-send" aria-label="Send"><i class="fa-solid fa-arrow-up"></i></button>
-    </form>
-    <div class="aidx-foot"><i class="fa-solid fa-shield-halved"></i> AI-assisted summary · fake demo data</div>
-  </div>
-</div>
 
 <script src="js/inventory.js"></script>
 <script src="js/profile.js"></script>

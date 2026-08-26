@@ -626,15 +626,97 @@ const BASE_VEHICLES = [
     images: [SKETCH_IMG, SKETCH_IMG, SKETCH_IMG],
     description: 'Standout safety scores and a calm, upscale cabin. The mild-hybrid B5 AWD is smooth, efficient, and quietly quick — lowest price on many shortlists.',
     location: 'Fort Collins, CO'
+  },
+  {
+    id: 40, stockNum: 'DC10040', vin: '1G1Y72D45M5101234',
+    year: 2022, make: 'Chevrolet', model: 'Corvette', trim: 'Stingray 1LT',
+    body: 'Coupe', extColor: 'Arctic White', intColor: 'Jet Black',
+    price: 68990, mileage: 12400, mpgCity: 16, mpgHwy: 24,
+    engine: '6.2L V8 LT2', hp: 495,
+    transmission: '8-Speed Dual-Clutch Auto', drivetrain: 'RWD',
+    owners: 1, accidentFree: true,
+    dealBadge: 'great-deal', dealLabel: 'Great Deal', marketSavings: 3200,
+    features: ['12" Digital Cluster','Apple CarPlay / Android Auto','Performance Data Recorder',
+      'GT1 Bucket Seats','Rear Vision Camera','Magnetic Ride Control',
+      'Brembo Brakes','Launch Control','Keyless Open & Start','LED Headlamps'],
+    images: [SKETCH_IMG, SKETCH_IMG, SKETCH_IMG],
+    description: 'Mid-engine C8 Stingray with only 12,400 miles — 495 hp, magnetic ride, and the weekend-car drama you were picturing. One owner, clean history, ready for Sunday back roads.',
+    location: 'Denver, CO'
+  },
+  {
+    id: 41, stockNum: 'DC10041', vin: '1G1Y72D47P3123456',
+    year: 2023, make: 'Chevrolet', model: 'Corvette', trim: 'Stingray 1LT',
+    body: 'Coupe', extColor: 'Hypersonic Gray Metallic', intColor: 'Jet Black',
+    price: 72990, mileage: 10500, mpgCity: 16, mpgHwy: 24,
+    engine: '6.2L V8 LT2', hp: 495,
+    transmission: '8-Speed Dual-Clutch Auto', drivetrain: 'RWD',
+    owners: 1, accidentFree: true,
+    dealBadge: 'great-deal', dealLabel: 'Great Deal', marketSavings: 2100,
+    features: ['12" Digital Cluster','Wireless Apple CarPlay / Android Auto','Performance Data Recorder',
+      'GT1 Bucket Seats','Magnetic Ride Control','Rear Vision Camera',
+      'Brembo Brakes','Launch Control','Keyless Open & Start','LED Headlamps'],
+    images: [SKETCH_IMG, SKETCH_IMG, SKETCH_IMG],
+    description: 'One-owner 2023 Stingray 1LT — same 495 hp LT2 V8 with wireless CarPlay added mid-cycle. Magnetic ride, low miles, and a sweet spot between early 2022 pricing and 2024 2LT premiums.',
+    location: 'Aurora, CO'
+  },
+  {
+    id: 42, stockNum: 'DC10042', vin: '1G1Y72D48R5123456',
+    year: 2024, make: 'Chevrolet', model: 'Corvette', trim: 'Stingray 2LT',
+    body: 'Coupe', extColor: 'Torch Red', intColor: 'Jet Black/Natural',
+    price: 78490, mileage: 8200, mpgCity: 16, mpgHwy: 24,
+    engine: '6.2L V8 LT2', hp: 495,
+    transmission: '8-Speed Dual-Clutch Auto', drivetrain: 'RWD',
+    owners: 1, accidentFree: true,
+    dealBadge: null, dealLabel: null, marketSavings: 0,
+    features: ['Wireless Apple CarPlay / Android Auto','12" Digital Cluster','Head-Up Display',
+      'GT2 Bucket Seats','Front Lift','Magnetic Ride Control','Performance Data Recorder',
+      'Brembo Brakes','Launch Control','Heated Steering Wheel','Front Camera Lift System'],
+    images: [SKETCH_IMG, SKETCH_IMG, SKETCH_IMG],
+    description: 'Nearly new 2024 Stingray 2LT — same 495 hp LT2 V8 as earlier C8s, but with the revised interior, wireless CarPlay, and 2LT comfort upgrades. Low miles, one owner.',
+    location: 'Plano, TX'
+  },
+  {
+    id: 43, stockNum: 'DC10043', vin: '1G1Y72D48R5012345',
+    year: 2024, make: 'Chevrolet', model: 'Corvette', trim: 'Stingray 2LT',
+    body: 'Coupe', extColor: 'Arctic White', intColor: 'Jet Black/Natural',
+    condition: 'new',
+    price: 82490, mileage: 18, mpgCity: 16, mpgHwy: 24,
+    engine: '6.2L V8 LT2', hp: 495,
+    transmission: '8-Speed Dual-Clutch Auto', drivetrain: 'RWD',
+    owners: 0, accidentFree: true,
+    dealBadge: null, dealLabel: null, marketSavings: 0,
+    features: ['Wireless Apple CarPlay / Android Auto','12" Digital Cluster','Head-Up Display',
+      'GT2 Bucket Seats','Front Lift','Magnetic Ride Control','Performance Data Recorder',
+      'Brembo Brakes','Launch Control','Heated Steering Wheel','Front Camera Lift System'],
+    images: [SKETCH_IMG, SKETCH_IMG, SKETCH_IMG],
+    description: 'Brand-new 2024 Corvette Stingray 2LT — delivery miles only, full factory warranty, revised C8 interior with wireless CarPlay and GT2 seats. Ready for your first Sunday drive.',
+    location: 'Denver, CO'
+  },
+  {
+    id: 44, stockNum: 'DC10044', vin: '1G1Y72D49S6123456',
+    year: 2026, make: 'Chevrolet', model: 'Corvette', trim: 'Stingray 2LT',
+    body: 'Coupe', extColor: 'Caffeine Metallic', intColor: 'Jet Black/Natural',
+    condition: 'new',
+    price: 84990, mileage: 12, mpgCity: 16, mpgHwy: 24,
+    engine: '6.2L V8 LT2', hp: 495,
+    transmission: '8-Speed Dual-Clutch Auto', drivetrain: 'RWD',
+    owners: 0, accidentFree: true,
+    dealBadge: null, dealLabel: null, marketSavings: 0,
+    features: ['Wireless Apple CarPlay / Android Auto','12" Digital Cluster','Head-Up Display',
+      'GT2 Bucket Seats','Front Lift','Magnetic Ride Control','Performance Data Recorder',
+      'Brembo Brakes','Launch Control','Heated Steering Wheel','Z51 Performance Package'],
+    images: [SKETCH_IMG, SKETCH_IMG, SKETCH_IMG],
+    description: 'Brand-new 2026 Corvette Stingray 2LT on the lot — delivery miles only, full factory warranty, Z51 performance package. The latest C8 interior and tech, ready for your first Sunday drive.',
+    location: 'Denver, CO'
   }
 ];
 
 // Expand the seed catalog into a full lot for the SRP — duplicates templates
 // with unique ids, stock numbers, and light price/mileage variation.
 const LOT_LOCATIONS = [
-  'Denver, CO', 'Aurora, CO', 'Englewood, CO', 'Littleton, CO',
-  'Lakewood, CO', 'Boulder, CO', 'Fort Collins, CO', 'Colorado Springs, CO',
-  'Westminster, CO', 'Arvada, CO',
+  'Dallas, TX', 'Fort Worth, TX', 'Plano, TX', 'Irving, TX',
+  'Arlington, TX', 'Frisco, TX', 'Garland, TX', 'McKinney, TX',
+  'Carrollton, TX', 'Richardson, TX',
 ];
 
 const COPIES_PER_VEHICLE = 10;
@@ -652,9 +734,12 @@ function expandInventory(templates, copiesPerTemplate) {
         id: nextId++,
         stockNum: 'DC' + stockIdx,
         vin: tpl.vin.slice(0, 12) + String(copy).padStart(5, '0'),
-        mileage: Math.max(8000, tpl.mileage + mileageBump - 1500),
+        mileage: tpl.condition === 'new'
+          ? Math.max(3, tpl.mileage + copy * 6)
+          : Math.max(8000, tpl.mileage + mileageBump - 1500),
         price: Math.max(16000, tpl.price + priceSwing),
-        location: LOT_LOCATIONS[(ti + copy) % LOT_LOCATIONS.length],
+        location: tpl.location || LOT_LOCATIONS[(ti + copy) % LOT_LOCATIONS.length],
+        pinLocation: !!tpl.location,
         features: tpl.features.slice(),
         images: tpl.images.slice(),
       });
@@ -697,6 +782,10 @@ function findVehicleForPick(pick) {
     return true;
   });
   if (!pool.length) return null;
+  if (pick.location) {
+    const atLoc = pool.filter(v => v.location === pick.location);
+    if (atLoc.length) pool = atLoc;
+  }
   if (typeof Profile !== 'undefined' && Profile.primaryLotCity) {
     const primary = Profile.primaryLotCity();
     if (primary) {

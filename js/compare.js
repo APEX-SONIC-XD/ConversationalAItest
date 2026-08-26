@@ -25,6 +25,8 @@ document.addEventListener('DOMContentLoaded', () => {
     miles: { dir: 'min', label: 'lowest mileage',     phrase: c => c.miles.toLocaleString() + ' mi' },
     dist:  { dir: 'min', label: 'closest dealer',     phrase: c => (c.dist === 0 ? 'at your dealer' : c.dist + ' min away') },
     value: { dir: 'max', label: 'best value vs market', phrase: c => (c.value ? '$' + c.value.toLocaleString() + ' below market' : 'at market') },
+    reliability: { dir: 'max', label: 'best reliability', phrase: c => c.reliability + '/5' },
+    tco5yr: { dir: 'min', label: 'lowest 5-yr maintenance', phrase: c => '$' + c.tco5yr.toLocaleString() + ' est.' },
   };
 
   const originalFoot = foot.innerHTML;
@@ -51,6 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (/low mile|fewest mile|least mile|lowest mile|odometer|new(est)?\b/.test(t)) add('miles');
     if (/close|closest|nearest|near me|nearby|distance|local|short drive/.test(t)) add('dist');
     if (/value|deal|below market|discount|bang for|worth/.test(t)) add('value');
+    if (/reliab|depend|trust|last|maint|upkeep|repair|service cost|tco|ownership cost/.test(t)) { add('reliability'); add('tco5yr'); }
 
     return found;
   }
@@ -87,7 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (th) {
       const badge = document.createElement('div');
       badge.className = 'xdc-rec-badge';
-      badge.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> AI pick';
+      badge.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> DriveClear pick';
       th.appendChild(badge);
     }
   }
@@ -106,7 +109,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const metrics = parseMetrics(text);
     if (!metrics.length) {
-      push('ai', `I can re-rank these on price, fuel economy, horsepower, 0–60, mileage, dealer distance, or overall value. Try <em>“cheapest with good mpg”</em> or <em>“most fun to drive.”</em>`);
+      push('ai', `I can re-rank these on price, fuel economy, horsepower, 0–60, mileage, dealer distance, reliability, maintenance cost, or overall value. Try <em>“lowest upkeep with good reliability”</em> or <em>“most fun to drive.”</em>`);
       return;
     }
 
@@ -120,7 +123,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return `${METRICS[m].phrase(winner)}${tag}`;
     }).join(', ');
 
-    foot.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles"></i> Based on <strong>${priorityLabels}</strong>, the AI pick is <strong>${winner.name}</strong> — ${reasons}.`;
+    foot.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles"></i> Based on <strong>${priorityLabels}</strong>, the DriveClear pick is <strong>${winner.name}</strong> — ${reasons}.${typeof insightSourcesHtml === 'function' ? insightSourcesHtml(resolveInsightSources('compare'), { compact: true }) : ''}`;
     push('ai', `For <strong>${priorityLabels}</strong>, I'd go with the <strong>${winner.name}</strong>. I've highlighted it in the table and updated the analysis below.`);
   }
 
@@ -141,7 +144,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const winner = scoreCars(profilePriors)[0];
     highlightColumn(winner.col);
     const priorityLabels = profilePriors.map(m => METRICS[m].label).join(' + ');
-    foot.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles"></i> Based on <strong>${priorityLabels}</strong>, the AI pick is <strong>${winner.name}</strong>.`;
+    foot.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles"></i> Based on <strong>${priorityLabels}</strong>, the DriveClear pick is <strong>${winner.name}</strong>.${typeof insightSourcesHtml === 'function' ? insightSourcesHtml(resolveInsightSources('compare'), { compact: true }) : ''}`;
     push('ai', `Based on what you've shared (<strong>${priorityLabels}</strong>), I'd start with the <strong>${winner.name}</strong> — highlighted in the table. Tell me to weigh anything differently.`);
   } else {
     push('ai', `Want a recommendation? Tell me what matters most and I'll re-rank these — e.g. <em>“I want the cheapest with good gas mileage.”</em>`);

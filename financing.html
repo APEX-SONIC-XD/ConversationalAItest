@@ -24,6 +24,7 @@
     </form>
     <ul class="nav-links">
       <li><a href="srp.html">Used Cars</a></li>
+      <li><a href="favorites.html" class="nav-favorites-link">Favorites<span class="nav-fav-count" hidden></span></a></li>
       <li><a href="sell-trade.html">Sell / Trade</a></li>
       <li><a href="financing.html" class="active">Financing</a></li>
     </ul>
@@ -38,6 +39,7 @@
 <nav class="mobile-nav">
   <a href="index.html">Home</a>
   <a href="srp.html">Used Cars</a>
+  <a href="favorites.html" class="nav-favorites-link">Favorites<span class="nav-fav-count" hidden></span></a>
   <a href="sell-trade.html">Sell / Trade</a>
   <a href="financing.html">Financing</a>
 </nav>
@@ -51,7 +53,7 @@
       <p class="page-hero-sub">Start with a no-obligation pre-qualification to explore your budget, or move straight to full financing when you're ready to buy. No dealer markups on either path.</p>
       <div style="display:flex;gap:12px;margin-top:28px;flex-wrap:wrap">
         <a href="prequal-confirmation.html" class="btn btn-primary btn-lg"><i class="fa-solid fa-magnifying-glass-dollar"></i> Pre-Qualification</a>
-        <a href="finance-confirmation.html" class="btn btn-outline btn-lg" style="border-color:rgba(255,255,255,0.4);color:#fff"><i class="fa-solid fa-file-signature"></i> Apply to Finance</a>
+        <a href="finance-confirmation.html" class="btn btn-outline btn-lg fin-apply-gated" style="border-color:rgba(255,255,255,0.4);color:#fff"><i class="fa-solid fa-file-signature"></i> Apply to Finance</a>
       </div>
       <div class="page-hero-stats">
         <div>
@@ -79,6 +81,8 @@
       <h2 class="section-title">Pre-Qual or Finance?</h2>
       <p class="section-sub">Both paths are transparent and fee-free. Pick the one that matches where you are in your car-buying journey.</p>
     </div>
+
+    <div id="fin-vehicle-banner" class="fin-vehicle-banner fin-vehicle-banner--options" hidden></div>
 
     <div class="fin-path-grid">
       <article class="fin-path-card featured" id="prequal">
@@ -150,7 +154,10 @@
           </div>
         </div>
         <p class="fin-path-best"><strong>Best for:</strong> You've found the car you want and you're ready to finalize your loan, trade-in, and purchase details.</p>
-        <a href="finance-confirmation.html" class="btn btn-dark btn-block btn-lg" style="margin-top:20px"><i class="fa-solid fa-file-signature"></i> Apply to Finance</a>
+        <p class="fin-apply-lock-notice" id="fin-apply-lock-notice" hidden>
+          <i class="fa-solid fa-lock"></i> Complete pre-qualification first to unlock full financing.
+        </p>
+        <a href="finance-confirmation.html" class="btn btn-dark btn-block btn-lg fin-apply-gated" style="margin-top:20px"><i class="fa-solid fa-file-signature"></i> Apply to Finance</a>
       </article>
     </div>
   </div>

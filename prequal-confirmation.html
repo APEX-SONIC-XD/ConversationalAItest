@@ -24,6 +24,7 @@
     </form>
     <ul class="nav-links">
       <li><a href="srp.html">Used Cars</a></li>
+      <li><a href="favorites.html" class="nav-favorites-link">Favorites<span class="nav-fav-count" hidden></span></a></li>
       <li><a href="sell-trade.html">Sell / Trade</a></li>
       <li><a href="financing.html" class="active">Financing</a></li>
     </ul>
@@ -38,6 +39,7 @@
 <nav class="mobile-nav">
   <a href="index.html">Home</a>
   <a href="srp.html">Used Cars</a>
+  <a href="favorites.html" class="nav-favorites-link">Favorites<span class="nav-fav-count" hidden></span></a>
   <a href="sell-trade.html">Sell / Trade</a>
   <a href="financing.html">Financing</a>
 </nav>
@@ -55,8 +57,13 @@
         Your pre-qualification is valid for <strong style="color:var(--text-dark)">30 days</strong>, so you can shop with confidence — no obligation to buy.
       </p>
 
+      <div id="fin-confirm-vehicle" class="fin-vehicle-banner fin-vehicle-banner--confirm" data-banner-label="Pre-qual or finance for this vehicle" hidden></div>
+
       <div style="display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:28px">
-        <a href="srp.html" class="btn btn-primary btn-lg">
+        <a href="finance-confirmation.html" id="fin-apply-cta" class="btn btn-primary btn-lg">
+          <i class="fa-solid fa-file-signature"></i> Apply to Finance
+        </a>
+        <a href="srp.html" class="btn btn-outline btn-lg">
           <i class="fa-solid fa-car"></i> Browse Cars in Your Budget
         </a>
         <a href="index.html" class="btn btn-ghost btn-lg">
@@ -75,7 +82,7 @@
 <div class="container">
   <section class="fin-prep" id="fin-prep" data-prep-mode="prequal" aria-label="Dealership finance prep">
     <div class="fin-prep-head">
-      <div class="section-tag"><i class="fa-solid fa-wand-magic-sparkles"></i> AI Finance Prep</div>
+      <div class="section-tag"><i class="fa-solid fa-wand-magic-sparkles"></i> DriveClear Finance Prep</div>
       <h2 class="section-title">Walk in ready for the finance conversation</h2>
       <p class="section-sub">A quick, personalized brief so the numbers and the jargon never catch you off guard at the dealership.</p>
     </div>
@@ -86,6 +93,18 @@
       <div id="fp-numbers-body"></div>
       <div class="fp-takeaway" id="fp-numbers-takeaway" hidden></div>
       <p class="calc-note">Estimates for illustration only — they give you a confident anchor for the conversation.</p>
+    </div>
+
+    <div class="info-card fp-card">
+      <h3 class="fin-prep-card-title"><i class="fa-solid fa-building-columns"></i> Who we'd shop for you</h3>
+      <div class="fp-ai-byline" id="fp-lenders-byline"></div>
+      <div id="fp-lenders-body"></div>
+      <div class="fp-takeaway" id="fp-lenders-takeaway" hidden></div>
+      <div style="margin-top:20px;text-align:center">
+        <a href="finance-confirmation.html" id="fin-apply-cta-prep" class="btn btn-dark btn-lg">
+          <i class="fa-solid fa-file-signature"></i> Apply to Finance
+        </a>
+      </div>
     </div>
 
     <div class="info-card fp-card">

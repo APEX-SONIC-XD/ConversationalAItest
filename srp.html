@@ -24,6 +24,7 @@
     </form>
     <ul class="nav-links">
       <li><a href="srp.html" class="active">Used Cars</a></li>
+      <li><a href="favorites.html" class="nav-favorites-link">Favorites<span class="nav-fav-count" hidden></span></a></li>
       <li><a href="sell-trade.html">Sell / Trade</a></li>
       <li><a href="financing.html">Financing</a></li>
     </ul>
@@ -38,6 +39,7 @@
 <nav class="mobile-nav">
   <a href="index.html">Home</a>
   <a href="srp.html">Used Cars</a>
+  <a href="favorites.html" class="nav-favorites-link">Favorites<span class="nav-fav-count" hidden></span></a>
   <a href="sell-trade.html">Sell / Trade</a>
   <a href="financing.html">Financing</a>
 </nav>
@@ -73,7 +75,7 @@
       <!-- Mode switch: AI conversation vs manual filters -->
       <div class="fp-mode-switch" role="tablist" aria-label="Filter mode">
         <button class="fp-mode-btn" type="button" data-mode="ai" role="tab" aria-selected="false">
-          <i class="fa-solid fa-wand-magic-sparkles"></i> Ask AI
+          <i class="fa-solid fa-wand-magic-sparkles"></i> DriveClear Insights
         </button>
         <button class="fp-mode-btn active" type="button" data-mode="manual" role="tab" aria-selected="true">
           <i class="fa-solid fa-sliders"></i> Filters
@@ -85,7 +87,7 @@
         <div class="fp-chat-head">
           <div class="fp-chat-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
           <div>
-            <div class="fp-chat-title">Shop with AI</div>
+            <div class="fp-chat-title">Shop with DriveClear Insights</div>
             <div class="fp-chat-sub">Describe your ideal car</div>
           </div>
         </div>
@@ -114,6 +116,26 @@
           Make <i class="fa-solid fa-chevron-down"></i>
         </div>
         <div class="fp-opts" id="fp-make-opts"></div>
+      </div>
+
+      <!-- Model -->
+      <div class="fp-section">
+        <div class="fp-title" role="button" tabindex="0" aria-expanded="true">
+          Model <i class="fa-solid fa-chevron-down"></i>
+        </div>
+        <div class="fp-range">
+          <input class="fp-range-input" id="fp-model" type="text" placeholder="e.g. Corvette" style="width:100%" aria-label="Model">
+        </div>
+      </div>
+
+      <!-- Trim -->
+      <div class="fp-section">
+        <div class="fp-title" role="button" tabindex="0" aria-expanded="true">
+          Trim <i class="fa-solid fa-chevron-down"></i>
+        </div>
+        <div class="fp-range">
+          <input class="fp-range-input" id="fp-trim" type="text" placeholder="e.g. Stingray" style="width:100%" aria-label="Trim">
+        </div>
       </div>
 
       <!-- Body Style -->
@@ -149,9 +171,20 @@
         </div>
         <div class="fp-range">
           <div class="fp-range-row">
-            <input class="fp-range-input" id="fp-min-year" type="number" placeholder="From" value="2018" min="2010" max="2024" aria-label="Minimum year">
-            <input class="fp-range-input" id="fp-max-year" type="number" placeholder="To" value="2024" min="2010" max="2024" aria-label="Maximum year">
+            <input class="fp-range-input" id="fp-min-year" type="number" placeholder="From" value="2018" min="2010" max="2026" aria-label="Minimum year">
+            <input class="fp-range-input" id="fp-max-year" type="number" placeholder="To" value="2026" min="2010" max="2026" aria-label="Maximum year">
           </div>
+        </div>
+      </div>
+
+      <!-- Condition -->
+      <div class="fp-section">
+        <div class="fp-title" role="button" tabindex="0" aria-expanded="true">
+          Condition <i class="fa-solid fa-chevron-down"></i>
+        </div>
+        <div class="fp-opts">
+          <label class="fp-opt"><input type="checkbox" class="fp-condition" value="new"> New</label>
+          <label class="fp-opt"><input type="checkbox" class="fp-condition" value="used"> Used</label>
         </div>
       </div>
 
@@ -178,7 +211,18 @@
         <div class="fp-opts">
           <label class="fp-opt"><input type="checkbox" class="fp-drive" value="AWD"> AWD <span class="fp-opt-count">5</span></label>
           <label class="fp-opt"><input type="checkbox" class="fp-drive" value="FWD"> FWD <span class="fp-opt-count">6</span></label>
+          <label class="fp-opt"><input type="checkbox" class="fp-drive" value="RWD"> RWD <span class="fp-opt-count">0</span></label>
           <label class="fp-opt"><input type="checkbox" class="fp-drive" value="4WD"> 4WD <span class="fp-opt-count">1</span></label>
+        </div>
+      </div>
+
+      <!-- Location -->
+      <div class="fp-section">
+        <div class="fp-title" role="button" tabindex="0" aria-expanded="true">
+          Location <i class="fa-solid fa-chevron-down"></i>
+        </div>
+        <div class="fp-opts" id="fp-location-opts">
+          <label class="fp-opt"><input type="checkbox" class="fp-region" value="DFW"> Dallas–Fort Worth area</label>
         </div>
       </div>
 
